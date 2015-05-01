@@ -9,4 +9,5 @@ rename "%1.sublime-workspace" "%2.sublime-workspace"
 GOTO end
 :noargs
 echo Usage: renameproject.bat oldname newname
+echo Initial 'oldname' is 'nodeproject'.
 :end
