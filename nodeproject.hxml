@@ -1,6 +1,7 @@
 -lib js-kit
 -lib HaxeContracts
 -lib haxedci
+--macro npm.Package.export("package.json")
 -cp src 
 -debug
 -main Main
