@@ -1,0 +1,12 @@
+{
+  "name": "nodeproject",
+  "private": true,
+  "version": "0.1.0",
+  "description": "ADD DESCRIPTION",
+  "scripts": {
+    "start": "cd bin && nodemon nodeproject.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "You know who",
+  "license": "All Rights Reserved"
+}

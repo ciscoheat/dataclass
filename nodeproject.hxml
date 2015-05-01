@@ -1,0 +1,7 @@
+-lib js-kit
+-lib HaxeContracts
+-lib haxedci
+-cp src 
+-debug
+-main Main
+-js bin/nodeproject.js 
