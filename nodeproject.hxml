@@ -1,6 +1,7 @@
 -lib js-kit
 -lib HaxeContracts
 -lib haxedci
+-D dci-signatures-warnings
 --macro npm.Package.export("package.json")
 -cp src 
 -debug
