@@ -1,8 +1,10 @@
--lib js-kit
 -lib HaxeContracts
 -lib haxedci
+-lib buddy
+-lib slambda
 -D dci-signatures-warnings
 -cp src 
+-cp tests
 -debug
--main Main
+-main Tests
 -neko bin/nodeproject.n
