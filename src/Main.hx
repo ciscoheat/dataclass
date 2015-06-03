@@ -3,7 +3,6 @@ package;
 import haxecontracts.Contract;
 import haxecontracts.HaxeContracts;
 import haxedci.Context;
-import js.Lib;
 
 using Lambda;
 using StringTools;

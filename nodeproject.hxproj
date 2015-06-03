@@ -4,13 +4,13 @@
   <output>
     <movie outputType="Application" />
     <movie input="" />
-    <movie path="bin\nodeproject.js" />
+    <movie path="bin\nodeproject.n" />
     <movie fps="0" />
     <movie width="0" />
     <movie height="0" />
     <movie version="0" />
     <movie minorVersion="0" />
-    <movie platform="JavaScript" />
+    <movie platform="Neko" />
     <movie background="#FFFFFF" />
   </output>
   <!-- Other classes to be compiled into your SWF -->

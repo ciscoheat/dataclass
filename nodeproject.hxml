@@ -2,8 +2,7 @@
 -lib HaxeContracts
 -lib haxedci
 -D dci-signatures-warnings
---macro npm.Package.export("package.json")
 -cp src 
 -debug
 -main Main
--js bin/nodeproject.js 
+-neko bin/nodeproject.n
