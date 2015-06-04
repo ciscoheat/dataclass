@@ -20,19 +20,19 @@ class DefaultValue implements DataClass
 	public var city : String = "Nowhere";
 }
 
-/*
-class Combined implements DataClass
+class HasProperty implements DataClass
 {
-	// Not null, so id is required
-	public var id : Int;
-	
-	// Null value is ok
-	public var name : Null<String>;
-	
-	// Default value set if no other supplied
-	//public var city : String = "Nowhere";
+	// Should work on null properties
+	public var a(default, null) : String;
+
+	// Should work on default properties
+	public var b(default, default) : String;
 }
-*/
+
+class Child extends HasProperty
+{
+	public var child : Bool;
+}
 
 class Tests extends BuddySuite implements Buddy<[Tests]>
 {	
@@ -63,6 +63,32 @@ class Tests extends BuddySuite implements Buddy<[Tests]>
 				});
 				it("should be set to the supplied value if field value is supplied", {
 					new DefaultValue({city: "Somewhere"}).city.should.be("Somewhere");
+				});
+			});
+
+			describe("With property fields", {
+				it("should be set as with var fields", {
+					var prop = new HasProperty({
+						a: "A",
+						b: "B",
+					});
+					
+					prop.a.should.be('A');
+					prop.b.should.be('B');
+				});
+			});
+
+			describe("With a parent class", {
+				it("should inherit the required fields", {
+					var prop = new Child({
+						a: "A",
+						b: "B",
+						child: true
+					});
+					
+					prop.a.should.be('A');
+					prop.b.should.be('B');
+					prop.child.should.be(true);
 				});
 			});
 		});

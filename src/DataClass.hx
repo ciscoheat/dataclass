@@ -13,7 +13,8 @@ class DataClassBuilder {
 		if(f.access.has(AStatic) || !f.access.has(APublic)) return false;
 		return switch(f.kind) {
 			case FVar(_, _): true;
-			case FProp(_, set, _, _): ['default', 'set', 'dynamic'].has(set);
+			// TODO: Make it work with setters too
+			case FProp(_, set, _, _): set == "default" || set == "null";
 			case _: false;
 		}
 	}
@@ -63,13 +64,17 @@ class DataClassBuilder {
 			var def = data.def;
 			var opt = data.opt;
 			var name = f.name;
+			var clsName = cls.name;
 			
 			if(opt) macro this.$name = data.$name != null ? data.$name : $def;
 			else macro {
 				this.$name = data.$name != null ? data.$name : $def;
-				if(this.$name == null) throw "Field " + $v{name} + " required.";
+				if(this.$name == null) throw "Field " + $v{clsName} + "." + $v{name} + " was null.";
 			}
 		}];
+		
+		if (cls.superClass != null)
+			assignments.unshift(macro super(data));
 		
 		fields.push({
 			pos: cls.pos,
