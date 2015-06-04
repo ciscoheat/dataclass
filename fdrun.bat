@@ -1,4 +1,4 @@
 @echo off
 cd bin
-neko nodeproject.n
+neko dataclass.n
 pause
