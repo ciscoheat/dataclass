@@ -18,7 +18,6 @@ class Main {
 		// A Person can	now be created like this:
 		p = new Person({
 			id: 1,
-			name: null,
 			email: "test@example.com"			
 		});
 
