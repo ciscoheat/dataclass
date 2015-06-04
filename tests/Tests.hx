@@ -34,6 +34,11 @@ class Child extends HasProperty
 	public var child : Bool;
 }
 
+class Validator implements DataClass
+{
+	@val("\\d{4}-\\d\\d-\\d\\d") public var date : String;
+}
+
 class Tests extends BuddySuite implements Buddy<[Tests]>
 {	
 	public function new() {
@@ -91,6 +96,13 @@ class Tests extends BuddySuite implements Buddy<[Tests]>
 					prop.child.should.be(true);
 				});
 			});
+			
+			describe("With a string validator", {
+				it("should validate the whole string as an EReg", {
+					new Validator({ date: "2015-12-12" } );
+					(function() new Validator({	date: "AAA" })).should.throwType(String);
+				});
+			});			
 		});
 	}
 }

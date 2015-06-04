@@ -4,8 +4,9 @@ import haxe.macro.Expr;
 import haxe.macro.Type;
 
 using Lambda;
+using haxe.macro.ExprTools;
 
-@:autoBuild(DataClassBuilder.build()) interface DataClass {}
+@:autoBuild(DataClassBuilder.build()) interface DataClass { }
 
 class DataClassBuilder {
 	#if macro	
@@ -31,7 +32,7 @@ class DataClassBuilder {
 		// Fields aren't available on Context.getLocalClass().
 		// need to supply them here. They're available on the superclass though.
 		var publicFields = childAndParentFields(fields, cls).copy();
-		var fieldMap = new Map<Field, {opt: Bool, def: Expr}>();
+		var fieldMap = new Map<Field, {opt: Bool, def: Expr, val: String}>();
 
 		for (f in publicFields) {
 			// TODO: Allow fields with only a default value, no type
@@ -50,7 +51,13 @@ class DataClassBuilder {
 					macro null;
 			}
 			
-			fieldMap.set(f, {opt: opt, def: def});
+			var validator = f.meta.find(function(m) return m.name == "val");
+			
+			// TODO: String length validator (Integers)
+			// TODO: String default values (DATE = \\d{4}...)
+			var val = validator != null ? '^' + validator.params[0].getValue() + '$' : null;
+			
+			fieldMap.set(f, {opt: opt, def: def, val: val});
 
 			if(opt) f.meta.push({
 				pos: cls.pos,
@@ -59,19 +66,26 @@ class DataClassBuilder {
 			});
 		}
 		
-		var assignments = [for (f in publicFields) {
+		var assignments = [];
+		for (f in publicFields) {
 			var data = fieldMap.get(f);
 			var def = data.def;
 			var opt = data.opt;
+			var val = data.val;
 			var name = f.name;
 			var clsName = cls.name;
 			
-			if(opt) macro this.$name = data.$name != null ? data.$name : $def;
-			else macro {
-				this.$name = data.$name != null ? data.$name : $def;
-				if(this.$name == null) throw "Field " + $v{clsName} + "." + $v{name} + " was null.";
-			}
-		}];
+			assignments.push(macro this.$name = data.$name != null ? data.$name : $def);
+			
+			if (!opt) assignments.push(
+				macro if(this.$name == null) throw "Field " + $v{clsName} + "." + $v{name} + " was null."
+			);
+			
+			if (val != null) assignments.push(
+				macro if (!new EReg($v{val}, "").match(this.$name))
+					throw "Field " + $v{clsName} + "." + $v{name} + " failed validation " + $v{val}
+			);
+		};
 		
 		if (cls.superClass != null)
 			assignments.unshift(macro super(data));
