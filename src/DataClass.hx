@@ -20,14 +20,9 @@ class DataClassBuilder {
 		}
 	}
 
-	//static function publicVarName(f : Field) return f.name.charAt(0) != '_';
-
 	static public function build() : Array<Field> {
 		var fields = Context.getBuildFields();
 		var cls = Context.getLocalClass().get();
-
-		// TODO: Inject at the start of constructor
-		if(cls.constructor != null) return null;
 
 		// Fields aren't available on Context.getLocalClass().
 		// need to supply them here. They're available on the superclass though.
@@ -87,27 +82,41 @@ class DataClassBuilder {
 			);
 		};
 		
-		if (cls.superClass != null)
-			assignments.unshift(macro super(data));
+		var constructor = fields.find(function(f) return f.name == "new");
 		
-		fields.push({
-			pos: cls.pos,
-			name: 'new',
-			meta: [],
-			kind: FFun({
-				ret: null,
-				params: [],
-				expr: {expr: EBlock(assignments), pos: cls.pos},
-				args: [{
-					value: null,
-					type: TAnonymous(publicFields),
-					opt: true,
-					name: 'data'
-				}]
-			}),
-			doc: null,
-			access: [APublic]
-		});	
+		if (constructor == null) {
+			if (cls.superClass != null)
+				assignments.unshift(macro super(data));
+				
+			fields.push({
+				pos: cls.pos,
+				name: 'new',
+				meta: [],
+				kind: FFun({
+					ret: null,
+					params: [],
+					expr: {expr: EBlock(assignments), pos: cls.pos},
+					args: [{
+						value: null,
+						type: TAnonymous(publicFields),
+						opt: true,
+						name: 'data'
+					}]
+				}),
+				doc: null,
+				access: [APublic]
+			});				
+		} else {
+			switch constructor.kind {
+				case FFun(f):
+					switch f.expr.expr {
+						case EBlock(exprs): f.expr.expr = EBlock(assignments.concat(exprs));
+						case _: f.expr.expr = EBlock(assignments.concat([f.expr]));
+					}
+				case _: 
+					Context.error("Invalid constructor.", constructor.pos);
+			}
+		}
 
 		return fields;	
 	}

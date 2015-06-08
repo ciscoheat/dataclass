@@ -8,6 +8,17 @@ class RequireId implements DataClass
 	public var id : Int;
 }
 
+class IdWithConstructor implements DataClass
+{
+	public var id : Int;
+	
+	// Dataclass code will be injected before other things in the constructor.
+	public function new(data) {
+		// This value will be tested
+		this.id = 9876;
+	}
+}
+
 class AllowNull implements DataClass
 {
 	// Null value is ok
@@ -80,6 +91,17 @@ class Tests extends BuddySuite implements Buddy<[Tests]>
 					
 					prop.a.should.be('A');
 					prop.b.should.be('B');
+				});
+			});
+
+			describe("With an existing constructor", {
+				it("should inject the dataclass code at the top", {
+					var prop = new IdWithConstructor({
+						id: 1234
+					});
+					
+					// Set in constructor, below the dataclass code.
+					prop.id.should.be(9876);
 				});
 			});
 
