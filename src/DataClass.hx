@@ -5,6 +5,7 @@ import haxe.macro.Type;
 
 using Lambda;
 using haxe.macro.ExprTools;
+using StringTools;
 
 @:autoBuild(DataClassBuilder.build()) interface DataClass { }
 
@@ -27,12 +28,12 @@ class DataClassBuilder {
 		// Fields aren't available on Context.getLocalClass().
 		// need to supply them here. They're available on the superclass though.
 		var publicFields = childAndParentFields(fields, cls).copy();
-		var fieldMap = new Map<Field, {opt: Bool, def: Expr, val: String}>();
+		var fieldMap = new Map<Field, {opt: Bool, def: Expr, val: Expr}>();
 
 		for (f in publicFields) {
 			// TODO: Allow fields with only a default value, no type
 			var opt = switch f.kind {
-				case FVar(TPath(p), e) if (p.name == "Null"): true;
+				case FVar(TPath(p), _) if (p.name == "Null"): true;
 				case _: false;
 			}
 
@@ -46,13 +47,36 @@ class DataClassBuilder {
 					macro null;
 			}
 			
-			var validator = f.meta.find(function(m) return m.name == "val");
+			function createValidator(e : Expr) : Expr {
+				var output : Expr;
+				var name = f.name;
+				var clsName = cls.name;				
+				
+				function replaceParam(e : Expr) return switch e.expr { 
+					case EConst(CIdent("_")): macro this.$name;
+					case _: e.map(replaceParam);
+				}
+				
+				switch e.expr {
+					case EConst(CRegexp(r, opt)):
+						if (!r.startsWith('^')) r = '^' + r;
+						if (!r.endsWith("$")) r += "$";
+						output = macro new EReg($v{r}, $v{opt}).match(this.$name);
+					case _: 
+						output = replaceParam(e);
+				}
+				
+				e.expr = EConst(CString(e.toString()));
+				return macro if(!$output) throw "Field " + $v{clsName} + "." + $v{name} + ' failed validation "' + $e + '" with value "' + this.$name + '"';
+			}
 			
-			// TODO: String length validator (Integers)
-			// TODO: String default values (DATE = \\d{4}...)
-			var val = validator != null ? '^' + validator.params[0].getValue() + '$' : null;
+			var validator = f.meta.find(function(m) return m.name == "validate");
 			
-			fieldMap.set(f, {opt: opt, def: def, val: val});
+			fieldMap.set(f, {
+				opt: opt, 
+				def: def, 
+				val: validator == null ? null : createValidator(validator.params[0])
+			});
 
 			if(opt) f.meta.push({
 				pos: cls.pos,
@@ -76,10 +100,7 @@ class DataClassBuilder {
 				macro if(this.$name == null) throw "Field " + $v{clsName} + "." + $v{name} + " was null."
 			);
 			
-			if (val != null) assignments.push(
-				macro if (!new EReg($v{val}, "").match(this.$name))
-					throw "Field " + $v{clsName} + "." + $v{name} + " failed validation " + $v{val}
-			);
+			if (val != null) assignments.push(val);
 		};
 		
 		var constructor = fields.find(function(f) return f.name == "new");

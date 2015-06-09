@@ -47,7 +47,9 @@ class Child extends HasProperty
 
 class Validator implements DataClass
 {
-	@val("\\d{4}-\\d\\d-\\d\\d") public var date : String;
+	@validate(~/\d{4}-\d\d-\d\d/) public var date : String;
+	@validate(_.length > 2 && _.length < 9) public var str : String;
+	@validate(_ > 1000) public var int : Int;
 }
 
 class Tests extends BuddySuite implements Buddy<[Tests]>
@@ -118,11 +120,20 @@ class Tests extends BuddySuite implements Buddy<[Tests]>
 					prop.child.should.be(true);
 				});
 			});
-			
-			describe("With a string validator", {
-				it("should validate the whole string as an EReg", {
-					new Validator({ date: "2015-12-12" } );
-					(function() new Validator({	date: "AAA" })).should.throwType(String);
+
+			describe("Validators", {
+				it("should validate with @validate(...) expressions", function(done) {
+					new Validator({ date: "2015-12-12", str: "AAA", int: 1001 });
+					done();
+				});
+
+				it("should validate regexps as a ^...$ regexp.", {
+					(function() new Validator({	date: "*2015-12-12*", str: "AAA", int: 1001 })).should.throwType(String);
+				});
+
+				it("should replace _ with the value and validate", {
+					(function() new Validator({	date: "2015-12-12", str: "A", int: 1001 })).should.throwType(String);
+					(function() new Validator({	date: "2015-12-12", str: "AAA", int: 1 })).should.throwType(String);
 				});
 			});			
 		});
