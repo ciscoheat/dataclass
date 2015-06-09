@@ -29,11 +29,13 @@ class DataClassBuilder {
 		// need to supply them here. They're available on the superclass though.
 		var publicFields = childAndParentFields(fields, cls).copy();
 		var fieldMap = new Map<Field, {opt: Bool, def: Expr, val: Expr}>();
+		var stringConvert = cls.meta.has("convert") ? cls.meta.extract("convert")[0] : null;
 
 		for (f in publicFields) {
 			// TODO: Allow fields with only a default value, no type
 			var opt = switch f.kind {
 				case FVar(TPath(p), _) if (p.name == "Null"): true;
+				case FProp(_, _, TPath(p), _) if (p.name == "Null"): true;
 				case _: false;
 			}
 
@@ -60,7 +62,7 @@ class DataClassBuilder {
 				switch e.expr {
 					case EConst(CRegexp(r, opt)):
 						if (!r.startsWith('^')) r = '^' + r;
-						if (!r.endsWith("$")) r += "$";
+						if (!r.endsWith("$")) r += "$";						
 						output = macro new EReg($v{r}, $v{opt}).match(this.$name);
 					case _: 
 						output = replaceParam(e);
@@ -94,7 +96,36 @@ class DataClassBuilder {
 			var name = f.name;
 			var clsName = cls.name;
 			
-			assignments.push(macro this.$name = data.$name != null ? data.$name : $def);
+			var assignment = macro data.$name;
+			
+			if(stringConvert != null) switch f.kind {
+				case FVar(TPath(p), _) | FProp(_, _, TPath(p), _):
+					var typeName = switch p {
+						case { name: "Null", pack: _, params: [TPType(TPath( { name: n, pack: _, params: _ } ))] } :
+							n;
+						case _:
+							p.name;
+					};
+					
+					assignment = switch typeName {
+						case "Bool":
+							macro !(~/^(?:false|no|0|)$/i.match(data.$name));
+						case "Int":
+							macro Std.parseInt(data.$name);
+						case "Date":
+							macro Date.fromString(data.$name);
+						case "Float":
+							var delimiter = stringConvert.params != null && stringConvert.params.length > 0
+								? stringConvert.params[0].getValue() : '.';
+							
+							macro Std.parseFloat(new EReg("[^\\d.]", "g").replace(StringTools.replace(data.$name, $v { delimiter }, "."), ""));
+						case _:
+							assignment;
+					}
+				case _:
+			}
+			
+			assignments.push(macro this.$name = data.$name != null ? $assignment : $def);
 			
 			if (!opt) assignments.push(
 				macro if(this.$name == null) throw "Field " + $v{clsName} + "." + $v{name} + " was null."
@@ -119,14 +150,14 @@ class DataClassBuilder {
 					expr: {expr: EBlock(assignments), pos: cls.pos},
 					args: [{
 						value: null,
-						type: TAnonymous(publicFields),
+						type: stringConvert != null ? (macro : Dynamic<String>) : TAnonymous(publicFields),
 						opt: true,
 						name: 'data'
 					}]
 				}),
 				doc: null,
 				access: [APublic]
-			});				
+			});
 		} else {
 			switch constructor.kind {
 				case FFun(f):

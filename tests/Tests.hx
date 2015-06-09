@@ -52,6 +52,23 @@ class Validator implements DataClass
 	@validate(_ > 1000) public var int : Int;
 }
 
+@convert class StringConverter implements DataClass
+{
+	public var date : String;
+	public var bool : Bool;
+	@validate(_ > 1000) public var int : Int;
+}
+
+@convert class FloatConverter implements DataClass
+{
+	public var float : Null<Float>;
+}
+
+@convert(',') class FloatConverter2 implements DataClass
+{
+	public var float : Float;
+}
+
 class Tests extends BuddySuite implements Buddy<[Tests]>
 {	
 	public function new() {
@@ -135,7 +152,41 @@ class Tests extends BuddySuite implements Buddy<[Tests]>
 					(function() new Validator({	date: "2015-12-12", str: "A", int: 1001 })).should.throwType(String);
 					(function() new Validator({	date: "2015-12-12", str: "AAA", int: 1 })).should.throwType(String);
 				});
-			});			
+			});
+			
+			describe("@convert metadata on a class", {
+				it("should convert string values to the correct type.", {
+					var data = {
+						date: "2015-12-12",
+						bool: "1",
+						int: "2000"
+					};
+					
+					var a = new StringConverter(data);
+					
+					a.date.should.be("2015-12-12");
+					a.bool.should.be(true);
+					a.int.should.be(2000);
+				});
+
+				it("should fail unless validated.", {
+					var data = {
+						date: "2015-12-12",
+						bool: "1",
+						int: "100"
+					};
+					
+					(function() new StringConverter(data)).should.throwType(String);
+				});
+				
+				it("should parse floats correctly", {
+					new FloatConverter( { float: "123 345.44" } ).float.should.beCloseTo(123345.44);
+				});
+				
+				it("should parse floats with another format correctly", {
+					new FloatConverter2( { float: "123 345,44" } ).float.should.beCloseTo(123345.44);
+				});
+			});
 		});
 	}
 }
