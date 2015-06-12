@@ -1,6 +1,10 @@
 
 import buddy.*;
+
 using buddy.Should;
+using DataClassConverter;
+
+enum Color { Red; Blue; }
 
 class RequireId implements DataClass
 {
@@ -29,6 +33,7 @@ class DefaultValue implements DataClass
 {
 	// Default value set if no other supplied
 	public var city : String = "Nowhere";
+	public var color : Color = Blue;
 }
 
 class HasProperty implements DataClass
@@ -52,25 +57,41 @@ class Validator implements DataClass
 	@validate(_ > 1000) public var int : Int;
 }
 
-class StringConverter implements DataClass.StringDataClass
+class StringConverter implements DataClass
 {
 	public var date : String;
 	public var bool : Bool;
 	@validate(_ > 1000) public var int : Int;
 }
 
-class FloatConverter implements DataClass.StringDataClass
+// Contains all types supported by the converter.
+class TestConverter implements DataClass
+{
+	public var bool : Bool;
+	public var int : Int;
+	public var date : Date;
+	public var float : Float;
+}
+
+class TestFloatConverter implements DataClass
 {
 	public var float : Null<Float>;
 }
 
-class Tests extends BuddySuite implements Buddy<[Tests]>
+class TestColumnConverter implements DataClass
+{
+	@col(1) public var first : Int;
+	@col(3) public var third : Bool;
+	@col(2) public var second : Date;
+}
+
+class Tests extends BuddySuite implements Buddy<[Tests, ConverterTests]>
 {	
 	public function new() {
 		describe("DataClass", {
 			describe("With non-null fields", {
 				it("should not compile if non-null value is missing", {
-					new RequireId({id: 123}).id.should.be(123);
+					new RequireId( { id: 123 } ).id.should.be(123);
 				});
 
 				it("should throw if null value is supplied", {
@@ -87,9 +108,12 @@ class Tests extends BuddySuite implements Buddy<[Tests]>
 				});
 			});
 			
-			describe("With default values", {
+			describe("With default values", {				
 				it("should be set to default if field value isn't supplied", {
-					new DefaultValue({}).city.should.be("Nowhere");
+					var o = new DefaultValue();
+					
+					o.city.should.be("Nowhere");
+					o.color.should.be(Color.Blue);
 				});
 				it("should be set to the supplied value if field value is supplied", {
 					new DefaultValue({city: "Somewhere"}).city.should.be("Somewhere");
@@ -150,19 +174,20 @@ class Tests extends BuddySuite implements Buddy<[Tests]>
 			});			
 		});
 		
-		describe("StringDataClass", {
-			it("should convert string values to the correct type.", {
+		describe("DataClass conversions", {
+			it("should convert Dynamic to the correct type.", {
 				var data = {
 					date: "2015-12-12",
 					bool: "1",
-					int: "2000"
+					int: "2000",
+					doesNotExist: "should not be added"
 				};
 				
-				var a = new StringConverter(data);
+				var a = StringConverter.fromStringObject(data);
 				
 				a.date.should.be("2015-12-12");
 				a.bool.should.be(true);
-				a.int.should.be(2000);
+				a.int.should.be(2000);				
 			});
 
 			it("should fail unless validated.", {
@@ -172,19 +197,61 @@ class Tests extends BuddySuite implements Buddy<[Tests]>
 					int: "100"
 				};
 				
-				(function() new StringConverter(data)).should.throwType(String);
+				(function() StringConverter.fromStringObject(data)).should.throwType(String);
 			});
 			
 			it("should parse floats correctly", {
 				var data = { float: "123345.44" };
-				new FloatConverter(data).float.should.beCloseTo(123345.44);
+				TestFloatConverter.fromStringObject(data).float.should.beCloseTo(123345.44);
 			});
 			
 			it("should parse money format correctly", {
+				var old = DataClassConverter.delimiter;
+				DataClassConverter.delimiter = ",";
+				
 				var data = { float: "$123.345,44" };
-				new FloatConverter(data).float.should.beCloseTo(123345.44);
+				TestFloatConverter.fromStringObject(data).float.should.beCloseTo(123345.44);
+				
+				DataClassConverter.delimiter = old;
+			});
+			
+			it("should parse column data when using the @col metadata", {
+				var data = ["123", "2015-01-01", "1"];
+				var obj = TestColumnConverter.fromColumnData(data);
+				
+				obj.first.should.be(123);
+				obj.second.toString().should.be("2015-01-01 00:00:00");
+				obj.third.should.be(true);
+			});
+		});		
+	}
+	
+}
+
+class ConverterTests extends BuddySuite
+{	
+	public function new() {
+		describe("DataClassConverter", {
+			it("should work with the supported types", {
+				var data = {
+					bool: "true".toBool(),
+					int: "123".toInt(),
+					date: "2015-01-01 00:00:00".toDate(),
+					float: "456.789".toFloat()
+				};
+				
+				var test = new TestConverter(data);
+				
+				test.bool.should.be(true);
+				test.int.should.be(123);
+				DateTools.format(test.date, "%Y-%m-%d %H:%M:%S").should.be("2015-01-01 00:00:00");
+				test.float.should.beCloseTo(456.789, 3);
+				
+				test.bool.toString({tru: "YES", fals: "NO"}).should.be("YES");
+				test.int.toString().should.be("123");
+				test.date.toStringFormat("%Y-%m-%d").should.be("2015-01-01");
+				test.float.toString().should.be("456.789");				
 			});
 		});
-		
 	}
 }

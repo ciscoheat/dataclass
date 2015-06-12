@@ -20,18 +20,28 @@ class DataClassBuilder {
 		}
 	}
 
-	static public function build(stringConvert : Bool) : Array<Field> {
+	static public function build() : Array<Field> {
 		var fields = Context.getBuildFields();
 		var cls = Context.getLocalClass().get();
-
+		
 		// Fields aren't available on Context.getLocalClass().
 		// need to supply them here. They're available on the superclass though.
 		var publicFields = childAndParentFields(fields, cls).copy();
 		var fieldMap = new Map<Field, {opt: Bool, def: Expr, val: Expr}>();
 		
-		stringConvert = cls.meta.has("convert") ? true : stringConvert;
-
 		for (f in publicFields) {
+			// If @col metadata, check the format
+			for (col in f.meta.filter(function(m) return m.name == "col")) {
+				try {
+					var param = col.params[0];
+					if (!param.expr.match(EConst(CInt(_)))) {
+						Context.error("@col can only take a single int as parameter.", param.pos);
+					}
+				} catch (e : Dynamic) {
+					Context.error("@col must take a single int as parameter.", col.pos);
+				}
+			}
+			
 			// TODO: Allow fields with only a default value, no type
 			var opt = switch f.kind {
 				case FVar(TPath(p), _) if (p.name == "Null"): true;
@@ -88,6 +98,7 @@ class DataClassBuilder {
 		}
 		
 		var assignments = [];
+		
 		for (f in publicFields) {
 			var data = fieldMap.get(f);
 			var def = data.def;
@@ -98,7 +109,7 @@ class DataClassBuilder {
 			
 			var assignment = macro data.$name;
 			
-			if(stringConvert) switch f.kind {
+			switch f.kind {
 				case FVar(TPath(p), _) | FProp(_, _, TPath(p), _):
 					var typeName = switch p {
 						case { name: "Null", pack: _, params: [TPType(TPath( { name: n, pack: _, params: _ } ))] } :
@@ -107,12 +118,12 @@ class DataClassBuilder {
 							p.name;
 					};
 					
-					assignment = switch typeName {
-						case "Bool": macro DataClassConverter.toBool($assignment);
-						case "Int": macro DataClassConverter.toInt($assignment);
-						case "Date": macro DataClassConverter.toDate($assignment);
-						case "Float": macro DataClassConverter.toFloat($assignment);
-						case _:	assignment;
+					if (DataClassConverter.StringObjectConverter.supportedTypes.has(typeName)) {
+						f.meta.push({
+							pos: f.pos,
+							params: [{expr: EConst(CString(typeName)), pos: f.pos}],
+							name: "convertTo"
+						});
 					}
 				case _:
 			}
@@ -129,8 +140,13 @@ class DataClassBuilder {
 		var constructor = fields.find(function(f) return f.name == "new");
 		
 		if (constructor == null) {
-			if (cls.superClass != null)
-				assignments.unshift(macro super(data));
+			var allOptional = ![for (f in fieldMap) f].exists(function(f) return f.opt == false);
+			
+			// Call parent constructor if it exists
+			if (cls.superClass != null)	assignments.unshift(macro super(data));
+			
+			// If all fields are optional, create a default argument assignment
+			if (allOptional) assignments.unshift(macro if (data == null) data = {});
 				
 			fields.push({
 				pos: cls.pos,
@@ -142,8 +158,8 @@ class DataClassBuilder {
 					expr: {expr: EBlock(assignments), pos: cls.pos},
 					args: [{
 						value: null,
-						type: stringConvert ? (macro : Dynamic<String>) : TAnonymous(publicFields),
-						opt: true,
+						type: TAnonymous(publicFields),
+						opt: allOptional,
 						name: 'data'
 					}]
 				}),

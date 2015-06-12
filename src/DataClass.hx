@@ -1,4 +1,2 @@
 
-@:autoBuild(DataClassBuilder.build(false)) interface DataClass { }
-
-@:autoBuild(DataClassBuilder.build(true)) interface StringDataClass { }
+@:autoBuild(DataClassBuilder.build()) interface DataClass { }
