@@ -1,3 +1,4 @@
+package dataclass.macros;
 
 #if macro
 import haxe.macro.Context;
@@ -8,7 +9,7 @@ using haxe.macro.ExprTools;
 using Lambda;
 using StringTools;
 
-class DataClassBuilder {
+class Builder {
 
 	static function publicVarOrProp(f : Field) {
 		if(f.access.has(AStatic) || !f.access.has(APublic)) return false;
@@ -118,7 +119,7 @@ class DataClassBuilder {
 							p.name;
 					};
 					
-					if (DataClassConverter.StringObjectConverter.supportedTypes.has(typeName)) {
+					if (Converter.DynamicObjectConverter.supportedTypes.has(typeName)) {
 						f.meta.push({
 							pos: f.pos,
 							params: [{expr: EConst(CString(typeName)), pos: f.pos}],

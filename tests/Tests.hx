@@ -1,8 +1,10 @@
 
 import buddy.*;
+import dataclass.*;
+import haxe.Json;
 
 using buddy.Should;
-using DataClassConverter;
+using dataclass.Converter;
 
 enum Color { Red; Blue; }
 
@@ -183,7 +185,7 @@ class Tests extends BuddySuite implements Buddy<[Tests, ConverterTests]>
 					doesNotExist: "should not be added"
 				};
 				
-				var a = StringConverter.fromStringObject(data);
+				var a = StringConverter.fromDynamicObject(data);
 				
 				a.date.should.be("2015-12-12");
 				a.bool.should.be(true);
@@ -191,28 +193,28 @@ class Tests extends BuddySuite implements Buddy<[Tests, ConverterTests]>
 			});
 
 			it("should fail unless validated.", {
-				var data = {
-					date: "2015-12-12",
-					bool: "1",
-					int: "100"
-				};
+				var data = Json.parse('{
+					"date": "2015-12-12",
+					"bool": "1",
+					"int": "100"
+				}');
 				
-				(function() StringConverter.fromStringObject(data)).should.throwType(String);
+				(function() StringConverter.fromDynamicObject(data)).should.throwType(String);
 			});
 			
 			it("should parse floats correctly", {
 				var data = { float: "123345.44" };
-				TestFloatConverter.fromStringObject(data).float.should.beCloseTo(123345.44);
+				TestFloatConverter.fromDynamicObject(data).float.should.beCloseTo(123345.44);
 			});
 			
 			it("should parse money format correctly", {
-				var old = DataClassConverter.delimiter;
-				DataClassConverter.delimiter = ",";
+				var old = Converter.delimiter;
+				Converter.delimiter = ",";
 				
 				var data = { float: "$123.345,44" };
-				TestFloatConverter.fromStringObject(data).float.should.beCloseTo(123345.44);
+				TestFloatConverter.fromDynamicObject(data).float.should.beCloseTo(123345.44);
 				
-				DataClassConverter.delimiter = old;
+				Converter.delimiter = old;
 			});
 			
 			it("should parse column data when using the @col metadata", {
@@ -231,7 +233,7 @@ class Tests extends BuddySuite implements Buddy<[Tests, ConverterTests]>
 class ConverterTests extends BuddySuite
 {	
 	public function new() {
-		describe("DataClassConverter", {
+		describe("Converter", {
 			it("should work with the supported types", {
 				var data = {
 					bool: "true".toBool(),
