@@ -78,7 +78,7 @@ class Custom implements DataClass {
 
 DataClass have some ways to simplify the tedious data conversion process when you get input data from for example a CSV file or JSON data containing only strings, and they should be mapped to a Haxe object.
 
-If you add `using dataclass.Converter` to any module you'll get some useful extensions on the supported types:
+If you add `using dataclass.Converter;` to any module you'll get some useful extensions on the supported types:
 	
 ### String
 
@@ -91,15 +91,15 @@ If you add `using dataclass.Converter` to any module you'll get some useful exte
 
 And the opposite for each type: `.toString()` (date has `.toStringFormat()`).
 
-These methods have some intelligence that handles when for example the input isn't whitespace trimmed or contains currency symbols. You should be able to pass most spreadsheet data into it without problem. Post an issue if not.
+These methods have some intelligence that handles when for example the input isn't whitespace trimmed or contains currency symbols. You should be able to pass most spreadsheet data into it without problem. [Post an issue](https://github.com/ciscoheat/dataclass/issues) if not.
 
 There are some settings for the conversion process in `dataclass.Converter`:
 	
 - `Converter.delimiter` allows you to specify the delimiter for `Float`.
-- `Converter.boolValues` sets the converted string values for true or false.
-- `Converter.dateFormat` sets the converted string Date value.
+- `Converter.boolValues` sets the converted string values for `true` and `false`.
+- `Converter.dateFormat` sets the converted string `Date` value.
 
-You can also set the relevant values directly in the conversion methods if you prefer that.
+You can also set the relevant values directly when calling the conversion methods if you prefer that.
 
 That's for simple values, but what about the CSV or JSON data? This is where it gets fun. For any class implementing `DataClass`, you now have some extensions for the class itself:
 	
@@ -133,18 +133,19 @@ class JsonTest implements DataClass {
 class Main {
 	static function main() {
 		// Parsed JSON data
-		var input = haxe.Json.parse('{"first":123,"second":"2015-01-01","third":""}');
+		var input = haxe.Json.parse('{"first":123, "second":"2015-01-01", "third":"", "extra":"will not be added"}');
 		
 		var test = JsonTest.fromDynamicObject(input);
 		
 		trace(test.first); // 123 (Int)
 		trace(test.second.getFullYear()); // 2015
+		trace(test.third); // false
 	}
 }
 ```
 
-**Note:** The above methods protects you from most runtime surprises, but you need to have a constructor that takes the data object first, and all other parameters optional.
+**Note:** These methods protects you from most runtime surprises, but if you have a custom constructor it must take the data object as first parameter, and have all other parameters optional.
 
 ## Installation
 
-Coming soon...
+`haxelib git dataclass https://github.com/ciscoheat/dataclass.git master src`
