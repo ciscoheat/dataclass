@@ -78,10 +78,8 @@ class Custom implements DataClass {
 
 DataClass have some ways to simplify the tedious data conversion process when you get input data from for example a CSV file or JSON data containing only strings, and they should be mapped to a Haxe object.
 
-If you add `using dataclass.Converter;` to any module you'll get some useful extensions on the supported types:
+If you add `using dataclass.Converter;` to any module you'll get some useful extensions on the supported types. For `String`:
 	
-### String
-
 ```
 .toBool()
 .toInt()
