@@ -3,7 +3,7 @@
     "url": "https://github.com/ciscoheat/dataclass",
     "description": "A more convenient way to instantiate data classes.",
     "license": "MIT",
-    "releasenote": "Not on haxelib yet.",
+    "releasenote": "Initial release.",
     "contributors": ["ciscoheat"],
     "version": "0.5.0",
     "tags": ["data", "validation", "contracts", "dci"]

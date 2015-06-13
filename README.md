@@ -152,7 +152,7 @@ class Main {
 
 ## Installation
 
-Until it's ready for haxelib: `haxelib git dataclass https://github.com/ciscoheat/dataclass.git master src`
+`haxelib install dataclass` then put `-lib dataclass` in your `.hxml` file.
 
 ## Todo
 
