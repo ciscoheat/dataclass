@@ -104,6 +104,9 @@ You can also set the relevant values directly when calling the conversion method
 That's for simple values, but what about the CSV or JSON data? This is where it gets fun. For any class implementing `DataClass`, you now have some extensions for the class itself:
 	
 ```haxe
+import dataclass.DataClass;
+using dataclass.Converter;
+
 class CsvTest implements DataClass {
 	// In the DataClass, specify the positions for each column (starts with 1, not 0)
 	@col(1) public var first : Int;
@@ -124,6 +127,9 @@ class Main {
 ```
 
 ```haxe
+import dataclass.DataClass;
+using dataclass.Converter;
+
 class JsonTest implements DataClass {
 	public var first : Int;
 	public var second : Date;

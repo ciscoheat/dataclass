@@ -1,8 +1,4 @@
--lib HaxeContracts
--lib haxedci
 -lib buddy
--lib slambda
--D dci-signatures-warnings
 -cp src 
 -cp tests
 -debug
