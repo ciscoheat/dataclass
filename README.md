@@ -5,7 +5,7 @@ A more convenient way to instantiate data classes.
 ```haxe
 enum Color { Red; Blue; }
 
-class Person implements DataClass {
+class Person implements dataclass.DataClass {
 	public var id : Int 			 // Required
 	public var name : Null<String>	 // Optional
 
@@ -54,7 +54,7 @@ class Main {
 A constructor will be automatically generated, but if you want to add your own it should be in this format:
 
 ```haxe
-class Custom implements DataClass {
+class Custom implements dataclass.DataClass {
 	public function new(data) {
 		// Code here...
 	}
@@ -64,7 +64,7 @@ class Custom implements DataClass {
 At the top of this constructor, all the assignments will be inserted. So when running it will look similar to this:
 
 ```haxe
-class Custom implements DataClass {
+class Custom implements dataclass.DataClass {
 	public var id : Int;
 	
 	public function new(data) {
