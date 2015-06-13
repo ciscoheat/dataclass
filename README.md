@@ -10,7 +10,7 @@ class Person implements dataclass.DataClass {
 	public var name : Null<String>	 // Optional
 
 	@validate(~/[\w-.]+@[\w-.]+/)	 			// Regexp validation
-	public var email(default, null) : String	// Fields can be properties with "default" and "null"
+	public var email(default, null) : String	// Fields can be properties with "default" and "null" combinations
 
 	@validate(_.length > 2)			 // Expression validation
 	public var city : String		 // "_" is replaced with the field
@@ -152,4 +152,17 @@ class Main {
 
 ## Installation
 
-`haxelib git dataclass https://github.com/ciscoheat/dataclass.git master src`
+Until it's ready for haxelib: `haxelib git dataclass https://github.com/ciscoheat/dataclass.git master src`
+
+## Todo
+
+- [ ] Allow get/set properties
+- [ ] [Mithril](https://github.com/ciscoheat/mithril-hx) support for `M.prop`
+- [ ] [HaxeContracts](https://github.com/ciscoheat/HaxeContracts) option for exceptions
+- [ ] CI testing with [Travis](http://docs.travis-ci.com/user/languages/haxe/)
+- [ ] Initialize with a default value without type
+- [ ] [Mongoose](http://mongoosejs.com/) support for Node.js
+
+## Connection to DCI
+
+Simple data objects are the very foundation of the [DCI architecture](https://en.wikipedia.org/wiki/Data,_context_and_interaction). They represent what the system *is*, and have no connections to other objects. They play Roles in DCI Contexts, where they become parts of Interactions between other objects, describing what the system *does* based on a user mental model. The [haxedci-example](https://github.com/ciscoheat/haxedci-example) repository has a thorough tutorial of the DCI paradigm in Haxe if you're interested.
