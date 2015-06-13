@@ -49,7 +49,7 @@ class DynamicObjectConverter {
 				case "Float" if(Std.is(fieldData, String)): fieldData.toFloat();
 				case "Float" if(Std.is(fieldData, Float)): fieldData;
 				
-				case _:	throw "Invalid type for StringObjectConverter.fromStringObject on field " + fieldName;
+				case _:	throw "DynamicObjectConverter: Invalid type '" + Type.typeof(fieldData) + "' for field " + fieldName;
 			};
 			
 			Reflect.setField(output, fieldName, converted);

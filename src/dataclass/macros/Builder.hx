@@ -9,13 +9,20 @@ using haxe.macro.ExprTools;
 using Lambda;
 using StringTools;
 
+private typedef FieldDataProperties = {
+	opt: Bool, 
+	def: Expr, 
+	val: Expr,
+	mithrilProp: Bool
+}
+
 class Builder {
 
 	static function publicVarOrProp(f : Field) {
 		if(f.access.has(AStatic) || !f.access.has(APublic)) return false;
 		return switch(f.kind) {
 			case FVar(_, _): true;
-			// TODO: Make it work with setters too
+			// TODO: Make it work with get/set too
 			case FProp(_, set, _, _): set == "default" || set == "null";
 			case _: false;
 		}
@@ -28,7 +35,7 @@ class Builder {
 		// Fields aren't available on Context.getLocalClass().
 		// need to supply them here. They're available on the superclass though.
 		var publicFields = childAndParentFields(fields, cls).copy();
-		var fieldMap = new Map<Field, {opt: Bool, def: Expr, val: Expr}>();
+		var fieldMap = new Map<Field, FieldDataProperties>();
 		
 		for (f in publicFields) {
 			// If @col metadata, check the format
@@ -88,7 +95,9 @@ class Builder {
 			fieldMap.set(f, {
 				opt: opt, 
 				def: def, 
-				val: validator == null ? null : createValidator(validator.params[0])
+				val: validator == null ? null : createValidator(validator.params[0]),
+				// If @prop metadata, assume field is a Mithril property.
+				mithrilProp: f.meta.exists(function(m) return m.name == "prop")
 			});
 
 			if(opt) f.meta.push({
@@ -108,7 +117,7 @@ class Builder {
 			var name = f.name;
 			var clsName = cls.name;
 			
-			var assignment = macro data.$name;
+			var assignment = macro data.$name != null ? data.$name : $def;
 			
 			switch f.kind {
 				case FVar(TPath(p), _) | FProp(_, _, TPath(p), _):
@@ -129,7 +138,11 @@ class Builder {
 				case _:
 			}
 			
-			assignments.push(macro this.$name = data.$name != null ? $assignment : $def);
+			// Test if Mitril property
+			assignments.push(data.mithrilProp 
+				? macro this.$name = mithril.M.prop($assignment)
+				: macro this.$name = $assignment
+			);
 			
 			if (!opt) assignments.push(
 				macro if(this.$name == null) throw "Field " + $v{clsName} + "." + $v{name} + " was null."

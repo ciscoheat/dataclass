@@ -157,7 +157,7 @@ Until it's ready for haxelib: `haxelib git dataclass https://github.com/ciscohea
 ## Todo
 
 - [ ] Allow get/set properties
-- [ ] [Mithril](https://github.com/ciscoheat/mithril-hx) support for `M.prop`
+- [x] [Mithril](https://github.com/ciscoheat/mithril-hx) support for `M.prop`
 - [ ] [HaxeContracts](https://github.com/ciscoheat/HaxeContracts) option for exceptions
 - [ ] CI testing with [Travis](http://docs.travis-ci.com/user/languages/haxe/)
 - [ ] Initialize with a default value without type
