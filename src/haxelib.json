@@ -3,8 +3,8 @@
     "url": "https://github.com/ciscoheat/dataclass",
     "description": "A more convenient way to instantiate data classes.",
     "license": "MIT",
-    "releasenote": "Now works with get/set properties.",
+    "releasenote": "HaxeContracts support.",
     "contributors": ["ciscoheat"],
-    "version": "0.6.0",
+    "version": "0.6.1",
     "tags": ["data", "validation", "contracts", "dci"]
 }

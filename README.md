@@ -148,7 +148,7 @@ class Main {
 }
 ```
 
-These class-level conversion methods only works with the supported types, currently `String, Int, Float, Date` and `Bool`. Other types, or extra fields on the input will be ignored. If you have other fields you can set them up later in the normal way:
+These class-level conversion methods only works with the supported types, currently `String, Int, Float, Date` and `Bool`. Other types, or extra fields on the input will be ignored for type-safety reasons. If you have other fields you can set them up later in the normal way:
 
 ```haxe
 var input = haxe.Json.parse('{"first":123, "second":"2015-01-01", "third":"", "other":[1,2,3]}');
@@ -158,6 +158,13 @@ test.other = input.other;
 
 **Note:** The above methods protects you from most runtime surprises, but if you have a custom constructor it must take the data object as first parameter, and have all other parameters optional. Also due to some type checking they take a performance hit, but it should be negligible in most cases. As usual, don't optimize unless you have obvious performance problems.
 
+## Specific library support
+
+DataClass plays very nicely together with the following libraries:
+	
+- [Mithril](https://github.com/ciscoheat/mithril-hx): When the `@prop` metadata exists on a field, a Mithril `GetterSetter` is created with `M.prop`.
+- [HaxeContracts](https://github.com/ciscoheat/HaxeContracts): If the class implements `haxecontracts.HaxeContracts`, a `haxecontracts.ContractException` will be thrown instead of a `String` when a validation or null-check fails.
+
 ## Installation
 
 `haxelib install dataclass` then put `-lib dataclass` in your `.hxml` file.
@@ -166,7 +173,7 @@ test.other = input.other;
 
 - [x] Allow get/set properties
 - [x] [Mithril](https://github.com/ciscoheat/mithril-hx) support for `M.prop`
-- [ ] [HaxeContracts](https://github.com/ciscoheat/HaxeContracts) option for exceptions
+- [x] [HaxeContracts](https://github.com/ciscoheat/HaxeContracts) option for exceptions
 - [ ] CI testing with [Travis](http://docs.travis-ci.com/user/languages/haxe/)
 - [ ] Initialize with a default value without type
 - [ ] [Mongoose](http://mongoosejs.com/) support for Node.js

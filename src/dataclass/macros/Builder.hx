@@ -36,6 +36,17 @@ class Builder {
 		var publicFields = childAndParentFields(fields, cls).copy();
 		var fieldMap = new Map<Field, FieldDataProperties>();
 		
+		// Test if class implements HaxeContracts, then throw ContractException instead.
+		var haxeContracts = cls.interfaces.map(function(i) return i.t.get()).exists(function(ct) {
+			return ct.name == "HaxeContracts";
+		});
+
+		function throwError(errorString : ExprOf<String>) : Expr {
+			return haxeContracts
+				? macro throw new haxecontracts.ContractException($errorString, this)
+				: macro throw $errorString;
+		}
+
 		for (f in publicFields) {
 			// If @col metadata, check the format
 			for (col in f.meta.filter(function(m) return m.name == "col")) {
@@ -88,7 +99,11 @@ class Builder {
 				}
 				
 				e.expr = EConst(CString(e.toString()));
-				return macro if(!$test) throw "Field " + $v{clsName} + "." + $v{name} + ' failed validation "' + $e + '" with value "' + this.$name + '"';
+				
+				var errorString = macro "Field " + $v{clsName} + "." + $v{name} + ' failed validation "' + $e + '" with value "' + this.$name + '"';
+				var throwType = throwError(errorString);
+				
+				return macro if(!$test) $throwType;
 			}
 			
 			var validator = f.meta.find(function(m) return m.name == "validate");
@@ -145,9 +160,10 @@ class Builder {
 				: macro this.$name = $assignment
 			);
 			
-			if (!opt) assignments.push(
-				macro if(this.$name == null) throw "Field " + $v{clsName} + "." + $v{name} + " was null."
-			);
+			if (!opt) {
+				var throwStatement = throwError(macro "Field " + $v{clsName} + "." + $v{name} + " was null.");
+				assignments.push(macro if (this.$name == null) $throwStatement);
+			}
 			
 			if (val != null) assignments.push(val);
 		};

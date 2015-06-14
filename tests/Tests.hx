@@ -2,6 +2,8 @@
 import buddy.*;
 import dataclass.*;
 import haxe.Json;
+import haxecontracts.ContractException;
+import haxecontracts.HaxeContracts;
 
 using buddy.Should;
 using dataclass.Converter;
@@ -95,6 +97,11 @@ class TestColumnConverter implements DataClass
 	@col(2) public var second : Date;
 }
 
+class TestHaxeContracts implements DataClass implements HaxeContracts
+{
+	public var id : Int;
+}
+
 class Tests extends BuddySuite implements Buddy<[Tests, ConverterTests]>
 {	
 	public function new() {
@@ -186,7 +193,13 @@ class Tests extends BuddySuite implements Buddy<[Tests, ConverterTests]>
 					(function() new Validator({	date: "2015-12-12", str: "A", int: 1001 })).should.throwType(String);
 					(function() new Validator({	date: "2015-12-12", str: "AAA", int: 1 })).should.throwType(String);
 				});
-			});			
+			});
+			
+			describe("Implementing HaxeContracts", {
+				it("should throw ContractException instead of a string.", {
+					(function() new TestHaxeContracts( { id: null } )).should.throwType(ContractException);
+				});
+			});
 		});
 		
 		describe("DataClass conversions", {

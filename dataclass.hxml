@@ -1,4 +1,5 @@
 -lib buddy
+-lib HaxeContracts
 -cp src 
 -cp tests
 -debug
