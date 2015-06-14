@@ -141,14 +141,22 @@ class Main {
 		
 		var test = JsonTest.fromDynamicObject(input);
 		
-		trace(test.first); // 123 (Int)
+		trace(test.first); // 123
 		trace(test.second.getFullYear()); // 2015
 		trace(test.third); // false
 	}
 }
 ```
 
-**Note:** These methods protects you from most runtime surprises, but if you have a custom constructor it must take the data object as first parameter, and have all other parameters optional.
+These class-level conversion methods only works with the supported types, currently `String, Int, Float, Date` and `Bool`. Other types, or extra fields on the input will be ignored. If you have other fields you can set them up later in the normal way:
+
+```haxe
+var input = haxe.Json.parse('{"first":123, "second":"2015-01-01", "third":"", "other":[1,2,3]}');
+var test = JsonTest.fromDynamicObject(input);
+test.other = input.other;
+```	
+
+**Note:** The above methods protects you from most runtime surprises, but if you have a custom constructor it must take the data object as first parameter, and have all other parameters optional. Also due to some type checking they take a performance hit, but it should be negligible in most cases. As usual, don't optimize unless you have obvious performance problems.
 
 ## Installation
 
