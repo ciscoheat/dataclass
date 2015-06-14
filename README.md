@@ -9,8 +9,8 @@ class Person implements dataclass.DataClass {
 	public var id : Int 			 // Required
 	public var name : Null<String>	 // Optional
 
-	@validate(~/[\w-.]+@[\w-.]+/)	 			// Regexp validation
-	public var email(default, null) : String	// Fields can be properties with "default" and "null" combinations
+	@validate(~/[\w-.]+@[\w-.]+/)	 			// Regexp validation, adding ^ and $ if one of them doesn't exist
+	public var email(default, null) : String	// Works with properties
 
 	@validate(_.length > 2)			 // Expression validation
 	public var city : String		 // "_" is replaced with the field
@@ -156,7 +156,7 @@ class Main {
 
 ## Todo
 
-- [ ] Allow get/set properties
+- [x] Allow get/set properties
 - [x] [Mithril](https://github.com/ciscoheat/mithril-hx) support for `M.prop`
 - [ ] [HaxeContracts](https://github.com/ciscoheat/HaxeContracts) option for exceptions
 - [ ] CI testing with [Travis](http://docs.travis-ci.com/user/languages/haxe/)

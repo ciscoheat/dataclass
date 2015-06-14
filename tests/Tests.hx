@@ -40,14 +40,22 @@ class DefaultValue implements DataClass
 
 class HasProperty implements DataClass
 {
-	// Should work on null properties
-	public var a(default, null) : String;
+	public var def_null(default, null) : String;
 
-	// Should work on default properties
-	public var b(default, default) : String;
+	public var def_def(default, default) : String;
+	
+	public var get_set(get, set) : String;
+	var _get_set : String;
+	function set_get_set(v : String) return _get_set = v;
+	function get_get_set() return _get_set;
+
+	public var get_null(get, null) : String;
+	function get_get_null() return get_null;
+	
+	public var def_null_defValue(default, null) : String = "def_null_defValue";
 }
 
-class Child extends HasProperty
+class Child extends DefaultValue
 {
 	public var child : Bool;
 }
@@ -125,12 +133,17 @@ class Tests extends BuddySuite implements Buddy<[Tests, ConverterTests]>
 			describe("With property fields", {
 				it("should be set as with var fields", {
 					var prop = new HasProperty({
-						a: "A",
-						b: "B",
+						def_def: "A",
+						def_null: "B",
+						get_set: "C",
+						get_null: "D"
 					});
 					
-					prop.a.should.be('A');
-					prop.b.should.be('B');
+					prop.def_def.should.be('A');
+					prop.def_null.should.be('B');
+					prop.get_set.should.be('C');
+					prop.get_null.should.be('D');
+					prop.def_null_defValue.should.be('def_null_defValue');
 				});
 			});
 
@@ -148,13 +161,13 @@ class Tests extends BuddySuite implements Buddy<[Tests, ConverterTests]>
 			describe("With a parent class", {
 				it("should inherit the required fields", {
 					var prop = new Child({
-						a: "A",
-						b: "B",
+						city: "Punxsutawney",
+						color: Red,
 						child: true
 					});
 					
-					prop.a.should.be('A');
-					prop.b.should.be('B');
+					prop.city.should.be('Punxsutawney');
+					prop.color.should.be(Red);
 					prop.child.should.be(true);
 				});
 			});

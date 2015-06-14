@@ -22,8 +22,7 @@ class Builder {
 		if(f.access.has(AStatic) || !f.access.has(APublic)) return false;
 		return switch(f.kind) {
 			case FVar(_, _): true;
-			// TODO: Make it work with get/set too
-			case FProp(_, set, _, _): set == "default" || set == "null";
+			case FProp(_, set, _, _): set == "default" || set == "null" || set == "set";
 			case _: false;
 		}
 	}
@@ -58,9 +57,12 @@ class Builder {
 			}
 
 			var def = switch f.kind {
-				case FVar(TPath(p), e) if (e != null): 
-					// Remove the Expr and return it
-					f.kind = FVar(TPath(p), null);
+				case FVar(p, e) if (e != null):
+					f.kind = FVar(p, null);
+					opt = true;
+					e;
+				case FProp(get, set, p, e) if (e != null):
+					f.kind = FProp(get, set, p, null);
 					opt = true;
 					e;
 				case _: 
@@ -68,7 +70,7 @@ class Builder {
 			}
 			
 			function createValidator(e : Expr) : Expr {
-				var output : Expr;
+				var test : Expr;
 				var name = f.name;
 				var clsName = cls.name;				
 				
@@ -79,15 +81,14 @@ class Builder {
 				
 				switch e.expr {
 					case EConst(CRegexp(r, opt)):
-						if (!r.startsWith('^')) r = '^' + r;
-						if (!r.endsWith("$")) r += "$";						
-						output = macro new EReg($v{r}, $v{opt}).match(this.$name);
+						if (!r.startsWith('^') && !r.endsWith('$')) r = '^' + r + "$";
+						test = macro new EReg($v{r}, $v{opt}).match(this.$name);
 					case _: 
-						output = replaceParam(e);
+						test = replaceParam(e);
 				}
 				
 				e.expr = EConst(CString(e.toString()));
-				return macro if(!$output) throw "Field " + $v{clsName} + "." + $v{name} + ' failed validation "' + $e + '" with value "' + this.$name + '"';
+				return macro if(!$test) throw "Field " + $v{clsName} + "." + $v{name} + ' failed validation "' + $e + '" with value "' + this.$name + '"';
 			}
 			
 			var validator = f.meta.find(function(m) return m.name == "validate");
@@ -195,24 +196,46 @@ class Builder {
 		return fields;	
 	}
 
+	static function typedefKind(kind : FieldType, pos : Position) : FieldType {
+		// A superfluous method it seems, but having some problem with 
+		// FieldType/FieldKind confusion unless done like this.
+		return switch kind {
+			case FProp(_, _, t, e): FVar(t, e);
+			case FVar(_, _): kind;
+			case _: Context.error("Invalid field type for DataClass, should not be allowed here.", pos);
+		}		
+	}
+	
+	static function fieldToTypedefField(c : Field) : Field {	
+		return {
+			pos: c.pos,
+			name: c.name,
+			meta: c.meta,
+			kind: typedefKind(c.kind, c.pos),
+			doc: c.doc,
+			access: [APublic]
+		};
+	}
+
 	static function classFieldToField(c : ClassField) : Field {
+		var typedExpr = c.expr();
 		return {
 			pos: c.pos,
 			name: c.name,
 			meta: c.meta.get(),
-			kind: FVar(Context.toComplexType(c.type), null),
+			kind: FVar(Context.toComplexType(c.type), typedExpr != null ? Context.getTypedExpr(typedExpr) : null),
 			doc: c.doc,
 			access: [APublic]
 		};
 	}
 	
 	static function childAndParentFields(fields : Array<Field>, cls : ClassType) : Array<Field> {
-		fields = fields.filter(publicVarOrProp);
+		var typeFields = fields.filter(publicVarOrProp).map(fieldToTypedefField);
 
-		if(cls.superClass == null) return fields;
+		if(cls.superClass == null) return typeFields;
 
 		var superClass = cls.superClass.t.get();
-		return childAndParentFields(superClass.fields.get().map(classFieldToField), superClass).concat(fields);
+		return childAndParentFields(superClass.fields.get().map(classFieldToField), superClass).concat(typeFields);
 	}
 }
 #end
