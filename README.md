@@ -15,8 +15,9 @@ class Person implements dataclass.DataClass {
 	@validate(_.length > 2)			 // Expression validation
 	public var city : String		 // "_" is replaced with the field
 
-	public var active : Bool = true; // Default value
-	public var color : Color = Blue; // Works with Enums too
+	public var active : Bool = true;        // Default value
+	public var color : Color = Blue;        // Works with Enums too
+	public var created : Date = Date.now(); // And even statements
 }
 
 class Main {

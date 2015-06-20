@@ -38,6 +38,7 @@ class DefaultValue implements DataClass
 	// Default value set if no other supplied
 	public var city : String = "Nowhere";
 	public var color : Color = Blue;
+	public var date : Date = Date.now();
 }
 
 class HasProperty implements DataClass
@@ -127,10 +128,13 @@ class Tests extends BuddySuite implements Buddy<[Tests, ConverterTests]>
 			
 			describe("With default values", {				
 				it("should be set to default if field value isn't supplied", {
+					var now = Date.now();
 					var o = new DefaultValue();
 					
 					o.city.should.be("Nowhere");
 					o.color.should.be(Color.Blue);
+					o.date.should.not.be(null);
+					(o.date.getTime() - now.getTime()).should.beLessThan(10);
 				});
 				it("should be set to the supplied value if field value is supplied", {
 					new DefaultValue({city: "Somewhere"}).city.should.be("Somewhere");
