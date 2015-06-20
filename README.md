@@ -7,9 +7,9 @@ enum Color { Red; Blue; }
 
 class Person implements dataclass.DataClass {
 	public var id : Int 			 // Required
-	public var name : Null<String>	 // Optional
+	public var name : Null<String>	 // Null makes it optional
 
-	@validate(~/[\w-.]+@[\w-.]+/)	 			// Regexp validation, adding ^ and $ if one of them doesn't exist
+	@validate(~/[\w-.]+@[\w-.]+/)	 			// Regexp validation, auto-adding ^ and $ unless one of them exists
 	public var email(default, null) : String	// Works with properties
 
 	@validate(_.length > 2)			 // Expression validation
