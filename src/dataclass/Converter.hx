@@ -106,8 +106,8 @@ class ColumnConverter {
 		
 		for (fieldName in Reflect.fields(columns)) {
 			var field = Reflect.field(columns, fieldName);
-			var col = Reflect.field(field, "col")[0];
-			Reflect.setField(output, fieldName, input[col - 1]);
+			var col = Reflect.field(field, "col");
+			if(col != null)	Reflect.setField(output, fieldName, input[col[0] - 1]);
 		}
 		
 		return DynamicObjectConverter.fromDynamicObject(cls, output, delimiter);

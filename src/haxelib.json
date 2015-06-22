@@ -3,8 +3,8 @@
     "url": "https://github.com/ciscoheat/dataclass",
     "description": "A more convenient way to instantiate data classes.",
     "license": "MIT",
-    "releasenote": "Added a DataClass to Dynamic<String> converter.",
+    "releasenote": "Fixed a bug in CSV conversion.",
     "contributors": ["ciscoheat"],
-    "version": "0.7.0",
+    "version": "0.7.1",
     "tags": ["data", "validation", "contracts", "dci"]
 }
