@@ -77,20 +77,26 @@ class Custom implements dataclass.DataClass {
 
 ## Conversion utilities
 
-DataClass have some ways to simplify the tedious data conversion process when you get input data from for example a CSV file or JSON data containing only strings, and they should be mapped to a Haxe object.
+DataClass have some ways to simplify the tedious data conversion process when you get input data from for example a CSV file or JSON data containing only strings, and they should be mapped to a class implementing `DataClass`.
 
-If you add `using dataclass.Converter;` to any module you'll get some useful extensions on the supported types. For `String`:
-	
+By adding `using dataclass.Converter;` you'll get some useful extensions on the supported types.
+
+### Single value conversions
+
 ```
-.toBool()
-.toInt()
-.toDate()
-.toFloat()
+var s = "A string";
+
+s.toBool()
+s.toInt()
+s.toDate()
+s.toFloat()
 ```
 
 And the opposite for each type: `.toString()` (date has `.toStringFormat()`).
 
-These methods have some intelligence that handles when for example the input isn't whitespace trimmed or contains currency symbols. You should be able to pass most spreadsheet data into it without problem. [Post an issue](https://github.com/ciscoheat/dataclass/issues) if not.
+These methods have some intelligence that handles when for example the input isn't whitespace trimmed or contains currency symbols. You should be able to pass most spreadsheet data into them without problem. [Post an issue](https://github.com/ciscoheat/dataclass/issues) if not.
+
+### Settings
 
 There are some settings for the conversion process in `dataclass.Converter`:
 	
@@ -100,13 +106,12 @@ There are some settings for the conversion process in `dataclass.Converter`:
 
 You can also set the relevant values directly when calling the conversion methods if you prefer that.
 
-That's for simple values, but what about the CSV or JSON data? This is where it gets fun. For any class implementing `DataClass`, you now have some extensions for the class itself:
-	
+### Converting CSV data
+
 ```haxe
-import dataclass.DataClass;
 using dataclass.Converter;
 
-class CsvTest implements DataClass {
+class CsvTest implements dataclass.DataClass {
 	// In the DataClass, specify the positions for each column (starts with 1, not 0)
 	@col(1) public var first : Int;
 	@col(2) public var second : Date;
@@ -125,11 +130,12 @@ class Main {
 }
 ```
 
+### Converting JSON data
+
 ```haxe
-import dataclass.DataClass;
 using dataclass.Converter;
 
-class JsonTest implements DataClass {
+class JsonTest implements dataclass.DataClass {
 	public var first : Int;
 	public var second : Date;
 	public var third : Bool;
@@ -149,7 +155,35 @@ class Main {
 }
 ```
 
-These class-level conversion methods only works with the supported types, currently `String, Int, Float, Date` and `Bool`. Other types, or extra fields on the input will be ignored for type-safety reasons. If you have other fields you can set them up later in the normal way:
+### Converting a `DataClass` back to `Dynamic<String>`
+
+```haxe
+using dataclass.Converter;
+
+class JsonTest implements dataclass.DataClass {
+	public var first : Int;
+	public var second : Date;
+	public var third : Bool;
+}
+
+class Main {
+	static function main() {
+		var o = new JsonTest({first: 123, second: Date.now(), third: true});
+		
+		var test = o.toDynamicObject({
+			delimiter: ",",
+			dateFormat: "%d/%m/%y",
+			boolValues: { tru: "YES", fals: "NO" } // (No typo, it's to avoid the reserved words)
+		});
+		
+		trace(test.first); // "123"
+		trace(test.second); // "22/06/15"
+		trace(test.third); // "YES"
+	}
+}
+```	
+
+These object-level conversions only works with the supported types, currently `String, Int, Float, Date` and `Bool`. Other types, or extra fields on the input will be ignored for type-safety reasons. If you have other fields you can set them up later in the normal way:
 
 ```haxe
 var input = haxe.Json.parse('{"first":123, "second":"2015-01-01", "third":"", "other":[1,2,3]}');
@@ -157,7 +191,7 @@ var test = JsonTest.fromDynamicObject(input);
 test.other = input.other;
 ```	
 
-**Note:** The above methods protects you from most runtime surprises, but if you have a custom constructor it must take the data object as first parameter, and have all other parameters optional. Also due to some type checking they take a performance hit, but it should be negligible in most cases. As usual, don't optimize unless you have obvious performance problems.
+**A final note:** The above methods protects you from most runtime surprises, but if you have a custom constructor it must take the data object as first parameter, and have all other parameters optional. Also due to the runtime type checking they take a performance hit, but it should be negligible in most cases. As usual, don't optimize unless you have obvious performance problems.
 
 ## Specific library support
 
@@ -176,7 +210,7 @@ DataClass plays very nicely together with the following libraries:
 - [x] [Mithril](https://github.com/ciscoheat/mithril-hx) support for `M.prop`
 - [x] [HaxeContracts](https://github.com/ciscoheat/HaxeContracts) option for exceptions
 - [ ] CI testing with [Travis](http://docs.travis-ci.com/user/languages/haxe/)
-- [ ] Initialize with a default value without type
+- [ ] Initialize with a default value without specifying type
 - [ ] [Mongoose](http://mongoosejs.com/) support for Node.js
 
 ## Connection to DCI

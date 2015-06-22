@@ -5,6 +5,12 @@ import haxe.rtti.Meta;
 using StringTools;
 using Converter.StringConverter;
 
+typedef ConverterOptions = {
+	?delimiter : String,
+	?boolValues : { tru: String, fals: String },
+	?dateFormat : String
+}
+
 class Converter
 {
 	///// Default configuration /////	
@@ -15,6 +21,43 @@ class Converter
 
 class DynamicObjectConverter {
 	public static var supportedTypes(default, null) = ["Bool", "Date", "Int", "Float", "String"];
+
+	static function convertTo(fieldName, columns) {
+		var field = Reflect.field(columns, fieldName);
+		return Reflect.hasField(field, "convertTo") ? Reflect.field(field, "convertTo")[0] : null;
+	}
+
+	public static function toDynamicObject(o : DataClass, ?opts : ConverterOptions) : Dynamic<String> {
+		var options = {
+			delimiter: opts.delimiter != null ? opts.delimiter : Converter.delimiter,
+			boolValues: opts.boolValues != null ? opts.boolValues : Converter.boolValues,
+			dateFormat: opts.dateFormat != null ? opts.dateFormat : Converter.dateFormat,
+		}
+		
+		var cls = Type.getClass(o);
+		var columns = Meta.getFields(cls);
+		var output = { };
+
+		for (fieldName in Reflect.fields(columns)) {
+			var convert = convertTo(fieldName, columns);
+			if (convert == null) continue;
+			
+			var data : Dynamic = Reflect.getProperty(o, fieldName);
+			var converted : String = switch convert {
+				case "Bool" if(Std.is(data, Bool)): BoolConverter.toString(data, options.boolValues);
+				case "Date" if(Std.is(data, Date)): DateConverter.toStringFormat(data, options.dateFormat);
+				case "Int" if(Std.is(data, Int)): IntConverter.toString(data);
+				case "Float" if(Std.is(data, Float)): FloatConverter.toString(data, options.delimiter);
+				case "String" if(Std.is(data, String)): data;
+				
+				case _:	throw "DynamicObjectConverter.toDynamicObject: Invalid type '" + Type.typeof(data) + "' for field " + fieldName;
+			};
+
+			Reflect.setField(output, fieldName, converted);
+		}		
+		
+		return output;
+	}
 	
 	public static function fromDynamicObject<T : DataClass>(cls : Class<T>, data : {}, ?delimiter : String) : T {
 		if (delimiter == null) delimiter = Converter.delimiter;
@@ -22,34 +65,30 @@ class DynamicObjectConverter {
 		var columns = Meta.getFields(cls);
 		var output = {};
 		
-		function convertTo(fieldName) {
-			var field = Reflect.field(columns, fieldName);
-			return Reflect.hasField(field, "convertTo") ? Reflect.field(field, "convertTo")[0] : null;
-		}
-		
 		for (fieldName in Reflect.fields(data)) {
-			var convert = convertTo(fieldName);
+			var convert = convertTo(fieldName, columns);
 			if (convert == null) continue;
 			
-			var fieldData : String = Reflect.field(data, fieldName);
-			//trace('Converting $fieldData to $convert');
+			var data : String = Reflect.field(data, fieldName);
+			//trace('Converting $data to $convert');
 			
 			var converted : Dynamic = switch convert {
-				case "String" if(Std.is(fieldData, String)): fieldData;
+				case "String" if(Std.is(data, String)): data;
 
-				case "Bool" if(Std.is(fieldData, String)): fieldData.toBool();
-				case "Bool" if(Std.is(fieldData, Bool)): fieldData;
+				case "Bool" if(Std.is(data, String)): data.toBool();
+				case "Bool" if(Std.is(data, Bool)): data;
 
-				case "Int" if(Std.is(fieldData, String)): fieldData.toInt();
-				case "Int" if(Std.is(fieldData, Int)): fieldData;
+				case "Int" if(Std.is(data, String)): data.toInt();
+				case "Int" if(Std.is(data, Int)): data;
 
-				case "Date" if(Std.is(fieldData, String)): fieldData.toDate();
-				case "Date" if(Std.is(fieldData, Date)): fieldData;
+				case "Date" if(Std.is(data, String)): data.toDate();
+				case "Date" if(Std.is(data, Date)): data;
 
-				case "Float" if(Std.is(fieldData, String)): fieldData.toFloat();
-				case "Float" if(Std.is(fieldData, Float)): fieldData;
+				case "Float" if(Std.is(data, String)): data.toFloat();
+				case "Float" if(Std.is(data, Float)): data;
 				
-				case _:	throw "DynamicObjectConverter: Invalid type '" + Type.typeof(fieldData) + "' for field " + fieldName;
+				case _:	throw "DynamicObjectConverter.fromDynamicObject: Invalid type '" 
+								+ Type.typeof(data) + "' for field " + fieldName;
 			};
 			
 			Reflect.setField(output, fieldName, converted);

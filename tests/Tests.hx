@@ -96,6 +96,8 @@ class TestColumnConverter implements DataClass
 	@col(1) public var first : Int;
 	@col(3) public var third : Bool;
 	@col(2) public var second : Date;
+	
+	var internal : String;
 }
 
 class TestHaxeContracts implements DataClass implements HaxeContracts
@@ -254,6 +256,28 @@ class Tests extends BuddySuite implements Buddy<[Tests, ConverterTests]>
 				obj.first.should.be(123);
 				obj.second.toString().should.be("2015-01-01 00:00:00");
 				obj.third.should.be(true);
+			});
+			
+			it("should convert public fields to the specified string format.", {
+				var a = TestConverter.fromDynamicObject({
+					date: "2015-12-12",
+					bool: "1",
+					int: "2000",
+					float: "123.45"
+				});
+				
+				var o = a.toDynamicObject({
+					delimiter: ',',
+					boolValues: { tru: "YES", fals: "NO" },
+					dateFormat: "%Y%m%d"
+				});
+				
+				Reflect.fields(o).length.should.be(4);
+				a.float.should.be(123.45);
+				o.date.should.be("20151212");
+				o.bool.should.be("YES");
+				o.int.should.be("2000");
+				o.float.should.be("123,45");
 			});
 		});		
 	}
