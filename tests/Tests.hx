@@ -77,6 +77,11 @@ class StringConverter implements DataClass
 	@validate(_ > 1000) public var int : Int;
 }
 
+class NullValidateTest implements DataClass
+{
+	@validate(_ > 1000) public var int : Null<Int>;
+}
+
 // Contains all types supported by the converter.
 class TestConverter implements DataClass
 {
@@ -199,6 +204,13 @@ class Tests extends BuddySuite implements Buddy<[Tests, ConverterTests]>
 					(function() new Validator({	date: "2015-12-12", str: "A", int: 1001 })).should.throwType(String);
 					(function() new Validator({	date: "2015-12-12", str: "AAA", int: 1 })).should.throwType(String);
 				});
+				
+				it("should accept null values if field can be null", {
+					new NullValidateTest({ int: null }).int.should.be(null);
+					new NullValidateTest().int.should.be(null);
+					(function() new NullValidateTest( { int: 1 } )).should.throwType(String);
+					new NullValidateTest({ int: 2000 }).int.should.be(2000);
+				});
 			});
 			
 			describe("Implementing HaxeContracts", {
@@ -280,8 +292,7 @@ class Tests extends BuddySuite implements Buddy<[Tests, ConverterTests]>
 				o.float.should.be("123,45");
 			});
 		});		
-	}
-	
+	}	
 }
 
 class ConverterTests extends BuddySuite
@@ -307,6 +318,17 @@ class ConverterTests extends BuddySuite
 				test.int.toString().should.be("123");
 				test.date.toStringFormat("%Y-%m-%d").should.be("2015-01-01");
 				test.float.toString().should.be("456.789");				
+			});
+			
+			it("should normalize Dynamic fields to camelCase", {
+				var data = {
+					"Uppercased" : "uppercased",
+					"Svänsk" : "svansk",
+					"Moms Id": "momsId",
+					"With space" : "withSpace",
+					"Disponibelt lagersaldo (Huvudlager)" : "disponibeltLagersaldoHuvudlager",
+					"Leverantör 2 Id": "leverantor2Id"
+				};				
 			});
 		});
 	}

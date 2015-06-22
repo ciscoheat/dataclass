@@ -103,7 +103,7 @@ class Builder {
 				var errorString = macro "Field " + $v{clsName} + "." + $v{name} + ' failed validation "' + $e + '" with value "' + this.$name + '"';
 				var throwType = throwError(errorString);
 				
-				return macro if(!$test) $throwType;
+				return macro if((!$v{opt} || this.$name != null) && !$test) $throwType;
 			}
 			
 			var validator = f.meta.find(function(m) return m.name == "validate");
