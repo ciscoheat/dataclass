@@ -27,7 +27,7 @@ class DynamicObjectConverter {
 		return Reflect.hasField(field, "convertTo") ? Reflect.field(field, "convertTo")[0] : null;
 	}
 
-	public static function toDynamicObject(o : DataClass, ?opts : ConverterOptions) : Dynamic<String> {
+	public static function toDynamic(o : DataClass, ?opts : ConverterOptions) : Dynamic<String> {
 		var options = {
 			delimiter: opts.delimiter != null ? opts.delimiter : Converter.delimiter,
 			boolValues: opts.boolValues != null ? opts.boolValues : Converter.boolValues,
@@ -43,14 +43,15 @@ class DynamicObjectConverter {
 			if (convert == null) continue;
 			
 			var data : Dynamic = Reflect.getProperty(o, fieldName);
-			var converted : String = switch convert {
+			var converted : String = data == null ? null : switch convert {
 				case "Bool" if(Std.is(data, Bool)): BoolConverter.toString(data, options.boolValues);
 				case "Date" if(Std.is(data, Date)): DateConverter.toStringFormat(data, options.dateFormat);
 				case "Int" if(Std.is(data, Int)): IntConverter.toString(data);
 				case "Float" if(Std.is(data, Float)): FloatConverter.toString(data, options.delimiter);
 				case "String" if(Std.is(data, String)): data;
 				
-				case _:	throw "DynamicObjectConverter.toDynamicObject: Invalid type '" + Type.typeof(data) + "' for field " + fieldName;
+				case _:	throw "DynamicObjectConverter.toDynamicObject: Invalid type '" 
+								+ Type.typeof(data) + '\' ($convert) for field $fieldName';
 			};
 
 			Reflect.setField(output, fieldName, converted);
@@ -59,20 +60,27 @@ class DynamicObjectConverter {
 		return output;
 	}
 	
-	public static function fromDynamicObject<T : DataClass>(cls : Class<T>, data : {}, ?delimiter : String) : T {
+	public static function fromDynamic<T : DataClass>(cls : Class<T>, data : {}, ?delimiter : String) : T {
 		if (delimiter == null) delimiter = Converter.delimiter;
+		
+		//trace("===== fromDynamicObject: " + Type.getClassName(cls));
+		//trace(data);
 		
 		var columns = Meta.getFields(cls);
 		var output = {};
 		
-		for (fieldName in Reflect.fields(data)) {
+		//trace(columns);
+		
+		for (fieldName in Reflect.fields(columns)) if(Reflect.hasField(data, fieldName)) {
+			//trace('Converting field $fieldName: ');
+			
 			var convert = convertTo(fieldName, columns);
 			if (convert == null) continue;
 			
 			var data : String = Reflect.field(data, fieldName);
-			//trace('Converting $data to $convert');
+			//trace('$data to $convert');
 			
-			var converted : Dynamic = switch convert {
+			var converted : Dynamic = data == null ? null : switch convert {
 				case "String" if(Std.is(data, String)): data;
 
 				case "Bool" if(Std.is(data, String)): data.toBool();
@@ -88,8 +96,10 @@ class DynamicObjectConverter {
 				case "Float" if(Std.is(data, Float)): data;
 				
 				case _:	throw "DynamicObjectConverter.fromDynamicObject: Invalid type '" 
-								+ Type.typeof(data) + "' for field " + fieldName;
+								+ Type.typeof(data) + '\' ($convert) for field $fieldName';
 			};
+			
+			//trace('Result: $converted');
 			
 			Reflect.setField(output, fieldName, converted);
 		}
@@ -110,7 +120,7 @@ class ColumnConverter {
 			if(col != null)	Reflect.setField(output, fieldName, input[col[0] - 1]);
 		}
 		
-		return DynamicObjectConverter.fromDynamicObject(cls, output, delimiter);
+		return DynamicObjectConverter.fromDynamic(cls, output, delimiter);
 	}
 }
 

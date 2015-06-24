@@ -16,17 +16,8 @@ private typedef FieldDataProperties = {
 	mithrilProp: Bool
 }
 
-class Builder {
-
-	static function publicVarOrProp(f : Field) {
-		if(f.access.has(AStatic) || !f.access.has(APublic)) return false;
-		return switch(f.kind) {
-			case FVar(_, _): true;
-			case FProp(_, set, _, _): set == "default" || set == "null" || set == "set";
-			case _: false;
-		}
-	}
-
+class Builder
+{
 	static public function build() : Array<Field> {
 		var fields = Context.getBuildFields();
 		var cls = Context.getLocalClass().get();
@@ -211,6 +202,21 @@ class Builder {
 
 		return fields;	
 	}
+	
+	////////////////////////////////////////////////////////////////////////////////
+	
+	static function ignored(f : Field) {
+		return !f.meta.exists(function(m) return m.name == "ignore");
+	}
+
+	static function publicVarOrProp(f : Field) {
+		if(f.access.has(AStatic) || !f.access.has(APublic)) return false;
+		return switch(f.kind) {
+			case FVar(_, _): true;
+			case FProp(_, set, _, _): set == "default" || set == "null" || set == "set";
+			case _: false;
+		}
+	}
 
 	static function typedefKind(kind : FieldType, pos : Position) : FieldType {
 		// A superfluous method it seems, but having some problem with 
@@ -246,7 +252,7 @@ class Builder {
 	}
 	
 	static function childAndParentFields(fields : Array<Field>, cls : ClassType) : Array<Field> {
-		var typeFields = fields.filter(publicVarOrProp).map(fieldToTypedefField);
+		var typeFields = fields.filter(ignored).filter(publicVarOrProp).map(fieldToTypedefField);
 
 		if(cls.superClass == null) return typeFields;
 

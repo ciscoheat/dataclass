@@ -1,23 +1,28 @@
 # DataClass
 
-A more convenient way to instantiate data classes.
+A convenient way to instantiate data classes with validation, default values, null checks, etc... Give your data a bit more class!
+
+## How to use
 
 ```haxe
 enum Color { Red; Blue; }
 
 class Person implements dataclass.DataClass {
-	public var id : Int 			 // Required
-	public var name : Null<String>	 // Null makes it optional
+	public var id : Int             // Required field (cannot be null)
+	public var name : Null<String>  // Null<T> allows null
 
-	@validate(~/[\w-.]+@[\w-.]+/)	 			// Regexp validation, auto-adding ^ and $ unless one of them exists
-	public var email(default, null) : String	// Works with properties
+	@validate(~/[\w-.]+@[\w-.]+/)             // Regexp validation, auto-adding ^ and $ unless one of them exists
+	public var email(default, null) : String  // Works with properties
 
-	@validate(_.length > 2)			 // Expression validation
-	public var city : String		 // "_" is replaced with the field
+	@validate(_.length > 2)   // Expression validation, "_" is replaced with the field
+	public var city : String
 
-	public var active : Bool = true;        // Default value
-	public var color : Color = Blue;        // Works with Enums too
-	public var created : Date = Date.now(); // And even statements
+	public var active : Bool = true;         // Default value
+	public var color : Color = Blue;         // Works with Enums too
+	public var created : Date = Date.now();  // And statements
+	
+	var internal : String;           // non-public vars aren't included
+	@ignore public var test : Bool;  // neither are fields marked with @ignore
 }
 
 class Main {
@@ -146,7 +151,7 @@ class Main {
 		// Parsed JSON data
 		var input = haxe.Json.parse('{"first":123, "second":"2015-01-01", "third":"", "extra":"will not be added"}');
 		
-		var test = JsonTest.fromDynamicObject(input);
+		var test = JsonTest.fromDynamic(input);
 		
 		trace(test.first); // 123
 		trace(test.second.getFullYear()); // 2015
@@ -155,7 +160,7 @@ class Main {
 }
 ```
 
-### Converting a `DataClass` back to `Dynamic<String>`
+### Converting a DataClass to Dynamic<String>
 
 ```haxe
 using dataclass.Converter;
@@ -170,7 +175,8 @@ class Main {
 	static function main() {
 		var o = new JsonTest({first: 123, second: Date.now(), third: true});
 		
-		var test = o.toDynamicObject({
+		// Demonstrating the converter settings:
+		var test = o.toDynamic({
 			delimiter: ",",
 			dateFormat: "%d/%m/%y",
 			boolValues: { tru: "YES", fals: "NO" } // (No typo, it's to avoid the reserved words)
@@ -187,7 +193,7 @@ These object-level conversions only works with the supported types, currently `S
 
 ```haxe
 var input = haxe.Json.parse('{"first":123, "second":"2015-01-01", "third":"", "other":[1,2,3]}');
-var test = JsonTest.fromDynamicObject(input);
+var test = JsonTest.fromDynamic(input);
 test.other = input.other;
 ```	
 

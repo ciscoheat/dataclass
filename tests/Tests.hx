@@ -110,6 +110,11 @@ class TestHaxeContracts implements DataClass implements HaxeContracts
 	public var id : Int;
 }
 
+class Ignore implements dataclass.DataClass {
+	public var id : Int;
+	@ignore public var input : Array<Int>;
+}
+
 class Tests extends BuddySuite implements Buddy<[Tests, ConverterTests]>
 {	
 	public function new() {
@@ -189,6 +194,13 @@ class Tests extends BuddySuite implements Buddy<[Tests, ConverterTests]>
 					prop.child.should.be(true);
 				});
 			});
+			
+			describe("With @ignore on a field", {
+				it("should skip the field altogether", {
+					var o = new Ignore({id: 123});
+					o.input.should.be(null);
+				});
+			});
 
 			describe("Validators", {
 				it("should validate with @validate(...) expressions", function(done) {
@@ -229,7 +241,7 @@ class Tests extends BuddySuite implements Buddy<[Tests, ConverterTests]>
 					doesNotExist: "should not be added"
 				};
 				
-				var a = StringConverter.fromDynamicObject(data);
+				var a = StringConverter.fromDynamic(data);
 				
 				a.date.should.be("2015-12-12");
 				a.bool.should.be(true);
@@ -243,12 +255,12 @@ class Tests extends BuddySuite implements Buddy<[Tests, ConverterTests]>
 					"int": "100"
 				}');
 				
-				(function() StringConverter.fromDynamicObject(data)).should.throwType(String);
+				(function() StringConverter.fromDynamic(data)).should.throwType(String);
 			});
 			
 			it("should parse floats correctly", {
 				var data = { float: "123345.44" };
-				TestFloatConverter.fromDynamicObject(data).float.should.beCloseTo(123345.44);
+				TestFloatConverter.fromDynamic(data).float.should.beCloseTo(123345.44);
 			});
 			
 			it("should parse money format correctly", {
@@ -256,7 +268,7 @@ class Tests extends BuddySuite implements Buddy<[Tests, ConverterTests]>
 				Converter.delimiter = ",";
 				
 				var data = { float: "$123.345,44" };
-				TestFloatConverter.fromDynamicObject(data).float.should.beCloseTo(123345.44);
+				TestFloatConverter.fromDynamic(data).float.should.beCloseTo(123345.44);
 				
 				Converter.delimiter = old;
 			});
@@ -271,14 +283,14 @@ class Tests extends BuddySuite implements Buddy<[Tests, ConverterTests]>
 			});
 			
 			it("should convert public fields to the specified string format.", {
-				var a = TestConverter.fromDynamicObject({
+				var a = TestConverter.fromDynamic({
 					date: "2015-12-12",
 					bool: "1",
 					int: "2000",
 					float: "123.45"
 				});
 				
-				var o = a.toDynamicObject({
+				var o = a.toDynamic({
 					delimiter: ',',
 					boolValues: { tru: "YES", fals: "NO" },
 					dateFormat: "%Y%m%d"
