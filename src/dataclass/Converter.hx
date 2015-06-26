@@ -86,13 +86,13 @@ class DynamicObjectConverter {
 				case "Bool" if(Std.is(data, String)): data.toBool();
 				case "Bool" if(Std.is(data, Bool)): data;
 
-				case "Int" if(Std.is(data, String)): data.toInt();
+				case "Int" if(Std.is(data, String)): data.toInt(delimiter);
 				case "Int" if(Std.is(data, Int)): data;
 
 				case "Date" if(Std.is(data, String)): data.toDate();
 				case "Date" if(Std.is(data, Date)): data;
 
-				case "Float" if(Std.is(data, String)): data.toFloat();
+				case "Float" if(Std.is(data, String)): data.toFloat(delimiter);
 				case "Float" if(Std.is(data, Float)): data;
 				
 				case _:	throw "DynamicObjectConverter.fromDynamicObject: Invalid type '" 

@@ -3,8 +3,8 @@
     "url": "https://github.com/ciscoheat/dataclass",
     "description": "A more convenient way to instantiate data classes.",
     "license": "MIT",
-    "releasenote": "Fixed dynamic object conversion. Added @ignore.",
+    "releasenote": "Fixed custom delimiter in fromDynamic().",
     "contributors": ["ciscoheat"],
-    "version": "0.8.0",
+    "version": "0.8.1",
     "tags": ["data", "validation", "contracts", "dci"]
 }
