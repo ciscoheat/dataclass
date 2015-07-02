@@ -115,6 +115,12 @@ class Ignore implements dataclass.DataClass {
 	@ignore public var input : Array<Int>;
 }
 
+@immutable class Immutable implements DataClass
+{
+	public var id : Int;
+	public var name : String;
+}
+
 class Tests extends BuddySuite implements Buddy<[Tests, ConverterTests]>
 {	
 	public function new() {
@@ -228,6 +234,13 @@ class Tests extends BuddySuite implements Buddy<[Tests, ConverterTests]>
 			describe("Implementing HaxeContracts", {
 				it("should throw ContractException instead of a string.", {
 					(function() new TestHaxeContracts( { id: null } )).should.throwType(ContractException);
+				});
+			});
+			
+			@include describe("Using the @immutable metadata", {
+				it("should convert all var fields into (default, null) properties.", {
+					// Difficult to test compilations errors...!
+					new Immutable({ id: 123, name: "Test" }).should.beType(Immutable);					
 				});
 			});
 		});
