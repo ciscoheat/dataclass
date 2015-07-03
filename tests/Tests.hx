@@ -316,6 +316,22 @@ class Tests extends BuddySuite implements Buddy<[Tests, ConverterTests]>
 				o.int.should.be("2000");
 				o.float.should.be("123,45");
 			});
+			
+			it("should auto-detect delimiter if set to an empty string", {
+				var old = Converter.delimiter;
+				Converter.delimiter = "";
+				
+				var data = { float: "$123.345,44" };
+				TestFloatConverter.fromDynamic(data).float.should.beCloseTo(123345.44);
+
+				data = { float: "123 345.44" };
+				TestFloatConverter.fromDynamic(data).float.should.beCloseTo(123345.44);
+
+				data = { float: "123345,44" };
+				TestFloatConverter.fromDynamic(data).float.should.beCloseTo(123345.44);
+
+				Converter.delimiter = old;				
+			});
 		});		
 	}	
 }

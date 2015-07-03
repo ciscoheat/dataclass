@@ -109,7 +109,7 @@ These methods have some intelligence that handles when for example the input isn
 
 There are some settings for the conversion process in `dataclass.Converter`:
 	
-- `Converter.delimiter` allows you to specify the delimiter for `Float`.
+- `Converter.delimiter` allows you to specify the delimiter for `Float`. The default is `.`, but can also be set to a blank string for auto-detecting period or comma.
 - `Converter.boolValues` sets the converted string values for `true` and `false`.
 - `Converter.dateFormat` sets the converted string `Date` value.
 

@@ -134,13 +134,22 @@ class StringConverter
 		
 	public static function toInt(s : String, ?delimiter : String) : Int {
 		if (delimiter == null) delimiter = Converter.delimiter;	
+
+		delimiter = delimiter == "" 
+			? s.lastIndexOf(',') > s.lastIndexOf('.') ? ',' : '.'
+			: delimiter;
+		
 		return Std.parseInt(s.replace(delimiter, "."));
 	}
 
 	public static function toFloat(s : String, ?delimiter : String) : Float {
 		if (delimiter == null) delimiter = Converter.delimiter;
 		
-		var delimPos = s.lastIndexOf(delimiter);
+		delimiter = delimiter == "" 
+			? s.lastIndexOf(',') > s.lastIndexOf('.') ? ',' : '.'
+			: delimiter;
+
+		var delimPos = s.lastIndexOf(delimiter);		
 		var clean = function(s) return ~/[^\deE+-]/g.replace(s, "");
 		
 		return Std.parseFloat(delimPos == -1
