@@ -4,8 +4,8 @@ package dataclass.macros;
 import haxe.macro.Context;
 import haxe.macro.Expr;
 import haxe.macro.Type;
-using haxe.macro.ExprTools;
 
+using haxe.macro.ExprTools;
 using Lambda;
 using StringTools;
 
@@ -26,7 +26,6 @@ class Builder
 		// need to supply them here. They're available on the superclass though.
 		var publicFields = childAndParentFields(fields, cls);
 		var fieldMap = new Map<Field, FieldDataProperties>();
-		var immutable = cls.meta.has("immutable");
 		
 		// Test if class implements HaxeContracts, then throw ContractException instead.
 		var haxeContracts = cls.interfaces.map(function(i) return i.t.get()).exists(function(ct) {
@@ -39,6 +38,28 @@ class Builder
 				: macro throw $errorString;
 		}
 
+		if (cls.meta.has("immutable")) {
+			var replaceThis = ~/^this\./;
+			var fieldNames = fields
+				.filter(function(f) return publicFields.exists(function(pf) return pf.name == f.name))
+				.map(function(f) return f.name);
+			
+			function preventAssign(e : Expr) switch e.expr {
+				case EBinop(OpAssign, e1, _) if (fieldNames.has(replaceThis.replace(e1.toString(), ''))): 
+					Context.error("Class " + cls.name + " is marked as immutable, cannot assign to any fields.", e.pos);
+				case _: 
+					e.iter(preventAssign);
+			}
+			
+			// Make public var into public var(default, null)
+			// and prevent assignments to fields
+			for(f in fields) switch f.kind {
+				case FVar(t, e): f.kind = FProp('default', 'null', t, e);
+				case FFun(fun) if(f.name != 'new'): preventAssign(fun.expr);
+				case _:
+			}
+		}
+
 		for (f in publicFields) {
 			// If @col metadata, check the format
 			for (col in f.meta.filter(function(m) return m.name == "col")) {
@@ -49,14 +70,6 @@ class Builder
 					}
 				} catch (e : Dynamic) {
 					Context.error("@col must take a single int as parameter.", col.pos);
-				}
-			}
-			
-			if (immutable) {
-				var realField = fields.find(function(rf) return rf.name == f.name);
-				if(realField != null) switch realField.kind {
-					case FVar(t, e): realField.kind = FProp('default', 'null', t, e);
-					case _:
 				}
 			}
 			

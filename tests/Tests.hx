@@ -118,7 +118,7 @@ class Ignore implements dataclass.DataClass {
 @immutable class Immutable implements DataClass
 {
 	public var id : Int;
-	public var name : String;
+	public var name : String;	
 }
 
 class Tests extends BuddySuite implements Buddy<[Tests, ConverterTests]>
@@ -240,7 +240,8 @@ class Tests extends BuddySuite implements Buddy<[Tests, ConverterTests]>
 			@include describe("Using the @immutable metadata", {
 				it("should convert all var fields into (default, null) properties.", {
 					// Difficult to test compilations errors...!
-					new Immutable({ id: 123, name: "Test" }).should.beType(Immutable);					
+					var immutable = new Immutable({ id: 123, name: "Test" });
+					immutable.should.beType(Immutable);
 				});
 			});
 		});
@@ -356,21 +357,12 @@ class ConverterTests extends BuddySuite
 				test.float.should.beCloseTo(456.789, 3);
 				
 				test.bool.toString({tru: "YES", fals: "NO"}).should.be("YES");
+				(false).toString({tru: "YES", fals: "NO"}).should.be("NO");
+				
 				test.int.toString().should.be("123");
 				test.date.toStringFormat("%Y-%m-%d").should.be("2015-01-01");
 				test.float.toString().should.be("456.789");				
-			});
-			
-			it("should normalize Dynamic fields to camelCase", {
-				var data = {
-					"Uppercased" : "uppercased",
-					"Svänsk" : "svansk",
-					"Moms Id": "momsId",
-					"With space" : "withSpace",
-					"Disponibelt lagersaldo (Huvudlager)" : "disponibeltLagersaldoHuvudlager",
-					"Leverantör 2 Id": "leverantor2Id"
-				};				
-			});
+			});			
 		});
 	}
 }

@@ -82,7 +82,9 @@ class Custom implements dataclass.DataClass {
 
 ## Immutability
 
-A class can be made immutable, or at least semi-immutable, by marking it with `@immutable`. That will change all `public var` fields to `public var(default, null)`, saving some typing and preventing changes from the outside. If you avoid internal changes as well, he class will be a good candidate for [Event Sourcing](http://docs.geteventstore.com/introduction/event-sourcing-basics/).
+A class can be made immutable, or at least shallow immutable (meaning that Arrays and such can still be modified), by marking it with `@immutable`. This will change all `public var` fields to `public var(default, null)`, and prevent internal changes to those. 
+
+An immutable class is a good candidate for [Event Sourcing](http://docs.geteventstore.com/introduction/event-sourcing-basics/), and some proponents of [DCI](https://github.com/ciscoheat/haxedci-example) suggests that the data objects of DCI (simple objects with no interactions between others) should always be immutable.
 
 ## Conversion utilities
 
