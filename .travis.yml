@@ -1,0 +1,69 @@
+language: haxe
+
+# Test with Haxe 3.1.3, 3.2.0, and Haxe development.
+haxe:
+  - "3.1.3"
+  - "3.2.0"
+  - development
+
+matrix:
+  # Allow Haxe development to fail.
+  allow_failures:
+    - haxe: development
+
+addons:
+  # This is the preferred way to install apt packages.
+  # However, it only allow some but not all packages.
+  # Alternatively, we can use `sudo apt-get install ...` in the `install:` section.
+  # http://docs.travis-ci.com/user/apt/#Adding-APT-Packages
+  apt:
+    packages:
+      # -python
+      - python3
+      # -php
+      - php5-cli
+      # -cs
+      - mono-devel
+      # -cs
+      - mono-mcs
+
+install:
+  # Library dependencies
+  - haxelib install buddy
+  - haxelib install HaxeContracts
+
+  # -cpp
+  - haxelib install hxcpp
+  # -java
+  - haxelib install hxjava
+  # -cs
+  - haxelib install hxcs
+
+  - haxelib list
+  - chmod +x .travis*.sh 
+
+  # -flash
+  - ./.travis-flash-install.sh
+
+script:
+  - haxe tests.hxml
+  # -neko
+  - neko bin/neko.n
+  # -nodejs
+  - node bin/nodejs.js
+  # -phantomjs
+  #.- ./.travis-phantomjs-script.sh phantomjs.js '0 failures'
+  # -java
+  - java -jar bin/Tests.jar
+  # -php
+  - php bin/index.php
+  # -cs
+  - mono bin/bin/Tests.exe
+  # -flash
+  - ./.travis-flash-script.sh bin/flash.swf
+  # -cpp
+  - ./bin/Tests
+  # -python
+  - if [ "${TRAVIS_HAXE_VERSION}" = "development" ]; then python3 bin/python.py; fi
+  # -python
+  - if [ "${TRAVIS_HAXE_VERSION}" = "3.2.0" ]; then python3 bin/python.py; fi
