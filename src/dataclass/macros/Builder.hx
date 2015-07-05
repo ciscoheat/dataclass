@@ -12,8 +12,7 @@ using StringTools;
 private typedef FieldDataProperties = {
 	opt: Bool, 
 	def: Expr, 
-	val: Expr,
-	mithrilProp: Bool
+	val: Expr
 }
 
 class Builder
@@ -31,6 +30,22 @@ class Builder
 		var haxeContracts = cls.interfaces.map(function(i) return i.t.get()).exists(function(ct) {
 			return ct.name == "HaxeContracts";
 		});
+
+		// Complicated: Testing for null is only allowed if on a non-static platform or the type is not a basic type.
+		function nullTestAllowed(f : Field) {			
+			var staticPlatform = Context.defined("cpp") || Context.defined("java") || Context.defined("flash") || Context.defined("cs");
+			if (!staticPlatform) return true;
+			
+			return switch f.kind {
+				case FVar(TPath(p), _), FProp(_, _, TPath(p), _):
+					if (p.pack.length == 0 && ['Int', 'Float', 'Bool'].has(p.name)) 
+						false;
+					else 
+						true;
+				case _: 
+					true;
+			}
+		}
 
 		function throwError(errorString : ExprOf<String>) : Expr {
 			return haxeContracts
@@ -73,26 +88,77 @@ class Builder
 				}
 			}
 			
+			//trace('===' + f.name);
+			//trace(f.kind);
+			
 			// TODO: Allow fields with only a default value, no type
 			var opt = switch f.kind {
 				case FVar(TPath(p), _) if (p.name == "Null"): true;
 				case FProp(_, _, TPath(p), _) if (p.name == "Null"): true;
 				case _: false;
 			}
-
-			var def = switch f.kind {
+			
+			// If a default value exists, extract it from the field
+			var def : Expr = switch f.kind {
 				case FVar(p, e) if (e != null):
 					f.kind = FVar(p, null);
-					opt = true;
 					e;
 				case FProp(get, set, p, e) if (e != null):
 					f.kind = FProp(get, set, p, null);
-					opt = true;
 					e;
 				case _: 
 					macro null;
 			}
 			
+			// Make the field nullable if it has a default value but is not optional
+			if (def.toString() != 'null' && !opt) {				
+				switch def.expr {
+					// Special case for js optional values: Date.now() will be transformed to this:
+					case ECall( { expr: EConst(CIdent("__new__")), pos: _ }, [ { expr: EConst(CIdent("Date")), pos: _ }]):
+						// Make it into its real value:
+						def.expr = (macro Date.now()).expr;
+					case _:
+				}
+				
+				//Context.warning(f.name + ' type: ' + f.kind + ' default: ' + def.toString(), f.pos);
+				opt = true;
+				switch f.kind {
+					case FVar(t, e): 
+						var nullWrap = TPath({ name: 'Null', pack: [], params: [TPType(t)]});
+						f.kind = FVar(nullWrap, e);
+						//trace(f.name + " set to null");
+					case FProp(get, set, t, e):
+						var nullWrap = TPath({ name: 'Null', pack: [], params: [TPType(t)]});
+						f.kind = FProp(get, set, nullWrap, e);
+						//trace(f.name + " set to null");
+					case _:						
+				}
+			}
+			
+			// Test Mithril property
+			if (f.meta.exists(function(m) return m.name == "prop")) {
+				switch f.kind {
+					// Don't modify if it's already a GetterSetter.
+					case FVar(TFunction([TOptional(_)], _), _), FProp(_, _, TFunction([TOptional(_)], _), _):
+						
+					case FVar(t, e):
+						f.kind = FVar(TFunction([TOptional(t)], t), e);
+					
+					case FProp(get, set, t, e):
+						f.kind = FProp(get, set, TFunction([TOptional(t)], t), e);
+						
+					case _:
+				}
+				
+ 				switch def {
+					// Don't create a M.prop if it's not already one
+					case macro M.prop($e), macro mithril.M.prop($e):
+						
+					case _: 
+						def = {expr: (macro mithril.M.prop($def)).expr, pos: def.pos};
+				}
+			}
+
 			function createValidator(e : Expr) : Expr {
 				var test : Expr;
 				var name = f.name;
@@ -116,7 +182,9 @@ class Builder
 				var errorString = macro "Field " + $v{clsName} + "." + $v{name} + ' failed validation "' + $e + '" with value "' + this.$name + '"';
 				var throwType = throwError(errorString);
 				
-				return macro if((!$v{opt} || this.$name != null) && !$test) $throwType;
+				return nullTestAllowed(f)
+					? macro if ((!$v{opt} || this.$name != null) && !$test) $throwType
+					: macro if (!$v{opt} && !$test) $throwType;
 			}
 			
 			var validator = f.meta.find(function(m) return m.name == "validate");
@@ -125,8 +193,6 @@ class Builder
 				opt: opt, 
 				def: def, 
 				val: validator == null ? null : createValidator(validator.params[0]),
-				// If @prop metadata, assume field is a Mithril property.
-				mithrilProp: f.meta.exists(function(m) return m.name == "prop")
 			});
 
 			if(opt) f.meta.push({
@@ -146,7 +212,9 @@ class Builder
 			var name = f.name;
 			var clsName = cls.name;
 			
-			var assignment = macro data.$name != null ? data.$name : $def;
+			var assignment = opt
+				? macro data.$name != null ? data.$name : $def
+				: macro data.$name;
 			
 			switch f.kind {
 				case FVar(TPath(p), _) | FProp(_, _, TPath(p), _):
@@ -167,14 +235,10 @@ class Builder
 				case _:
 			}
 			
-			// Test if Mitril property
-			assignments.push(data.mithrilProp 
-				? macro this.$name = mithril.M.prop($assignment)
-				: macro this.$name = $assignment
-			);
-			
-			if (!opt) {
-				var throwStatement = throwError(macro "Field " + $v{clsName} + "." + $v{name} + " was null.");
+			assignments.push(macro this.$name = $assignment);
+					
+			if (!opt && nullTestAllowed(f)) {
+				var throwStatement = throwError(macro "Field " + $v { clsName } + "." + $v { name } + " was null.");				
 				assignments.push(macro if (this.$name == null) $throwStatement);
 			}
 			

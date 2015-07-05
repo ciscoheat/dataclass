@@ -88,7 +88,7 @@ An immutable class is a good candidate for [Event Sourcing](http://docs.getevent
 
 ## Conversion utilities
 
-DataClass have some ways to simplify the tedious data conversion process when you get input data from for example a CSV file or JSON data containing only strings, and they should be mapped to a class implementing `DataClass`.
+DataClass has some ways to simplify the tedious data conversion process when you get input data from for example a CSV file or JSON data containing only strings, and they should be mapped to a Haxe object.
 
 By adding `using dataclass.Converter;` you'll get some useful extensions on the supported types.
 
@@ -228,3 +228,5 @@ DataClass plays very nicely together with the following libraries:
 ## Connection to DCI
 
 Simple data objects are the very foundation of the [DCI architecture](https://en.wikipedia.org/wiki/Data,_context_and_interaction). They represent what the system *is*, and have no connections to other objects. They play Roles in DCI Contexts, where they become parts of Interactions between other objects, describing what the system *does* based on a user mental model. The [haxedci-example](https://github.com/ciscoheat/haxedci-example) repository has a thorough tutorial of the DCI paradigm in Haxe if you're interested.
+
+[![Build Status](https://travis-ci.org/ciscoheat/dataclass.svg?branch=master)](https://travis-ci.org/ciscoheat/dataclass)

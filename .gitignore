@@ -3,4 +3,4 @@
 .vagrant
 node_modules
 *.sublime-workspace
-/bin/*.n
+/bin

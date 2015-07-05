@@ -1,0 +1,41 @@
+-lib HaxeContracts
+-lib buddy
+-cp src 
+-cp tests
+-main Tests
+
+--each
+-neko bin/neko.n
+
+--next
+-lib hxcpp
+-D static
+-cpp bin
+
+--next
+-php bin
+
+#--next
+#-D reporter=buddy.reporting.TraceReporter
+#-js bin/phantomjs.js
+
+--next
+-D nodejs
+-js bin/nodejs.js
+
+--next
+-D static
+-java bin
+
+--next
+-D static
+-D fdb-ci
+-D reporter=buddy.reporting.TraceReporter
+-swf bin/flash.swf
+
+--next
+-D static
+-cs bin
+
+--next
+-python bin/python.py

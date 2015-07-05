@@ -1,9 +1,13 @@
-
 import buddy.*;
 import dataclass.*;
 import haxe.Json;
 import haxecontracts.ContractException;
 import haxecontracts.HaxeContracts;
+
+#if cpp
+import hxcpp.StaticStd;
+import hxcpp.StaticRegexp;
+#end
 
 using buddy.Should;
 using dataclass.Converter;
@@ -107,7 +111,7 @@ class TestColumnConverter implements DataClass
 
 class TestHaxeContracts implements DataClass implements HaxeContracts
 {
-	public var id : Int;
+	@validate(_ > 0) public var id : Null<Int>;
 }
 
 class Ignore implements dataclass.DataClass {
@@ -121,7 +125,11 @@ class Ignore implements dataclass.DataClass {
 	public var name : String;	
 }
 
-class Tests extends BuddySuite implements Buddy<[Tests, ConverterTests]>
+@:build(buddy.GenerateMain.withSuites([
+	Tests,
+	ConverterTests
+]))
+class Tests extends BuddySuite
 {	
 	public function new() {
 		describe("DataClass", {
@@ -130,9 +138,11 @@ class Tests extends BuddySuite implements Buddy<[Tests, ConverterTests]>
 					new RequireId( { id: 123 } ).id.should.be(123);
 				});
 
+#if !static
 				it("should throw if null value is supplied", {
 					(function() new RequireId({id: null})).should.throwType(String);
 				});
+#end
 			});
 
 			describe("With null fields", {
@@ -209,10 +219,12 @@ class Tests extends BuddySuite implements Buddy<[Tests, ConverterTests]>
 			});
 
 			describe("Validators", {
+#if !php
 				it("should validate with @validate(...) expressions", function(done) {
 					new Validator({ date: "2015-12-12", str: "AAA", int: 1001 });
 					done();
 				});
+#end
 
 				it("should validate regexps as a ^...$ regexp.", {
 					(function() new Validator({	date: "*2015-12-12*", str: "AAA", int: 1001 })).should.throwType(String);
@@ -223,17 +235,19 @@ class Tests extends BuddySuite implements Buddy<[Tests, ConverterTests]>
 					(function() new Validator({	date: "2015-12-12", str: "AAA", int: 1 })).should.throwType(String);
 				});
 				
+#if !static
 				it("should accept null values if field can be null", {
 					new NullValidateTest({ int: null }).int.should.be(null);
 					new NullValidateTest().int.should.be(null);
 					(function() new NullValidateTest( { int: 1 } )).should.throwType(String);
 					new NullValidateTest({ int: 2000 }).int.should.be(2000);
 				});
+#end
 			});
 			
 			describe("Implementing HaxeContracts", {
-				it("should throw ContractException instead of a string.", {
-					(function() new TestHaxeContracts( { id: null } )).should.throwType(ContractException);
+				it("should throw ContractException instead of a string.", {				
+					(function() new TestHaxeContracts({ id: -1 })).should.throwType(ContractException);
 				});
 			});
 			
@@ -269,7 +283,16 @@ class Tests extends BuddySuite implements Buddy<[Tests, ConverterTests]>
 					"int": "100"
 				}');
 				
+				#if cs
+				try {
+					StringConverter.fromDynamic(data);
+					fail("Object should fail validation.");
+				} catch (e : Dynamic) {
+					e.should.not.be(null);
+				}
+				#else
 				(function() StringConverter.fromDynamic(data)).should.throwType(String);
+				#end
 			});
 			
 			it("should parse floats correctly", {

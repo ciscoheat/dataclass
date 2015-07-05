@@ -77,22 +77,23 @@ class DynamicObjectConverter {
 			var convert = convertTo(fieldName, columns);
 			if (convert == null) continue;
 			
-			var data : String = Reflect.field(data, fieldName);
+			// java requires explicit Dynamic here.
+			var data : Dynamic = Reflect.field(data, fieldName);
 			//trace('$data to $convert');
 			
 			var converted : Dynamic = data == null ? null : switch convert {
 				case "String" if(Std.is(data, String)): data;
 
-				case "Bool" if(Std.is(data, String)): data.toBool();
+				case "Bool" if(Std.is(data, String)): StringConverter.toBool(data);
 				case "Bool" if(Std.is(data, Bool)): data;
 
-				case "Int" if(Std.is(data, String)): data.toInt(delimiter);
+				case "Int" if(Std.is(data, String)): StringConverter.toInt(data, delimiter);
 				case "Int" if(Std.is(data, Int)): data;
 
-				case "Date" if(Std.is(data, String)): data.toDate();
+				case "Date" if(Std.is(data, String)): StringConverter.toDate(data);
 				case "Date" if(Std.is(data, Date)): data;
 
-				case "Float" if(Std.is(data, String)): data.toFloat(delimiter);
+				case "Float" if(Std.is(data, String)): StringConverter.toFloat(data, delimiter);
 				case "Float" if(Std.is(data, Float)): data;
 				
 				case _:	throw "DynamicObjectConverter.fromDynamicObject: Invalid type '" 
