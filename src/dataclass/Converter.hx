@@ -185,24 +185,3 @@ class FloatConverter {
 		return Std.string(f).replace(".", delimiter);
 	}
 }
-
-abstract AutoConverter(String) from String to String 
-{
-	public inline function new(s : String) this = s;
-
-	@:to public function toInt() {
-		return StringConverter.toInt(this);
-	}
-
-	@:to public function toFloat() {
-		return StringConverter.toFloat(this);
-	}
-
-	@:to public function toDate() {
-		return StringConverter.toDate(this);
-	}
-	
-	@:to public function toBool() {
-		return StringConverter.toBool(this);
-	}	
-}
