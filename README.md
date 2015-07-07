@@ -227,7 +227,7 @@ DataClass plays very nicely together with the following libraries:
 - [x] Allow get/set properties
 - [x] [Mithril](https://github.com/ciscoheat/mithril-hx) support for `M.prop`
 - [x] [HaxeContracts](https://github.com/ciscoheat/HaxeContracts) option for exceptions
-- [ ] CI testing with [Travis](http://docs.travis-ci.com/user/languages/haxe/)
+- [x] CI testing with [Travis](http://docs.travis-ci.com/user/languages/haxe/)
 - [ ] Initialize with a default value without specifying type
 - [ ] [Mongoose](http://mongoosejs.com/) support for Node.js
 
