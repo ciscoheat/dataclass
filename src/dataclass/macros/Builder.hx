@@ -66,10 +66,10 @@ class Builder
 					e.iter(preventAssign);
 			}
 			
-			// Make public var into public var(default, null)
-			// and prevent assignments to fields
+			// Make vars and properties into var(default, null) and prevent assignments to fields
 			for(f in fields) switch f.kind {
 				case FVar(t, e): f.kind = FProp('default', 'null', t, e);
+				case FProp(get, _, t, e): f.kind = FProp(get, 'null', t, e);
 				case FFun(fun) if(f.name != 'new'): preventAssign(fun.expr);
 				case _:
 			}

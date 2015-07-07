@@ -74,20 +74,21 @@ class Validator implements DataClass
 	@validate(_ > 1000) public var int : Int;
 }
 
-class StringConverter implements DataClass
+class NullValidateTest implements DataClass
+{
+	@validate(_ > 1000) public var int : Null<Int>;
+}
+
+// Need @:keep to work in dce=full
+@:keep class StringConverter implements DataClass
 {
 	public var date : String;
 	public var bool : Bool;
 	@validate(_ > 1000) public var int : Int;
 }
 
-class NullValidateTest implements DataClass
-{
-	@validate(_ > 1000) public var int : Null<Int>;
-}
-
 // Contains all types supported by the converter.
-class TestConverter implements DataClass
+@:keep class TestConverter implements DataClass
 {
 	public var bool : Bool;
 	public var int : Int;
@@ -95,12 +96,12 @@ class TestConverter implements DataClass
 	public var float : Float;
 }
 
-class TestFloatConverter implements DataClass
+@:keep class TestFloatConverter implements DataClass
 {
 	public var float : Null<Float>;
 }
 
-class TestColumnConverter implements DataClass
+@:keep class TestColumnConverter implements DataClass
 {
 	@col(1) public var first : Int;
 	@col(3) public var third : Bool;

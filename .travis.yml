@@ -73,3 +73,23 @@ script:
   - ./bin/Tests
   # -python
   - python3 bin/python.py
+
+  - haxe -dce full tests.hxml
+  # -neko
+  - neko bin/neko.n
+  # -nodejs
+  - node bin/nodejs.js
+  # -phantomjs
+  #.- ./.travis-phantomjs-script.sh phantomjs.js '0 failures'
+  # -java
+  - java -jar bin/Tests.jar
+  # -php
+  - php bin/index.php
+  # -cs
+  - mono bin/bin/Tests.exe
+  # -flash
+  - ./.travis-flash-script.sh bin/flash.swf
+  # -cpp
+  - ./bin/Tests
+  # -python
+  - python3 bin/python.py

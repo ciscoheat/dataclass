@@ -88,8 +88,6 @@ An immutable class is a good candidate for [Event Sourcing](http://docs.getevent
 
 ## Conversion utilities
 
-DataClass has some ways to simplify the tedious data conversion process when you get input data from for example a CSV file or JSON data containing only strings, and they should be mapped to a Haxe object.
-
 By adding `using dataclass.Converter;` you'll get some useful extensions on the supported types.
 
 ### Single value conversions
@@ -116,6 +114,10 @@ There are some settings for the conversion process in `dataclass.Converter`:
 - `Converter.dateFormat` sets the converted string `Date` value.
 
 You can also set the relevant values directly when calling the conversion methods if you prefer that.
+
+## Dynamic conversions
+
+DataClass has some ways to simplify the tedious data conversion process when you get input data from for example a CSV file or JSON data containing only strings, and they should be mapped to a Haxe object.
 
 ### Converting CSV data
 
@@ -203,13 +205,17 @@ var test = JsonTest.fromDynamic(input);
 test.other = input.other;
 ```	
 
-**A final note:** The above methods protects you from most runtime surprises, but if you have a custom constructor it must take the data object as first parameter, and have all other parameters optional. Also due to the runtime type checking they take a performance hit, but it should be negligible in most cases. As usual, don't optimize unless you have obvious performance problems.
+**Notes about the dynamic conversion**
+
+1. If you're using the `-dce full` compiler directive, make sure you add a `@:keep` metadata to the classes you're going to use with the dynamic conversion methods.
+1. If the class has a constructor it must take the data object as first parameter, and have all other parameters optional. 
+1. Due to the runtime type checking there is a performance hit, but it should be negligible in most cases. As usual, don't optimize unless you have obvious performance problems.
 
 ## Specific library support
 
 DataClass plays very nicely together with the following libraries:
 	
-- [Mithril](https://github.com/ciscoheat/mithril-hx): When the `@prop` metadata exists on a field, a Mithril `GetterSetter` is created with `M.prop`.
+- [Mithril](https://github.com/ciscoheat/mithril-hx): When the `@prop` metadata exists on a field, a Mithril `GetterSetter` is generated with `M.prop`.
 - [HaxeContracts](https://github.com/ciscoheat/HaxeContracts): If the class implements `haxecontracts.HaxeContracts`, a `haxecontracts.ContractException` will be thrown instead of a `String` when a validation or null-check fails.
 
 ## Installation
