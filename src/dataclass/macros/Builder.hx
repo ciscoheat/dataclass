@@ -38,10 +38,8 @@ class Builder
 			
 			return switch f.kind {
 				case FVar(TPath(p), _), FProp(_, _, TPath(p), _):
-					if (p.pack.length == 0 && ['Int', 'Float', 'Bool'].has(p.name)) 
-						false;
-					else 
-						true;
+					if (p.pack.length == 0 && ['Int', 'Float', 'Bool'].has(p.name)) false;
+					else true;
 				case _: 
 					true;
 			}
@@ -333,7 +331,7 @@ class Builder
 			meta: c.meta.get(),
 			kind: FVar(Context.toComplexType(c.type), typedExpr != null ? Context.getTypedExpr(typedExpr) : null),
 			doc: c.doc,
-			access: [APublic]
+			access: c.isPublic ? [APublic] : []
 		};
 	}
 	

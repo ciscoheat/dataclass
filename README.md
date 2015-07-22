@@ -8,14 +8,14 @@ A convenient way to instantiate data classes with validation, default values, nu
 enum Color { Red; Blue; }
 
 class Person implements dataclass.DataClass {
-	public var id : Int             // Required field (cannot be null)
-	public var name : Null<String>  // Null<T> allows null
+	public var id : Int;             // Required field (cannot be null)
+	public var name : Null<String>;  // Null<T> allows null
 
-	@validate(~/[\w-.]+@[\w-.]+/)             // Regexp validation, auto-adding ^ and $ unless one of them exists
-	public var email(default, null) : String  // Works with properties
+	@validate(~/[\w-.]+@[\w-.]+/)              // Regexp validation, auto-adding ^ and $ unless one of them exists
+	public var email(default, null) : String;  // Works with properties
 
 	@validate(_.length > 2)   // Expression validation, "_" is replaced with the field
-	public var city : String
+	public var city : String;
 
 	public var active : Bool = true;         // Default value
 	public var color : Color = Blue;         // Works with Enums too
@@ -36,7 +36,7 @@ class Main {
 			city: "Punxsutawney"
 		});
 
-		// This will throw an exception because 
+		// This will not compile because 
 		// the required id field is missing:
 		p = new Person({
 			name: "Test",
