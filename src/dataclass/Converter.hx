@@ -28,11 +28,15 @@ class DynamicObjectConverter {
 	}
 
 	public static function toDynamic(o : DataClass, ?opts : ConverterOptions) : Dynamic<String> {
-		var options = {
-			delimiter: opts.delimiter != null ? opts.delimiter : Converter.delimiter,
-			boolValues: opts.boolValues != null ? opts.boolValues : Converter.boolValues,
-			dateFormat: opts.dateFormat != null ? opts.dateFormat : Converter.dateFormat,
-		}
+		var options:ConverterOptions = opts == null ? {
+		        delimiter: Converter.delimiter,
+		        boolValues: Converter.boolValues,
+		        dateFormat: Converter.dateFormat
+		    } : {
+		        delimiter: opts.delimiter != null ? opts.delimiter : Converter.delimiter,
+		        boolValues: opts.boolValues != null ? opts.boolValues : Converter.boolValues,
+		        dateFormat: opts.dateFormat != null ? opts.dateFormat : Converter.dateFormat
+		    };
 		
 		var cls = Type.getClass(o);
 		var columns = Meta.getFields(cls);
