@@ -213,6 +213,9 @@ class Builder
 			var assignment = opt
 				? macro data.$name != null ? data.$name : $def
 				: macro data.$name;
+				
+			// Create a new Expr to set the correct pos
+			assignment = { expr: assignment.expr, pos: f.pos };
 			
 			switch f.kind {
 				case FVar(TPath(p), _) | FProp(_, _, TPath(p), _):
