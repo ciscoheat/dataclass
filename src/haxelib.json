@@ -3,8 +3,8 @@
     "url": "https://github.com/ciscoheat/dataclass",
     "description": "A more convenient way to instantiate data classes.",
     "license": "MIT",
-    "releasenote": "Argument and macro position bugs fixed.",
+    "releasenote": "Constructor not created anymore in interface implementations.",
     "contributors": ["ciscoheat"],
-    "version": "0.11.5",
+    "version": "0.11.6",
     "tags": ["data", "validation", "contracts", "dci"]
 }
