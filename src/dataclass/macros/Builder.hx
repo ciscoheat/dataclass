@@ -245,45 +245,47 @@ class Builder
 			
 			if (val != null) assignments.push(val);
 		};
-		
-		var constructor = fields.find(function(f) return f.name == "new");
-		
-		if (constructor == null) {
-			var allOptional = ![for (f in fieldMap) f].exists(function(f) return f.opt == false);
-			
-			// Call parent constructor if it exists
-			if (cls.superClass != null)	assignments.unshift(macro super(data));
-			
-			// If all fields are optional, create a default argument assignment
-			if (allOptional) assignments.unshift(macro if (data == null) data = {});
-				
-			fields.push({
-				pos: cls.pos,
-				name: 'new',
-				meta: [],
-				kind: FFun({
-					ret: null,
-					params: [],
-					expr: {expr: EBlock(assignments), pos: cls.pos},
-					args: [{
-						value: null,
-						type: TAnonymous(publicFields),
-						opt: allOptional,
-						name: 'data'
-					}]
-				}),
-				doc: null,
-				access: [APublic]
-			});
-		} else {
-			switch constructor.kind {
-				case FFun(f):
-					switch f.expr.expr {
-						case EBlock(exprs): f.expr.expr = EBlock(assignments.concat(exprs));
-						case _: f.expr.expr = EBlock(assignments.concat([f.expr]));
-					}
-				case _: 
-					Context.error("Invalid constructor.", constructor.pos);
+
+		if (!cls.isInterface) {
+			var constructor = fields.find(function(f) return f.name == "new");
+
+			if (constructor == null) {
+				var allOptional = ![for (f in fieldMap) f].exists(function(f) return f.opt == false);
+
+				// Call parent constructor if it exists
+				if (cls.superClass != null)	assignments.unshift(macro super(data));
+
+				// If all fields are optional, create a default argument assignment
+				if (allOptional) assignments.unshift(macro if (data == null) data = {});
+
+				fields.push({
+					pos: cls.pos,
+					name: 'new',
+					meta: [],
+					kind: FFun({
+						ret: null,
+						params: [],
+						expr: {expr: EBlock(assignments), pos: cls.pos},
+						args: [{
+							value: null,
+							type: TAnonymous(publicFields),
+							opt: allOptional,
+							name: 'data'
+						}]
+					}),
+					doc: null,
+					access: [APublic]
+				});
+			} else {
+				switch constructor.kind {
+					case FFun(f):
+						switch f.expr.expr {
+							case EBlock(exprs): f.expr.expr = EBlock(assignments.concat(exprs));
+							case _: f.expr.expr = EBlock(assignments.concat([f.expr]));
+						}
+					case _:
+						Context.error("Invalid constructor.", constructor.pos);
+				}
 			}
 		}
 
