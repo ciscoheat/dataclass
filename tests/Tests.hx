@@ -126,6 +126,10 @@ class Ignore implements dataclass.DataClass {
 	public var name : String;	
 }
 
+interface ExtendingInterface extends DataClass
+{
+}
+
 @:build(buddy.GenerateMain.withSuites([
 	Tests,
 	ConverterTests
