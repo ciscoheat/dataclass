@@ -114,7 +114,7 @@ class DynamicObjectConverter {
 }
 
 class ColumnConverter {
-	public static function fromColumnData<T : DataClass>(cls : Class<T>, data : Iterable<String>, ?delimiter : String) : T {
+	public static function fromClassData<T : DataClass>(cls : Class<T>, data : Iterable<String>, ?delimiter : String) : T {
 		var columns = Meta.getFields(cls);		
 		var input = Lambda.array(data);
 		var output = {};
@@ -123,6 +123,18 @@ class ColumnConverter {
 			var field = Reflect.field(columns, fieldName);
 			var col = Reflect.field(field, "col");
 			if(col != null)	Reflect.setField(output, fieldName, input[col[0] - 1]);
+		}
+		
+		return DynamicObjectConverter.fromDynamic(cls, output, delimiter);
+	}
+	
+	public static function fromColumnData<T : DataClass>(cls : Class<T>, columns : Iterable<String>, data : Iterable<String>, ?delimiter : String) : T {
+		var input = Lambda.array(data);
+		var output = {};
+		var i = 0;
+		
+		for (fieldName in columns) {
+			Reflect.setField(output, fieldName, input[i++]);
 		}
 		
 		return DynamicObjectConverter.fromDynamic(cls, output, delimiter);

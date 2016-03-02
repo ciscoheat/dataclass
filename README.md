@@ -136,11 +136,48 @@ class Main {
 		// A row parsed from a CSV file:
 		var input = ["123", "2015-01-01", "yes"];
 		
-		var test = CsvTest.fromColumnData(input);
+		var test = CsvTest.fromClassData(input);
 		
 		trace(test.third); // true (converted to a Bool type of course)
 	}
 }
+```
+
+Or if you prefer to keep your classes clean (and risk string typos):
+
+```haxe
+using dataclass.Converter;
+
+class CsvTest implements dataclass.DataClass {
+	public var first : Int;
+	public var second : Date;
+	public var third : Bool;
+}
+
+class Main {
+	static function main() {
+		var columns = ["first", "second", "third"];
+		var input = ["123", "2015-01-01", "yes"];
+		
+		var test = CsvTest.fromColumnData(columns, input);
+		
+		trace(test.third);
+	}
+}
+```
+
+If you have a whole table of data, usually represented as an array of arrays, use `Lambda.map` to convert it:
+
+```haxe
+using Lambda;
+
+var columns = ["first", "second", "third"];
+var rows = [
+	["123", "2015-01-01", "yes"],
+	["456", "2015-01-02", "no"]
+];
+
+var objects = rows.map(function(row) return CsvTest.fromColumnData(columns, row));
 ```
 
 ### Converting JSON data
