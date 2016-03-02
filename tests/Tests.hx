@@ -317,13 +317,23 @@ class Tests extends BuddySuite
 			
 			it("should parse column data when using the @col metadata", {
 				var data = ["123", "2015-01-01", "1"];
-				var obj = TestColumnConverter.fromColumnData(data);
+				var obj = TestColumnConverter.fromClassData(data);
 				
 				obj.first.should.be(123);
 				obj.second.toString().should.be("2015-01-01 00:00:00");
 				obj.third.should.be(true);
 			});
-			
+
+			it("should parse column data when using an array of columns", {
+				var data = ["123", "2015-01-01", "1"];
+				var columns = ["first", "second", "third"];
+				var obj = TestColumnConverter.fromColumnData(columns,data);
+				
+				obj.first.should.be(123);
+				obj.second.toString().should.be("2015-01-01 00:00:00");
+				obj.third.should.be(true);
+			});
+
 			it("should convert public fields to the specified string format.", {
 				var a = TestConverter.fromDynamic({
 					date: "2015-12-12",
