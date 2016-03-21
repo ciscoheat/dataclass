@@ -1,95 +1,71 @@
-language: haxe
+# The first thing is to tell which VM environment we want the test to be run on.
+# It dosen't quite matter for Haxe, just choose one of the targets our project support (e.g. PHP),
+# and than apt-get install the others (e.g. Neko, C++).
+# For more info, see http://about.travis-ci.org/docs/user/ci-environment/
+language: node_js
 
-haxe:
-  - "3.2.1"
-  - development
+env:
+    matrix:
+    - TARGET=cpp
+    - TARGET=cs
+    - TARGET=java
+    - TARGET=js
+    - TARGET=neko
+    - TARGET=nodejs
+    - TARGET=php
+    - TARGET=flash
+    - TARGET=python
 
-matrix:
-  # Allow Haxe development to fail.
-  allow_failures:
-    - haxe: development
+before_install:
+  # Install Haxe
+  - wget http://www.openfl.org/builds/haxe/haxe-3.2.1-linux-installer.tar.gz -O - | tar -xv
+  - sudo sh install-haxe.sh -y
 
-addons:
-  # This is the preferred way to install apt packages.
-  # However, it only allow some but not all packages.
-  # Alternatively, we can use `sudo apt-get install ...` in the `install:` section.
-  # http://docs.travis-ci.com/user/apt/#Adding-APT-Packages
-  apt:
-    packages:
-      # -python
-      - python3
-      # -php
-      - php5-cli
-      # -cs
-      - mono-devel
-      # -cs
-      - mono-mcs
+  # haxelib dependencies for all targets
+  - haxelib install promhx
+  - haxelib install utest
+  - haxelib install slambda
 
-      # Flash dependencies
-      - libcurl3:i386
-      - libglib2.0-0:i386
-      - libx11-6:i386
-      - libxext6:i386
-      - libxt6:i386
-      - libxcursor1:i386
-      - libnss3:i386
-      - libgtk2.0-0:i386
+  # apt packages for each target
+  - sudo apt-get update
+  - sh -c "if [ '$TARGET' = 'cpp' ]; then sudo apt-get install gcc-multilib g++-multilib -y; fi"
+  - sh -c "if [ '$TARGET' = 'cs' ]; then sudo apt-get install mono-devel -y; fi"
+  - sh -c "if [ '$TARGET' = 'js' ]; then sudo apt-get install phantomjs -y; fi"
+  - sh -c "if [ '$TARGET' = 'php' ]; then sudo apt-get install php5-cli -y; fi"
+  - sh -c "if [ '$TARGET' = 'flash' ]; then chmod +x ./flash-travis-setup.sh && ./flash-travis-setup.sh; fi"
+  - sh -c "if [ '$TARGET' = 'python' ]; then sudo apt-get install python3 -y; fi"
 
-install:
-  # Library dependencies
-  - haxelib install buddy
-  - haxelib install HaxeContracts
+  # haxelib dependencies for each target
+  - sh -c "if [ '$TARGET' = 'cpp' ]; then haxelib install hxcpp; fi"
+  - sh -c "if [ '$TARGET' = 'java' ]; then haxelib install hxjava; fi"
+  - sh -c "if [ '$TARGET' = 'cs' ]; then haxelib install hxcs; fi"
 
-  # -cpp
-  - haxelib install hxcpp
-  # -java
-  - haxelib install hxjava
-  # -cs
-  - haxelib install hxcs
-
-  - haxelib list
-  - chmod +x .travis*.sh 
-
-  # -flash
-  - ./.travis-flash-install.sh
-
+# Run the test!
 script:
   - haxe tests.hxml
-  # -neko
   - neko bin/neko.n
-  # -nodejs
   - node bin/nodejs.js
   # -phantomjs
   #.- ./.travis-phantomjs-script.sh phantomjs.js '0 failures'
-  # -java
   - java -jar bin/Tests.jar
-  # -php
   - php bin/index.php
-  # -cs
   - mono bin/bin/Tests.exe
-  # -flash
   - ./.travis-flash-script.sh bin/flash.swf
-  # -cpp
   - ./bin/Tests
-  # -python
   - python3 bin/python.py
 
   - haxe -dce full tests.hxml
-  # -neko
   - neko bin/neko.n
-  # -nodejs
   - node bin/nodejs.js
   # -phantomjs
   #.- ./.travis-phantomjs-script.sh phantomjs.js '0 failures'
-  # -java
   - java -jar bin/Tests.jar
-  # -php
   - php bin/index.php
-  # -cs
   - mono bin/bin/Tests.exe
-  # -flash
   - ./.travis-flash-script.sh bin/flash.swf
-  # -cpp
   - ./bin/Tests
-  # -python
   - python3 bin/python.py
+  
+branches:
+      only:
+          - master
