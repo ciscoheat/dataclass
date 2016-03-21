@@ -3,8 +3,8 @@
     "url": "https://github.com/ciscoheat/dataclass",
     "description": "A more convenient way to instantiate data classes.",
     "license": "MIT",
-    "releasenote": "More flexible ColumnConversion.",
+    "releasenote": "Rewritten, now using setters for validation, and better default value handling.",
     "contributors": ["ciscoheat"],
-    "version": "0.12.0",
+    "version": "0.13.0",
     "tags": ["data", "validation", "contracts", "dci"]
 }
