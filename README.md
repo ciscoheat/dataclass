@@ -51,6 +51,14 @@ class Main {
 			email: "nope",
 			city: "X"
 		});
+
+		// Setting an value that won't validate will also throw at runtime:
+		p = new Person({
+			id: 1,
+			email: "test@example.com",
+			city: "Punxsutawney"
+		});
+		p.city = "X"; // Will throw exception
 	}
 }
 ```
