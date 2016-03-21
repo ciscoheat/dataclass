@@ -35,7 +35,7 @@ script:
   - java -jar bin/Tests.jar
   - php bin/index.php
   - mono bin/bin/Tests.exe
-  - ./.travis-flash-script.sh bin/flash.swf
+  - ./.flash-travis-run.sh bin/flash.swf
   - ./bin/Tests
   - python3 bin/python.py
 
@@ -47,7 +47,7 @@ script:
   - java -jar bin/Tests.jar
   - php bin/index.php
   - mono bin/bin/Tests.exe
-  - ./.travis-flash-script.sh bin/flash.swf
+  - ./.flash-travis-run.sh bin/flash.swf
   - ./bin/Tests
   - python3 bin/python.py
 

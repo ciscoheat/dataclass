@@ -11,14 +11,14 @@ class Person implements dataclass.DataClass {
 	public var id : Int;             // Required field (cannot be null)
 	public var name : Null<String>;  // Null<T> allows null
 
-	@validate(~/[\w-.]+@[\w-.]+/)              // Regexp validation, auto-adding ^ and $ unless one of them exists
+	@validate(~/[\w-.]+@[\w-.]+/)              // Regexp validation (auto-adding ^ and $ unless one of them exists)
 	public var email(default, null) : String;  // Works with properties
 
 	@validate(_.length > 2)   // Expression validation, "_" is replaced with the field
 	public var city : String;
 
 	public var active : Bool = true;         // Default value
-	public var color : Color = Blue;         // Works with Enums too
+	public var color = Blue;                 // Works with Enums too, even without type
 	public var created : Date = Date.now();  // And statements
 	
 	var internal : String;           // non-public vars aren't included
@@ -45,9 +45,9 @@ class Main {
 		});
 		
 		// This will throw an exception because of 
-		// null checks and validation:
+		// runtime validation:
 		p = new Person({
-			id: null,
+			id: 1,
 			email: "nope",
 			city: "X"
 		});
