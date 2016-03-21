@@ -40,7 +40,7 @@ class AllowNull implements DataClass
 class DefaultValue implements DataClass
 {
 	// Default value set if no other supplied
-	public var city = "Nowhere";
+	public var city : String = "Nowhere";
 	public var color = Blue;
 	public var date = Date.now();
 }
@@ -137,7 +137,7 @@ interface ExtendingInterface extends DataClass
 {
 }
 
-class Tests extends BuddySuite implements Buddy<[Tests]>//, ConverterTests]>
+class Tests extends BuddySuite implements Buddy<[Tests, ConverterTests]>
 {	
 	public function new() {
 		describe("DataClass", {
@@ -150,12 +150,12 @@ class Tests extends BuddySuite implements Buddy<[Tests]>//, ConverterTests]>
 				it("should throw if null value is supplied", {
 					(function() new RequireId({id: null})).should.throwType(String);
 				});
-#end
 
 				it("should throw an exception when setting the var to null after instantiation", {
 					var id = new RequireId( { id: 123 } );
 					(function() id.id = null).should.throwType(String);
 				});
+#end
 			});
 
 			describe("With null fields", {
@@ -178,8 +178,8 @@ class Tests extends BuddySuite implements Buddy<[Tests]>//, ConverterTests]>
 					(o.date.getTime() - now.getTime()).should.beLessThan(10);
 				});
 				it("should be set to the supplied value if field value is supplied", {
-					new DefaultValue({city: "Somewhere"}).city.should.be("Somewhere");
-				});
+					new DefaultValue( { city: "Somewhere" } ).city.should.be("Somewhere");
+				});				
 			});
 
 			describe("With property fields", {
