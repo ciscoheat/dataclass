@@ -10,9 +10,9 @@ using Lambda;
 using StringTools;
 
 private typedef FieldDataProperties = {
-	opt: Bool, 
-	def: Expr, 
-	val: Expr
+	optional: Bool, 
+	defaultValue: Expr, 
+	validator: Expr
 }
 
 class Builder
@@ -23,7 +23,7 @@ class Builder
 		
 		// Fields aren't available on Context.getLocalClass().
 		// need to supply them here. They're available on the superclass though.
-		var publicFields = childAndParentFields(fields, cls);
+		var publicFields = publicFields(fields, cls);
 		var fieldMap = new Map<Field, FieldDataProperties>();
 		
 		// Test if class implements HaxeContracts, then throw ContractException instead.
@@ -67,7 +67,7 @@ class Builder
 			// Make vars and properties into var(default, null) and prevent assignments to fields
 			for(f in fields) switch f.kind {
 				case FVar(t, e): f.kind = FProp('default', 'null', t, e);
-				case FProp(get, _, t, e): f.kind = FProp(get, 'null', t, e);
+				case FProp(get, set, t, e): f.kind = FProp(get, set == 'never' ? 'never' : 'null', t, e);
 				case FFun(fun) if(f.name != 'new'): preventAssign(fun.expr);
 				case _:
 			}
@@ -90,38 +90,34 @@ class Builder
 			//trace(f.kind);
 			
 			// TODO: Allow fields with only a default value, no type
-			var opt = switch f.kind {
+			var optional = switch f.kind {
 				case FVar(TPath(p), _) if (p.name == "Null"): true;
 				case FProp(_, _, TPath(p), _) if (p.name == "Null"): true;
 				case _: false;
 			}
 			
 			// If a default value exists, extract it from the field
-			var def : Expr = switch f.kind {
-				case FVar(p, e) if (e != null):
-					f.kind = FVar(p, null);
-					e;
-				case FProp(get, set, p, e) if (e != null):
-					f.kind = FProp(get, set, p, null);
-					e;
-				case _: 
-					macro null;
+			var defaultValue : Expr = switch f.kind {
+				case FVar(p, e) if (e != null): e;
+				case FProp(get, set, p, e) if (e != null): e;
+				case _: macro null;
 			}
 			
 			// Make the field nullable if it has a default value but is not optional
-			if (def.toString() != 'null' && !opt) {				
-				switch def.expr {
+			if (defaultValue.toString() != 'null' && !optional) {				
+				switch defaultValue.expr {
 					// Special case for js optional values: Date.now() will be transformed to this:
 					case ECall( { expr: EConst(CIdent("__new__")), pos: _ }, [ { expr: EConst(CIdent("Date")), pos: _ }]):
 						// Make it into its real value:
-						def.expr = (macro Date.now()).expr;
+						defaultValue.expr = (macro Date.now()).expr;
 					case _:
 				}
 				
-				//Context.warning(f.name + ' type: ' + f.kind + ' default: ' + def.toString(), f.pos);
-				opt = true;
+				//Context.warning(f.name + ' type: ' + f.kind + ' default: ' + defaultValue.toString(), f.pos);
+				optional = true;
+				/*
 				switch f.kind {
-					case FVar(t, e): 
+					case FVar(t, e):
 						var nullWrap = TPath({ name: 'Null', pack: [], params: [TPType(t)]});
 						f.kind = FVar(nullWrap, e);
 						//trace(f.name + " set to null");
@@ -129,10 +125,12 @@ class Builder
 						var nullWrap = TPath({ name: 'Null', pack: [], params: [TPType(t)]});
 						f.kind = FProp(get, set, nullWrap, e);
 						//trace(f.name + " set to null");
-					case _:						
+					case _:
 				}
+				*/
 			}
 			
+			/*
 			// Test Mithril property
 			if (f.meta.exists(function(m) return m.name == "prop")) {
 				switch f.kind {
@@ -148,14 +146,15 @@ class Builder
 					case _:
 				}
 				
- 				switch def {
+ 				switch defaultValue {
 					// Don't create a M.prop if it's not already one
 					case macro M.prop($e), macro mithril.M.prop($e):
 						
 					case _: 
-						def = {expr: (macro mithril.M.prop($def)).expr, pos: def.pos};
+						defaultValue = {expr: (macro mithril.M.prop($defaultValue)).expr, pos: defaultValue.pos};
 				}
 			}
+			*/
 
 			function createValidator(e : Expr) : Expr {
 				var test : Expr;
@@ -168,9 +167,9 @@ class Builder
 				}
 				
 				switch e.expr {
-					case EConst(CRegexp(r, opt)):
+					case EConst(CRegexp(r, optional)):
 						if (!r.startsWith('^') && !r.endsWith('$')) r = '^' + r + "$";
-						test = macro new EReg($v{r}, $v{opt}).match(this.$name);
+						test = macro new EReg($v{r}, $v{optional}).match(this.$name);
 					case _: 
 						test = replaceParam(e);
 				}
@@ -181,37 +180,42 @@ class Builder
 				var throwType = throwError(errorString);
 				
 				return nullTestAllowed(f)
-					? macro if ((!$v{opt} || this.$name != null) && !$test) $throwType
-					: macro if (!$v{opt} && !$test) $throwType;
+					? macro if ((!$v{optional} || this.$name != null) && !$test) $throwType
+					: macro if (!$v{optional} && !$test) $throwType;
 			}
 			
 			var validator = f.meta.find(function(m) return m.name == "validate");
 			
 			fieldMap.set(f, {
-				opt: opt, 
-				def: def, 
-				val: validator == null ? null : createValidator(validator.params[0]),
+				optional: optional, 
+				defaultValue: defaultValue, 
+				validator: validator == null ? null : createValidator(validator.params[0]),
 			});
 
-			if(opt) f.meta.push({
+			if(optional) f.meta.push({
 				pos: cls.pos,
 				params: [],
 				name: ':optional'
 			});
 		}
 		
+		///// Data is collected, now transform the fields /////
+		
 		var assignments = [];
+		var validationFields = [];
+		var anonymousValidationFields : Array<Field> = [];
+		var allOptional = ![for (f in fieldMap) f].exists(function(f) return f.optional == false);
 		
 		for (f in publicFields) {
 			var data = fieldMap.get(f);
-			var def = data.def;
-			var opt = data.opt;
-			var val = data.val;
+			var defaultValue = data.defaultValue;
+			var optional = data.optional;
+			var validator = data.validator;
 			var name = f.name;
 			var clsName = cls.name;
 			
-			var assignment = opt
-				? macro data.$name != null ? data.$name : $def
+			var assignment = optional
+				? macro data.$name != null ? data.$name : $defaultValue
 				: macro data.$name;
 				
 			// Create a new Expr to set the correct pos
@@ -236,28 +240,112 @@ class Builder
 				case _:
 			}
 			
-			assignments.push(macro this.$name = $assignment);
-					
-			if (!opt && nullTestAllowed(f)) {
-				var throwStatement = throwError(macro "Field " + $v { clsName } + "." + $v { name } + " was null.");				
-				assignments.push(macro if (this.$name == null) $throwStatement);
+			function validationExpr(param : String, e : Null<Expr>) : Expr {
+				if (e == null) e = {expr: EBlock([]), pos: f.pos};
+				switch e.expr {
+					case EBlock(exprs):
+						var assignments = [];
+						assignments.push(macro this.$name = $i{param});
+						
+						//assignments.push(macro trace("setting value to " + $i { param } ));
+								
+						if (!optional && nullTestAllowed(f)) {
+							var throwStatement = throwError(macro "Field " + $v{clsName} + "." + $v{name} + " was null.");				
+							assignments.push(macro if (this.$name == null) $throwStatement);
+						}
+						
+						if (validator != null) assignments.push(validator);
+						if (exprs.length == 0) assignments.push(macro return this.$name);
+						
+						//for (a in assignments) trace(a.toString());
+						
+						return {expr: EBlock(assignments.concat(exprs)), pos: e.pos};
+						
+					case _: return validationExpr(param, {expr: EBlock([e]), pos: e.pos});
+				}				
 			}
 			
-			if (val != null) assignments.push(val);
+			// Transform to a setter
+			trace(clsName);
+			
+			switch f.kind {
+				case FVar(type, e):
+					f.kind = FProp("default", "set", type, null);
+					validationFields.push({
+						pos: f.pos,
+						name: "set_" + name,
+						meta: null,
+						kind: FFun({
+							ret: type,
+							params: null,
+							args: [{
+								value: null,
+								type: type,
+								opt: false,
+								name: name
+							}],
+							expr: validationExpr(name, null)
+						}),
+						doc: null,
+						access: [APrivate]
+					});
+					
+					//var test = macro : { ?test : Int }; trace(test);
+
+					/*
+					var anonType : ComplexType = type;
+					if (optional) switch type {
+						case TPath(p): 
+							trace("making " + f.name + " optional");
+							var nullWrap = TPath({ name: 'Null', pack: [], params: [TPType(type)]});
+							type = nullWrap;
+						case _:
+					}
+					*/
+					
+					anonymousValidationFields.push({
+						pos: f.pos,
+						name: f.name,
+						meta: [{
+							pos: f.pos,
+							params: null,
+							name: ":optional"
+						}],
+						kind: FVar(type, null),
+						doc: null,
+						access: []
+					});
+
+				case FProp(get, set, _, _):
+					trace("prop: " + get + ", " + set);
+					
+				case FFun(_):
+					
+			}
+			
+			// Add to assignment in constructor
+			assignments.push(macro this.$name = $assignment);
 		};
 
 		if (!cls.isInterface) {
 			var constructor = fields.find(function(f) return f.name == "new");
 
 			if (constructor == null) {
-				var allOptional = ![for (f in fieldMap) f].exists(function(f) return f.opt == false);
 
 				// Call parent constructor if it exists
-				if (cls.superClass != null)	assignments.unshift(macro super(data));
+				//if (cls.superClass != null)	assignments.unshift(macro super(data));
 
 				// If all fields are optional, create a default argument assignment
 				if (allOptional) assignments.unshift(macro if (data == null) data = {});
-
+				
+				//for (a in assignments) trace(a.toString());
+				
+				/*
+				var constructorContent = allOptional
+					? (macro if(data != null) $b{assignments}).expr
+					: (macro $b{assignments}).expr;
+				*/				
+				
 				fields.push({
 					pos: cls.pos,
 					name: 'new',
@@ -268,7 +356,7 @@ class Builder
 						expr: {expr: EBlock(assignments), pos: cls.pos},
 						args: [{
 							value: null,
-							type: TAnonymous(publicFields),
+							type: TAnonymous(anonymousValidationFields),
 							opt: allOptional,
 							name: 'data'
 						}]
@@ -288,8 +376,8 @@ class Builder
 				}
 			}
 		}
-
-		return fields;	
+		
+		return fields.concat(validationFields);	
 	}
 	
 	////////////////////////////////////////////////////////////////////////////////
@@ -311,12 +399,13 @@ class Builder
 		// A superfluous method it seems, but having some problem with 
 		// FieldType/FieldKind confusion unless done like this.
 		return switch kind {
-			case FProp(_, _, t, e): FVar(t, e);
+			case FProp(get, set, t, e): FProp(get, set, t, e);
 			case FVar(_, _): kind;
 			case _: Context.error("Invalid field type for DataClass, should not be allowed here.", pos);
 		}		
 	}
 	
+	/*
 	static function fieldToTypedefField(c : Field) : Field {	
 		return {
 			pos: c.pos,
@@ -339,14 +428,17 @@ class Builder
 			access: c.isPublic ? [APublic] : []
 		};
 	}
+	*/
 	
-	static function childAndParentFields(fields : Array<Field>, cls : ClassType) : Array<Field> {
-		var typeFields = fields.filter(ignored).filter(publicVarOrProp).map(fieldToTypedefField);
+	static function publicFields(fields : Array<Field>, cls : ClassType) : Array<Field> {
+		return fields.filter(ignored).filter(publicVarOrProp);// .map(fieldToTypedefField);
 
+		/*
 		if(cls.superClass == null) return typeFields;
 
 		var superClass = cls.superClass.t.get();
 		return childAndParentFields(superClass.fields.get().map(classFieldToField), superClass).concat(typeFields);
+		*/
 	}
 }
 #end

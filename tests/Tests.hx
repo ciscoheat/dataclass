@@ -45,28 +45,45 @@ class DefaultValue implements DataClass
 	public var date : Date = Date.now();
 }
 
+/*
 class HasProperty implements DataClass
 {
+	public var called : Array<String> = [];
+	
 	public var def_null(default, null) : String;
 
 	public var def_def(default, default) : String;
 	
+	@validate(_.length == 1)
 	public var get_set(get, set) : String;
+	function set_get_set(v : String) {
+		called.push("set_get_set");
+		return _get_set = v;
+	}
+	function get_get_set() {
+		called.push("get_get_set");
+		return _get_set;
+	}
 	var _get_set : String;
-	function set_get_set(v : String) return _get_set = v;
-	function get_get_set() return _get_set;
 
 	public var get_null(get, null) : String;
-	function get_get_null() return get_null;
+	function get_get_null() {
+		called.push("get_get_null");
+		return get_null;
+	}
 	
 	public var def_null_defValue(default, null) : String = "def_null_defValue";
 }
+*/
 
+/*
 class Child extends DefaultValue
 {
 	public var child : Bool;
 }
+*/
 
+/*
 class Validator implements DataClass
 {
 	@validate(~/\d{4}-\d\d-\d\d/) public var date : String;
@@ -129,12 +146,9 @@ class Ignore implements dataclass.DataClass {
 interface ExtendingInterface extends DataClass
 {
 }
+*/
 
-@:build(buddy.GenerateMain.withSuites([
-	Tests,
-	ConverterTests
-]))
-class Tests extends BuddySuite
+class Tests extends BuddySuite implements Buddy<[Tests]>//, ConverterTests]>
 {	
 	public function new() {
 		describe("DataClass", {
@@ -148,6 +162,11 @@ class Tests extends BuddySuite
 					(function() new RequireId({id: null})).should.throwType(String);
 				});
 #end
+
+				it("should throw an exception when setting the var to null after instantiation", {
+					var id = new RequireId( { id: 123 } );
+					(function() id.id = null).should.throwType(String);
+				});
 			});
 
 			describe("With null fields", {
@@ -174,20 +193,31 @@ class Tests extends BuddySuite
 				});
 			});
 
+			/*
 			describe("With property fields", {
-				it("should be set as with var fields", {
-					var prop = new HasProperty({
+				var prop : HasProperty;
+				
+				beforeEach({
+					prop = new HasProperty({
 						def_def: "A",
 						def_null: "B",
 						get_set: "C",
 						get_null: "D"
 					});
-					
+				});
+				
+				it("should be set as with var fields", {
 					prop.def_def.should.be('A');
 					prop.def_null.should.be('B');
 					prop.get_set.should.be('C');
 					prop.get_null.should.be('D');
 					prop.def_null_defValue.should.be('def_null_defValue');
+					
+					prop.called.should.containAll(['set_get_set', 'get_get_set', 'get_get_null']);
+				});
+				
+				it("should throw an exception when setting a property after instantiation", {
+					(function() prop.get_set = "ABC").should.throwType(String);
 				});
 			});
 
@@ -201,7 +231,9 @@ class Tests extends BuddySuite
 					prop.id.should.be(9876);
 				});
 			});
+			*/
 
+			/*
 			describe("With a parent class", {
 				it("should inherit the required fields", {
 					var prop = new Child({
@@ -215,7 +247,9 @@ class Tests extends BuddySuite
 					prop.child.should.be(true);
 				});
 			});
+			*/
 			
+			/*
 			describe("With @ignore on a field", {
 				it("should skip the field altogether", {
 					var o = new Ignore({id: 123});
@@ -248,6 +282,11 @@ class Tests extends BuddySuite
 					new NullValidateTest({ int: 2000 }).int.should.be(2000);
 				});
 #end
+
+				it("should throw an exception when setting a var to an invalid value after instantiation", {
+					var test = new NullValidateTest( { int: 2000 } );
+					(function() test.int = 100).should.throwType(String);
+				});
 			});
 			
 			describe("Implementing HaxeContracts", {
@@ -256,15 +295,17 @@ class Tests extends BuddySuite
 				});
 			});
 			
-			@include describe("Using the @immutable metadata", {
+			describe("Using the @immutable metadata", {
 				it("should convert all var fields into (default, null) properties.", {
 					// Difficult to test compilations errors...!
 					var immutable = new Immutable({ id: 123, name: "Test" });
 					immutable.should.beType(Immutable);
 				});
 			});
+			*/
 		});
-		
+
+		/*
 		describe("DataClass conversions", {
 			it("should convert Dynamic to the correct type.", {
 				var data = {
@@ -372,9 +413,11 @@ class Tests extends BuddySuite
 				Converter.delimiter = old;				
 			});
 		});		
+		*/
 	}	
 }
 
+/*
 class ConverterTests extends BuddySuite
 {	
 	public function new() {
@@ -404,3 +447,4 @@ class ConverterTests extends BuddySuite
 		});
 	}
 }
+*/
