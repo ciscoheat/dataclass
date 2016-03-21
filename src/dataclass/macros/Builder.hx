@@ -31,7 +31,7 @@ class Builder
 			return ct.name == "HaxeContracts";
 		});
 
-		// Complicated: Testing for null is only allowed if on a non-static platform or the type is not a basic type.
+		// Complications: Testing for null is only allowed if on a non-static platform or the type is not a basic type.
 		function nullTestAllowed(f : Field) {			
 			var staticPlatform = Context.defined("cpp") || Context.defined("java") || Context.defined("flash") || Context.defined("cs");
 			if (!staticPlatform) return true;
@@ -316,8 +316,6 @@ class Builder
 			}
 
 			// Transform to a setter
-			trace(clsName);
-			
 			switch f.kind {
 				case FVar(type, _):
 					createValidationSetter("default", type);

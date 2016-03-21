@@ -81,7 +81,6 @@ class Child extends DefaultValue
 }
 */
 
-/*
 class Validator implements DataClass
 {
 	@validate(~/\d{4}-\d\d-\d\d/) public var date : String;
@@ -144,7 +143,6 @@ class Ignore implements dataclass.DataClass {
 interface ExtendingInterface extends DataClass
 {
 }
-*/
 
 class Tests extends BuddySuite implements Buddy<[Tests]>//, ConverterTests]>
 {	
@@ -218,7 +216,6 @@ class Tests extends BuddySuite implements Buddy<[Tests]>//, ConverterTests]>
 				});
 			});
 
-			/*
 			describe("With an existing constructor", {
 				it("should inject the dataclass code at the top", {
 					var prop = new IdWithConstructor({
@@ -229,7 +226,6 @@ class Tests extends BuddySuite implements Buddy<[Tests]>//, ConverterTests]>
 					prop.id.should.be(9876);
 				});
 			});
-			*/
 
 			/*
 			describe("With a parent class", {
@@ -247,7 +243,6 @@ class Tests extends BuddySuite implements Buddy<[Tests]>//, ConverterTests]>
 			});
 			*/
 			
-			/*
 			describe("With @ignore on a field", {
 				it("should skip the field altogether", {
 					var o = new Ignore({id: 123});
@@ -298,12 +293,12 @@ class Tests extends BuddySuite implements Buddy<[Tests]>//, ConverterTests]>
 					// Difficult to test compilations errors...!
 					var immutable = new Immutable({ id: 123, name: "Test" });
 					immutable.should.beType(Immutable);
+					immutable.id = 456;
+					immutable.id.should.be(123);
 				});
 			});
-			*/
 		});
 
-		/*
 		describe("DataClass conversions", {
 			it("should convert Dynamic to the correct type.", {
 				var data = {
@@ -411,11 +406,9 @@ class Tests extends BuddySuite implements Buddy<[Tests]>//, ConverterTests]>
 				Converter.delimiter = old;				
 			});
 		});		
-		*/
 	}	
 }
 
-/*
 class ConverterTests extends BuddySuite
 {	
 	public function new() {
@@ -445,4 +438,3 @@ class ConverterTests extends BuddySuite
 		});
 	}
 }
-*/

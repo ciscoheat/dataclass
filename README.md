@@ -62,10 +62,12 @@ A constructor will be automatically generated, but if you want to add your own i
 ```haxe
 class Custom implements dataclass.DataClass {
 	public function new(data) {
-		// Code here...
+		// Your code here...
 	}
 }
 ```
+
+Note specifically that the first parameter must be called `data`. 
 
 At the top of this constructor, all the assignments will be inserted. So when running it will look similar to this:
 
@@ -75,7 +77,7 @@ class Custom implements dataclass.DataClass {
 	
 	public function new(data) {
 		this.id = data.id;
-		// Code here...
+		// Your code here...
 	}
 }
 ```
