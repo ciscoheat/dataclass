@@ -270,8 +270,10 @@ class Tests extends BuddySuite implements Buddy<[Tests]>//, ConverterTests]>
 					// Difficult to test compilations errors...!
 					var immutable = new Immutable({ id: 123, name: "Test" });
 					immutable.should.beType(Immutable);
-					immutable.id = 456;
+					
+					//immutable.id = 456;
 					immutable.id.should.be(123);
+					immutable.name.should.be("Test");					
 				});
 			});
 		});

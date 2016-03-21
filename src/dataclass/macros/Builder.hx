@@ -20,6 +20,7 @@ class Builder
 	static public function build() : Array<Field> {
 		var fields = Context.getBuildFields();
 		var cls = Context.getLocalClass().get();
+		var immutable = cls.meta.has("immutable");
 		
 		// Fields aren't available on Context.getLocalClass().
 		// need to supply them here. They're available on the superclass though.
@@ -49,29 +50,7 @@ class Builder
 			return haxeContracts
 				? macro throw new haxecontracts.ContractException($errorString, this)
 				: macro throw $errorString;
-		}
-
-		if (cls.meta.has("immutable")) {
-			var replaceThis = ~/^this\./;
-			var fieldNames = fields
-				.filter(function(f) return publicFields.exists(function(pf) return pf.name == f.name))
-				.map(function(f) return f.name);
-			
-			function preventAssign(e : Expr) switch e.expr {
-				case EBinop(OpAssign, e1, _) if (fieldNames.has(replaceThis.replace(e1.toString(), ''))): 
-					Context.error("Class " + cls.name + " is marked as immutable, cannot assign to any fields.", e.pos);
-				case _: 
-					e.iter(preventAssign);
-			}
-			
-			// Make vars and properties into var(default, null) and prevent assignments to fields
-			for(f in fields) switch f.kind {
-				case FVar(t, e): f.kind = FProp('default', 'null', t, e);
-				case FProp(get, set, t, e): f.kind = FProp(get, set == 'never' ? 'never' : 'null', t, e);
-				case FFun(fun) if(f.name != 'new'): preventAssign(fun.expr);
-				case _:
-			}
-		}
+		}		
 
 		for (f in publicFields) {
 			// If @col metadata, check the format
@@ -250,28 +229,30 @@ class Builder
 					: macro if (!$v{optional} && !$test) $throwType;
 			}
 
-			function validationExpr(param : String, e : Null<Expr>) : Array<Expr> {
+			function fieldAssignmentTests(param : String) : Array<Expr> {
+				var assignments = [];
+
+				if (!optional && nullTestAllowed(f)) {
+					var throwStatement = throwError(macro "Field " + $v{clsName} + "." + $v{name} + " was null.");
+					assignments.push(macro if ($i{param} == null) $throwStatement);
+				}
+				
+				if (validator != null) assignments.push(createValidator(param, validator));
+
+				return assignments;
+			}
+
+			function setterAssignmentExpressions(param : String, e : Null<Expr>) : Array<Expr> {
 				if (e == null) e = {expr: EBlock([]), pos: f.pos};
 				switch e.expr {
 					case EBlock(exprs):
-						var assignments = [];
-						if(exprs.length == 0) assignments.push(macro this.$name = $i{param});
-						
-						//assignments.push(macro trace("setting value to " + $i { param } ));
-								
-						if (!optional && nullTestAllowed(f)) {
-							var throwStatement = throwError(macro "Field " + $v{clsName} + "." + $v{name} + " was null.");				
-							assignments.push(macro if ($i{param} == null) $throwStatement);
-						}
-						
-						if (validator != null) assignments.push(createValidator(param, validator));
-						if (exprs.length == 0) assignments.push(macro return this.$name);
-						
-						//for (a in assignments) trace(a.toString());
+						var assignments = fieldAssignmentTests(param);						
+						if (exprs.length == 0) assignments.push(macro return this.$name = $i{param});
 						
 						return assignments.concat(exprs);
 						
-					case _: return validationExpr(param, {expr: EBlock([e]), pos: e.pos});
+					case _: 
+						return setterAssignmentExpressions(param, {expr: EBlock([e]), pos: e.pos});
 				}				
 			}
 			
@@ -290,7 +271,7 @@ class Builder
 							opt: false,
 							name: name
 						}],
-						expr: {expr: EBlock(validationExpr(name, null)), pos: f.pos}
+						expr: {expr: EBlock(setterAssignmentExpressions(name, null)), pos: f.pos}
 					}),
 					doc: null,
 					access: [APrivate]
@@ -312,18 +293,23 @@ class Builder
 				});
 			}
 
-			// Transform to a setter
 			switch f.kind {
-				case FVar(type, _):
-					createValidationSetter("default", type);
+				case FVar(type, e):
+					if(!immutable)
+						createValidationSetter("default", type);
+					else
+						f.kind = FProp('default', 'null', type, e);
+						
 					createAnonymousValidationField(type);
 
 				// If a property setter already exists, inject validation into the beginning of it.
-				case FProp(get, set, type, e) if (set == "set"):				
+				case FProp(get, set, type, e) if (set == "set"):
+					if (immutable) Context.error("Class is marked as immutable, cannot have setters.", f.pos);
+					
 					var accessorField = fields.find(function(f2) return f2.name == "set_" + f.name);
 					switch accessorField.kind {
 						case FFun(f2):
-							f2.expr.expr = EBlock(validationExpr(f2.args[0].name, f2.expr));
+							f2.expr.expr = EBlock(setterAssignmentExpressions(f2.args[0].name, f2.expr));
 						case _:
 							Context.error("Invalid setter accessor", accessorField.pos);
 					}
@@ -387,6 +373,25 @@ class Builder
 			}
 		}
 		
+		if (immutable) {
+			var replaceThis = ~/^this\./;
+			var fieldNames = fields
+				.filter(function(f) return publicFields.exists(function(pf) return pf.name == f.name))
+				.map(function(f) return f.name);
+			
+			function preventAssign(e : Expr) switch e.expr {
+				case EBinop(OpAssign, e1, _) if (fieldNames.has(replaceThis.replace(e1.toString(), ''))): 
+					Context.error("Class " + cls.name + " is marked as immutable, cannot assign to any fields.", e.pos);
+				case _: 
+					e.iter(preventAssign);
+			}
+			
+			for (f in fields) switch f.kind {
+				case FFun(fun) if(f.name != 'new'): preventAssign(fun.expr);
+				case _:
+			}			
+		}
+
 		return fields.concat(validationFields);	
 	}
 	
