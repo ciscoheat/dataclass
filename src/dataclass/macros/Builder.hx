@@ -156,40 +156,12 @@ class Builder
 			}
 			*/
 
-			function createValidator(e : Expr) : Expr {
-				var test : Expr;
-				var name = f.name;
-				var clsName = cls.name;				
-				
-				function replaceParam(e : Expr) return switch e.expr { 
-					case EConst(CIdent("_")): macro this.$name;
-					case _: e.map(replaceParam);
-				}
-				
-				switch e.expr {
-					case EConst(CRegexp(r, optional)):
-						if (!r.startsWith('^') && !r.endsWith('$')) r = '^' + r + "$";
-						test = macro new EReg($v{r}, $v{optional}).match(this.$name);
-					case _: 
-						test = replaceParam(e);
-				}
-				
-				e.expr = EConst(CString(e.toString()));
-				
-				var errorString = macro "Field " + $v{clsName} + "." + $v{name} + ' failed validation "' + $e + '" with value "' + this.$name + '"';
-				var throwType = throwError(errorString);
-				
-				return nullTestAllowed(f)
-					? macro if ((!$v{optional} || this.$name != null) && !$test) $throwType
-					: macro if (!$v{optional} && !$test) $throwType;
-			}
-			
 			var validator = f.meta.find(function(m) return m.name == "validate");
 			
 			fieldMap.set(f, {
 				optional: optional, 
 				defaultValue: defaultValue, 
-				validator: validator == null ? null : createValidator(validator.params[0]),
+				validator: validator == null ? null : validator.params[0]
 			});
 
 			if(optional) f.meta.push({
@@ -239,88 +211,143 @@ class Builder
 					}
 				case _:
 			}
-			
-			function validationExpr(param : String, e : Null<Expr>) : Expr {
+
+			function createValidator(paramName : String, e : Expr) : Expr {
+				var test : Expr;
+				var name = f.name;
+				var clsName = cls.name;				
+				
+				function replaceParam(e : Expr) return switch e.expr { 
+					case EConst(CIdent("_")): macro $i{paramName};
+					case _: e.map(replaceParam);
+				}
+				
+				switch e.expr {
+					case EConst(CRegexp(r, optional)):
+						if (!r.startsWith('^') && !r.endsWith('$')) r = '^' + r + "$";
+						test = macro new EReg($v{r}, $v{optional}).match($i{paramName});
+					case _: 
+						test = replaceParam(e);
+				}
+				
+				e.expr = EConst(CString(e.toString()));
+				
+				var errorString = macro "Field " + $v{clsName} + "." + $v{name} + ' failed validation "' + $e + '" with value "' + this.$name + '"';
+				var throwType = throwError(errorString);
+				
+				return nullTestAllowed(f)
+					? macro if ((!$v{optional} || $i{paramName} != null) && !$test) $throwType
+					: macro if (!$v{optional} && !$test) $throwType;
+			}
+
+			function validationExpr(param : String, e : Null<Expr>) : Array<Expr> {
 				if (e == null) e = {expr: EBlock([]), pos: f.pos};
 				switch e.expr {
 					case EBlock(exprs):
 						var assignments = [];
-						assignments.push(macro this.$name = $i{param});
+						if(exprs.length == 0) assignments.push(macro this.$name = $i{param});
 						
 						//assignments.push(macro trace("setting value to " + $i { param } ));
 								
 						if (!optional && nullTestAllowed(f)) {
 							var throwStatement = throwError(macro "Field " + $v{clsName} + "." + $v{name} + " was null.");				
-							assignments.push(macro if (this.$name == null) $throwStatement);
+							assignments.push(macro if ($i{param} == null) $throwStatement);
 						}
 						
-						if (validator != null) assignments.push(validator);
+						if (validator != null) assignments.push(createValidator(param, validator));
 						if (exprs.length == 0) assignments.push(macro return this.$name);
 						
 						//for (a in assignments) trace(a.toString());
 						
-						return {expr: EBlock(assignments.concat(exprs)), pos: e.pos};
+						return assignments.concat(exprs);
 						
 					case _: return validationExpr(param, {expr: EBlock([e]), pos: e.pos});
 				}				
 			}
 			
+			function createValidationSetter(getter : String, type : ComplexType) {
+				f.kind = FProp(getter, "set", type, null);
+				validationFields.push({
+					pos: f.pos,
+					name: "set_" + name,
+					meta: null,
+					kind: FFun({
+						ret: type,
+						params: null,
+						args: [{
+							value: null,
+							type: type,
+							opt: false,
+							name: name
+						}],
+						expr: {expr: EBlock(validationExpr(name, null)), pos: f.pos}
+					}),
+					doc: null,
+					access: [APrivate]
+				});
+				
+				//var test = macro : { ?test : Int }; trace(test);
+
+				/*
+				var anonType : ComplexType = type;
+				if (optional) switch type {
+					case TPath(p): 
+						trace("making " + f.name + " optional");
+						var nullWrap = TPath({ name: 'Null', pack: [], params: [TPType(type)]});
+						type = nullWrap;
+					case _:
+				}
+				*/				
+			}
+
+			function createAnonymousValidationField(type : ComplexType) {
+				anonymousValidationFields.push({
+					pos: f.pos,
+					name: f.name,
+					meta: if(optional) [{
+						pos: f.pos,
+						params: null,
+						name: ":optional"
+					}] else null,
+					kind: FVar(type, null),
+					doc: null,
+					access: []
+				});
+			}
+
 			// Transform to a setter
 			trace(clsName);
 			
 			switch f.kind {
-				case FVar(type, e):
-					f.kind = FProp("default", "set", type, null);
-					validationFields.push({
-						pos: f.pos,
-						name: "set_" + name,
-						meta: null,
-						kind: FFun({
-							ret: type,
-							params: null,
-							args: [{
-								value: null,
-								type: type,
-								opt: false,
-								name: name
-							}],
-							expr: validationExpr(name, null)
-						}),
-						doc: null,
-						access: [APrivate]
-					});
-					
-					//var test = macro : { ?test : Int }; trace(test);
+				case FVar(type, _):
+					createValidationSetter("default", type);
+					createAnonymousValidationField(type);
 
-					/*
-					var anonType : ComplexType = type;
-					if (optional) switch type {
-						case TPath(p): 
-							trace("making " + f.name + " optional");
-							var nullWrap = TPath({ name: 'Null', pack: [], params: [TPType(type)]});
-							type = nullWrap;
+				// If a property setter already exists, inject validation into the beginning of it.
+				case FProp(get, set, type, e) if (set == "set"):				
+					var accessorField = fields.find(function(f2) return f2.name == "set_" + f.name);
+					switch accessorField.kind {
+						case FFun(f2):
+							f2.expr.expr = EBlock(validationExpr(f2.args[0].name, f2.expr));
 						case _:
+							Context.error("Invalid setter accessor", accessorField.pos);
 					}
-					*/
+					createAnonymousValidationField(type);
 					
-					anonymousValidationFields.push({
-						pos: f.pos,
-						name: f.name,
-						meta: [{
-							pos: f.pos,
-							params: null,
-							name: ":optional"
-						}],
-						kind: FVar(type, null),
-						doc: null,
-						access: []
-					});
-
-				case FProp(get, set, _, _):
-					trace("prop: " + get + ", " + set);
+				case FProp(get, _, type, _):
+					// If property has a getter, it will be non-physical by default.
+					// Add :isVar metadata to tell the compiler to create a physical field.
+					// see http://haxe.org/manual/class-field-property-rules.html
+					if (get == "get") {
+						f.meta.push({
+							pos: f.pos, params: null, name: ":isVar"
+						});
+					}
+					
+					createValidationSetter(get, type);
+					createAnonymousValidationField(type);
 					
 				case FFun(_):
-					
 			}
 			
 			// Add to assignment in constructor

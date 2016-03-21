@@ -45,7 +45,6 @@ class DefaultValue implements DataClass
 	public var date : Date = Date.now();
 }
 
-/*
 class HasProperty implements DataClass
 {
 	public var called : Array<String> = [];
@@ -74,7 +73,6 @@ class HasProperty implements DataClass
 	
 	public var def_null_defValue(default, null) : String = "def_null_defValue";
 }
-*/
 
 /*
 class Child extends DefaultValue
@@ -193,7 +191,6 @@ class Tests extends BuddySuite implements Buddy<[Tests]>//, ConverterTests]>
 				});
 			});
 
-			/*
 			describe("With property fields", {
 				var prop : HasProperty;
 				
@@ -221,6 +218,7 @@ class Tests extends BuddySuite implements Buddy<[Tests]>//, ConverterTests]>
 				});
 			});
 
+			/*
 			describe("With an existing constructor", {
 				it("should inject the dataclass code at the top", {
 					var prop = new IdWithConstructor({
