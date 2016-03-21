@@ -22,9 +22,8 @@ before_install:
   - sudo sh install-haxe.sh -y
 
   # haxelib dependencies for all targets
-  - haxelib install promhx
-  - haxelib install utest
-  - haxelib install slambda
+  - haxelib install HaxeContracts
+  - haxelib install buddy
 
   # apt packages for each target
   - sudo apt-get update
@@ -65,7 +64,7 @@ script:
   - ./.travis-flash-script.sh bin/flash.swf
   - ./bin/Tests
   - python3 bin/python.py
-  
+
 branches:
       only:
           - master
