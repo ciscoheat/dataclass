@@ -40,9 +40,9 @@ class AllowNull implements DataClass
 class DefaultValue implements DataClass
 {
 	// Default value set if no other supplied
-	public var city : String = "Nowhere";
-	public var color : Color = Blue;
-	public var date : Date = Date.now();
+	public var city = "Nowhere";
+	public var color = Blue;
+	public var date = Date.now();
 }
 
 class HasProperty implements DataClass
@@ -73,13 +73,6 @@ class HasProperty implements DataClass
 	
 	public var def_null_defValue(default, null) : String = "def_null_defValue";
 }
-
-/*
-class Child extends DefaultValue
-{
-	public var child : Bool;
-}
-*/
 
 class Validator implements DataClass
 {
@@ -227,22 +220,6 @@ class Tests extends BuddySuite implements Buddy<[Tests]>//, ConverterTests]>
 				});
 			});
 
-			/*
-			describe("With a parent class", {
-				it("should inherit the required fields", {
-					var prop = new Child({
-						city: "Punxsutawney",
-						color: Red,
-						child: true
-					});
-					
-					prop.city.should.be('Punxsutawney');
-					prop.color.should.be(Red);
-					prop.child.should.be(true);
-				});
-			});
-			*/
-			
 			describe("With @ignore on a field", {
 				it("should skip the field altogether", {
 					var o = new Ignore({id: 123});

@@ -96,14 +96,20 @@ class Builder
 				case _: false;
 			}
 			
+			var fieldType : ComplexType = switch f.kind {
+				case FVar(t, _): t;
+				case FProp(_, _, t, _): t;
+				case _: null;
+			}
+			
 			// If a default value exists, extract it from the field
 			var defaultValue : Expr = switch f.kind {
-				case FVar(p, e) if (e != null): e;
-				case FProp(get, set, p, e) if (e != null): e;
+				case FVar(t, e) if (e != null): e;
+				case FProp(get, set, t, e) if (e != null): e;
 				case _: macro null;
 			}
 			
-			// Make the field nullable if it has a default value but is not optional
+			// Make the field optional if it has a default value
 			if (defaultValue.toString() != 'null' && !optional) {				
 				switch defaultValue.expr {
 					// Special case for js optional values: Date.now() will be transformed to this:
@@ -115,19 +121,22 @@ class Builder
 				
 				//Context.warning(f.name + ' type: ' + f.kind + ' default: ' + defaultValue.toString(), f.pos);
 				optional = true;
-				/*
-				switch f.kind {
-					case FVar(t, e):
-						var nullWrap = TPath({ name: 'Null', pack: [], params: [TPType(t)]});
-						f.kind = FVar(nullWrap, e);
-						//trace(f.name + " set to null");
-					case FProp(get, set, t, e):
-						var nullWrap = TPath({ name: 'Null', pack: [], params: [TPType(t)]});
-						f.kind = FProp(get, set, nullWrap, e);
-						//trace(f.name + " set to null");
-					case _:
+			}
+
+			// If field has no type, try to extract it from the default value, if it exists
+			if (optional && fieldType == null) {
+				try {
+					var typed = Context.typeExpr(defaultValue);
+					var type = Context.toComplexType(typed.t);
+					
+					switch f.kind {
+						case FVar(_, e): f.kind = FVar(type, e);
+						case FProp(get, set, _, e): f.kind = FProp(get, set, type, e);
+						case _:
+					}
+				} catch (e : Dynamic) {
+					// Let the compiler handle the error.
 				}
-				*/
 			}
 			
 			/*
@@ -193,6 +202,7 @@ class Builder
 			// Create a new Expr to set the correct pos
 			assignment = { expr: assignment.expr, pos: f.pos };
 			
+			// If the type can be converted using the DynamicObjectConverter, mark it with metadata
 			switch f.kind {
 				case FVar(TPath(p), _) | FProp(_, _, TPath(p), _):
 					var typeName = switch p {
@@ -285,19 +295,6 @@ class Builder
 					doc: null,
 					access: [APrivate]
 				});
-				
-				//var test = macro : { ?test : Int }; trace(test);
-
-				/*
-				var anonType : ComplexType = type;
-				if (optional) switch type {
-					case TPath(p): 
-						trace("making " + f.name + " optional");
-						var nullWrap = TPath({ name: 'Null', pack: [], params: [TPType(type)]});
-						type = nullWrap;
-					case _:
-				}
-				*/				
 			}
 
 			function createAnonymousValidationField(type : ComplexType) {
@@ -356,20 +353,8 @@ class Builder
 			var constructor = fields.find(function(f) return f.name == "new");
 
 			if (constructor == null) {
-
-				// Call parent constructor if it exists
-				//if (cls.superClass != null)	assignments.unshift(macro super(data));
-
 				// If all fields are optional, create a default argument assignment
 				if (allOptional) assignments.unshift(macro if (data == null) data = {});
-				
-				//for (a in assignments) trace(a.toString());
-				
-				/*
-				var constructorContent = allOptional
-					? (macro if(data != null) $b{assignments}).expr
-					: (macro $b{assignments}).expr;
-				*/				
 				
 				fields.push({
 					pos: cls.pos,
@@ -430,40 +415,8 @@ class Builder
 		}		
 	}
 	
-	/*
-	static function fieldToTypedefField(c : Field) : Field {	
-		return {
-			pos: c.pos,
-			name: c.name,
-			meta: c.meta,
-			kind: typedefKind(c.kind, c.pos),
-			doc: c.doc,
-			access: [APublic]
-		};
-	}
-
-	static function classFieldToField(c : ClassField) : Field {
-		var typedExpr = c.expr();
-		return {
-			pos: c.pos,
-			name: c.name,
-			meta: c.meta.get(),
-			kind: FVar(Context.toComplexType(c.type), typedExpr != null ? Context.getTypedExpr(typedExpr) : null),
-			doc: c.doc,
-			access: c.isPublic ? [APublic] : []
-		};
-	}
-	*/
-	
 	static function publicFields(fields : Array<Field>, cls : ClassType) : Array<Field> {
 		return fields.filter(ignored).filter(publicVarOrProp);// .map(fieldToTypedefField);
-
-		/*
-		if(cls.superClass == null) return typeFields;
-
-		var superClass = cls.superClass.t.get();
-		return childAndParentFields(superClass.fields.get().map(classFieldToField), superClass).concat(typeFields);
-		*/
 	}
 }
 #end

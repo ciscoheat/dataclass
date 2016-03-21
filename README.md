@@ -252,23 +252,11 @@ test.other = input.other;
 
 ## Specific library support
 
-DataClass plays very nicely together with the following libraries:
-	
-- [Mithril](https://github.com/ciscoheat/mithril-hx): When the `@prop` metadata exists on a field, a Mithril `GetterSetter` is generated with `M.prop`.
-- [HaxeContracts](https://github.com/ciscoheat/HaxeContracts): If the class implements `haxecontracts.HaxeContracts`, a `haxecontracts.ContractException` will be thrown instead of a `String` when a validation or null-check fails.
+DataClass plays very nicely together with [HaxeContracts](https://github.com/ciscoheat/HaxeContracts): If the class implements `haxecontracts.HaxeContracts`, a `haxecontracts.ContractException` will be thrown instead of a `String` when a validation or null-check fails.
 
 ## Installation
 
 `haxelib install dataclass` then put `-lib dataclass` in your `.hxml` file.
-
-## Todo
-
-- [x] Allow get/set properties
-- [x] [Mithril](https://github.com/ciscoheat/mithril-hx) support for `M.prop`
-- [x] [HaxeContracts](https://github.com/ciscoheat/HaxeContracts) option for exceptions
-- [x] CI testing with [Travis](http://docs.travis-ci.com/user/languages/haxe/)
-- [ ] Initialize with a default value without specifying type
-- [ ] [Mongoose](http://mongoosejs.com/) support for Node.js
 
 ## Connection to DCI
 
