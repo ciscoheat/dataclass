@@ -256,8 +256,10 @@ class Tests extends BuddySuite implements Buddy<[Tests, ConverterTests]>
 				it("should throw an exception when setting a var to an invalid value after instantiation", {
 					var test = new NullValidateTest( { int: 2000 } );
 					test.int.should.be(2000);
+#if !static
 					test.int = null;
 					test.int.should.be(null);
+#end
 					test.int = 3000;
 					test.int.should.be(3000);
 					(function() test.int = 100).should.throwType(String);
