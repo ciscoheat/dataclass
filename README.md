@@ -7,7 +7,8 @@ A convenient way to instantiate data classes with validation, default values, nu
 ```haxe
 enum Color { Red; Blue; }
 
-class Person implements dataclass.DataClass {
+class Person implements dataclass.DataClass 
+{
 	public var id : Int;             // Required field (cannot be null)
 	public var name : Null<String>;  // Null<T> allows null
 
@@ -21,8 +22,9 @@ class Person implements dataclass.DataClass {
 	public var color = Blue;                 // Works with Enums too, even without type
 	public var created : Date = Date.now();  // And statements
 	
-	var internal : String;           // non-public vars aren't included
-	@ignore public var test : Bool;  // neither are fields marked with @ignore
+	var internal : String;            // non-public fields aren't included
+	@exclude public var test : Bool;  // neither are fields marked with @exclude
+	@include var test2 = true;        // but you can include private fields with @include
 }
 
 class Main {
@@ -153,7 +155,7 @@ class Main {
 }
 ```
 
-Or if you prefer to keep your classes clean (and risk string typos):
+Or if you prefer to keep your classes clean (and risk typos):
 
 ```haxe
 using dataclass.Converter;
@@ -171,12 +173,12 @@ class Main {
 		
 		var test = CsvTest.fromColumnData(columns, input);
 		
-		trace(test.third);
+		trace(test.third); // true
 	}
 }
 ```
 
-If you have a whole table of data, usually represented as an array of arrays, use `Lambda.map` to convert it:
+If you have a whole table of data, usually represented as an array of arrays, use [array comprehension](http://haxe.org/manual/lf-array-comprehension.html) to convert it:
 
 ```haxe
 using Lambda;
@@ -187,7 +189,7 @@ var rows = [
 	["456", "2015-01-02", "no"]
 ];
 
-var objects = rows.map(function(row) return CsvTest.fromColumnData(columns, row));
+var objects = [for(row in rows) CsvTest.fromColumnData(columns, row)];
 ```
 
 ### Converting JSON data

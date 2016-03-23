@@ -24,7 +24,7 @@ class Builder
 		
 		// Fields aren't available on Context.getLocalClass().
 		// need to supply them here. They're available on the superclass though.
-		var publicFields = publicFields(fields, cls);
+		var dataClassFields = includedFields(fields, cls);
 		var fieldMap = new Map<Field, FieldDataProperties>();
 		
 		// Test if class implements HaxeContracts, then throw ContractException instead.
@@ -52,7 +52,7 @@ class Builder
 				: macro throw $errorString;
 		}		
 
-		for (f in publicFields) {
+		for (f in dataClassFields) {
 			// If @col metadata, check the format
 			for (col in f.meta.filter(function(m) return m.name == "col")) {
 				try {
@@ -166,7 +166,7 @@ class Builder
 		var anonymousValidationFields : Array<Field> = [];
 		var allOptional = ![for (f in fieldMap) f].exists(function(f) return f.optional == false);
 		
-		for (f in publicFields) {
+		for (f in dataClassFields) {
 			var data = fieldMap.get(f);
 			var defaultValue = data.defaultValue;
 			var optional = data.optional;
@@ -376,7 +376,7 @@ class Builder
 		if (immutable) {
 			var replaceThis = ~/^this\./;
 			var fieldNames = fields
-				.filter(function(f) return publicFields.exists(function(pf) return pf.name == f.name))
+				.filter(function(f) return dataClassFields.exists(function(pf) return pf.name == f.name))
 				.map(function(f) return f.name);
 			
 			function preventAssign(e : Expr) switch e.expr {
@@ -398,11 +398,12 @@ class Builder
 	////////////////////////////////////////////////////////////////////////////////
 	
 	static function ignored(f : Field) {
-		return !f.meta.exists(function(m) return m.name == "ignore");
+		return !f.meta.exists(function(m) return m.name == "ignore" || m.name == "exclude");
 	}
 
-	static function publicVarOrProp(f : Field) {
-		if(f.access.has(AStatic) || !f.access.has(APublic)) return false;
+	static function publicVarOrPropOrIncluded(f : Field) {
+		if (f.meta.exists(function(m) return m.name == "include")) return true;
+		if (f.access.has(AStatic) || !f.access.has(APublic)) return false;
 		return switch(f.kind) {
 			case FVar(_, _): true;
 			case FProp(_, set, _, _): set == "default" || set == "null" || set == "set";
@@ -410,18 +411,8 @@ class Builder
 		}
 	}
 
-	static function typedefKind(kind : FieldType, pos : Position) : FieldType {
-		// A superfluous method it seems, but having some problem with 
-		// FieldType/FieldKind confusion unless done like this.
-		return switch kind {
-			case FProp(get, set, t, e): FProp(get, set, t, e);
-			case FVar(_, _): kind;
-			case _: Context.error("Invalid field type for DataClass, should not be allowed here.", pos);
-		}		
-	}
-	
-	static function publicFields(fields : Array<Field>, cls : ClassType) : Array<Field> {
-		return fields.filter(ignored).filter(publicVarOrProp);// .map(fieldToTypedefField);
+	static function includedFields(fields : Array<Field>, cls : ClassType) : Array<Field> {
+		return fields.filter(ignored).filter(publicVarOrPropOrIncluded);
 	}
 }
 #end
