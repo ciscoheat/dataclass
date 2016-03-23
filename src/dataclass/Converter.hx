@@ -54,7 +54,7 @@ class DynamicObjectConverter {
 				case "Float" if(Std.is(data, Float)): FloatConverter.toString(data, options.delimiter);
 				case "String" if(Std.is(data, String)): data;
 				
-				case _:	throw "DynamicObjectConverter.toDynamicObject: Invalid type '" 
+				case _:	throw "DynamicObjectConverter.toDynamic: Invalid type '" 
 								+ Type.typeof(data) + '\' ($convert) for field $fieldName';
 			};
 
@@ -100,7 +100,7 @@ class DynamicObjectConverter {
 				case "Float" if(Std.is(data, String)): StringConverter.toFloat(data, delimiter);
 				case "Float" if(Std.is(data, Float)): data;
 				
-				case _:	throw "DynamicObjectConverter.fromDynamicObject: Invalid type '" 
+				case _:	throw "DynamicObjectConverter.fromDynamic: Invalid type '" 
 								+ Type.typeof(data) + '\' ($convert) for field $fieldName';
 			};
 			

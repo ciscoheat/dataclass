@@ -122,12 +122,12 @@ class TestHaxeContracts implements DataClass implements HaxeContracts
 	@validate(_ > 0) public var id : Null<Int>;
 }
 
-class Exclude implements DataClass {
+class ExcludeTest implements DataClass {
 	public var id : Int;
 	@exclude public var input : Array<Int>;
 }
 
-class Include implements DataClass {
+class IncludeTest implements DataClass {
 	@include var id : Int;	
 	public function itsId() return id;
 }
@@ -227,14 +227,14 @@ class Tests extends BuddySuite implements Buddy<[Tests, ConverterTests]>
 
 			describe("With @exclude on a public field", {
 				it("should skip the field altogether", {
-					var o = new Exclude({ id: 123 });
+					var o = new ExcludeTest({ id: 123 });
 					o.input.should.be(null);
 				});
 			});
 
 			describe("With @include on a private field", {
 				it("should include the field", {
-					var o = new Include({ id: 123 });					
+					var o = new IncludeTest({ id: 123 });					
 					o.itsId().should.be(123);
 				});
 			});
