@@ -118,38 +118,17 @@ class Builder
 				}
 			}
 			
-			/*
-			// Test Mithril property
-			if (f.meta.exists(function(m) return m.name == "prop")) {
-				switch f.kind {
-					// Don't modify if it's already a GetterSetter.
-					case FVar(TFunction([TOptional(_)], _), _), FProp(_, _, TFunction([TOptional(_)], _), _):
-						
-					case FVar(t, e):
-						f.kind = FVar(TFunction([TOptional(t)], t), e);
-					
-					case FProp(get, set, t, e):
-						f.kind = FProp(get, set, TFunction([TOptional(t)], t), e);
-						
-					case _:
-				}
-				
- 				switch defaultValue {
-					// Don't create a M.prop if it's not already one
-					case macro M.prop($e), macro mithril.M.prop($e):
-						
-					case _: 
-						defaultValue = {expr: (macro mithril.M.prop($defaultValue)).expr, pos: defaultValue.pos};
-				}
+			var validatorMeta = f.meta.find(function(m) return m.name == "validate");
+			var validator = validatorMeta == null ? null : validatorMeta.params[0];
+			
+			if (validatorMeta != null) {
+				f.meta.remove(validatorMeta);
 			}
-			*/
-
-			var validator = f.meta.find(function(m) return m.name == "validate");
 			
 			fieldMap.set(f, {
 				optional: optional, 
 				defaultValue: defaultValue, 
-				validator: validator == null ? null : validator.params[0]
+				validator: validator
 			});
 
 			if(optional) f.meta.push({
@@ -315,17 +294,8 @@ class Builder
 					}
 					createAnonymousValidationField(type);
 					
-				case FProp(get, _, type, _):
-					// If property has a getter, it will be non-physical by default.
-					// Add :isVar metadata to tell the compiler to create a physical field.
-					// see http://haxe.org/manual/class-field-property-rules.html
-					if (get == "get") {
-						f.meta.push({
-							pos: f.pos, params: null, name: ":isVar"
-						});
-					}
-					
-					createValidationSetter(get, type);
+				case FProp(_, set, type, _):
+					if (immutable && set == "default") Context.error("Class is marked as immutable, cannot have setters.", f.pos);
 					createAnonymousValidationField(type);
 					
 				case FFun(_):

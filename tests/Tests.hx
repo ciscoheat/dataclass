@@ -74,6 +74,14 @@ class HasProperty implements DataClass
 	public var def_null_defValue(default, null) : String = "def_null_defValue";
 }
 
+@immutable class HasPropertyWithImmutable implements DataClass
+{
+	public var def_null(default, null) : String;
+	public var def_never(default, never) : String;
+	public var def_never_defValue(default, never) : String = "def_never_defValue";
+	public var def_null_defValue(default, null) : String = "def_null_defValue";
+}
+
 class Validator implements DataClass
 {
 	@validate(~/\d{4}-\d\d-\d\d/) public var date : String;
@@ -178,7 +186,7 @@ class Tests extends BuddySuite implements Buddy<[Tests, ConverterTests]>
 					var o = new DefaultValue();
 					
 					o.city.should.be("Nowhere");
-					o.color.should.be(Color.Blue);
+					o.color.should.equal(Color.Blue);
 					o.date.should.not.be(null);
 					(o.date.getTime() - now.getTime()).should.beLessThan(10);
 				});
@@ -209,9 +217,9 @@ class Tests extends BuddySuite implements Buddy<[Tests, ConverterTests]>
 					prop.called.should.containAll(['set_get_set', 'get_get_set', 'get_get_null']);
 				});
 				
-				it("should throw an exception when setting a property after instantiation", {
+				it("should throw an exception when setting a property to an invalid value after instantiation", {
 					(function() prop.get_set = "ABC").should.throwType(String);
-				});
+				});				
 			});
 
 			describe("With an existing constructor", {
