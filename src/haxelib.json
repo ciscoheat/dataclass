@@ -3,8 +3,8 @@
     "url": "https://github.com/ciscoheat/dataclass",
     "description": "A more convenient way to instantiate data classes.",
     "license": "MIT",
-    "releasenote": "Fixed property setters.",
+    "releasenote": "Constructor 'data' parameter is now automatically typed.",
     "contributors": ["ciscoheat"],
-    "version": "0.15.0",
+    "version": "0.15.1",
     "tags": ["data", "validation", "contracts", "dci"]
 }

@@ -333,6 +333,11 @@ class Builder
 			} else {
 				switch constructor.kind {
 					case FFun(f):
+						// Set function argument "data" to the validation field
+						if (f.args.length > 0 && f.args[0].name == "data" && f.args[0].type == null) {
+							f.args[0].type = TAnonymous(anonymousValidationFields);
+						}
+						
 						switch f.expr.expr {
 							case EBlock(exprs): f.expr.expr = EBlock(assignments.concat(exprs));
 							case _: f.expr.expr = EBlock(assignments.concat([f.expr]));

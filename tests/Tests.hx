@@ -23,11 +23,15 @@ class RequireId implements DataClass
 class IdWithConstructor implements DataClass
 {
 	public var id : Int;
+	@exclude public var initialId : Int;
 	
 	// Dataclass code will be injected before other things in the constructor.
 	public function new(data) {
 		// This value will be tested
 		this.id = 9876;
+		
+		// Test if type is correct
+		initialId = data.id;
 	}
 }
 
@@ -230,6 +234,7 @@ class Tests extends BuddySuite implements Buddy<[Tests, ConverterTests]>
 					
 					// Set in constructor, below the dataclass code.
 					prop.id.should.be(9876);
+					prop.initialId.should.be(1234);
 				});
 			});
 
