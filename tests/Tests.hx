@@ -9,6 +9,7 @@ import hxcpp.StaticStd;
 import hxcpp.StaticRegexp;
 #end
 
+using StringTools;
 using buddy.Should;
 using dataclass.Converter;
 
@@ -328,7 +329,7 @@ class Tests extends BuddySuite implements Buddy<[Tests, ConverterTests]>
 				a.bool.should.be(true);
 				a.int.should.be(2000);
 				Reflect.hasField(a, "doesNotExist").should.be(false);
-				a.anything.should.be("{ test => 123 }");
+				a.anything.should.match(~/\{\s*test\b.+\b123\s*\}/);
 			});
 
 			it("should fail unless validated.", {
