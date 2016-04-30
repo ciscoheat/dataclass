@@ -86,7 +86,7 @@ class DynamicObjectConverter {
 			//trace('$data to $convert');
 			
 			var converted : Dynamic = data == null ? null : switch convert {
-				case "String" if(Std.is(data, String)): data;
+				case "String": Std.string(data);
 
 				case "Bool" if(Std.is(data, String)): StringConverter.toBool(data);
 				case "Bool" if(Std.is(data, Bool)): data;
@@ -100,8 +100,7 @@ class DynamicObjectConverter {
 				case "Float" if(Std.is(data, String)): StringConverter.toFloat(data, delimiter);
 				case "Float" if(Std.is(data, Float)): data;
 				
-				case _:	throw "DynamicObjectConverter.fromDynamic: Invalid type '" 
-								+ Type.typeof(data) + '\' ($convert) for field $fieldName';
+				case _:	throw "Invalid type '" + Type.typeof(data) + '\' ($convert) for field $fieldName';
 			};
 			
 			//trace('Result: $converted');

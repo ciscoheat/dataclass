@@ -104,6 +104,7 @@ class NullValidateTest implements DataClass
 	public var date : String;
 	public var bool : Bool;
 	@validate(_ > 1000) public var int : Int;
+	public var anything : String;
 }
 
 // Contains all types supported by the converter.
@@ -317,21 +318,25 @@ class Tests extends BuddySuite implements Buddy<[Tests, ConverterTests]>
 					date: "2015-12-12",
 					bool: "1",
 					int: "2000",
-					doesNotExist: "should not be added"
+					doesNotExist: "should not be added",
+					anything: { test: 123 }
 				};
 				
 				var a = StringConverter.fromDynamic(data);
 				
 				a.date.should.be("2015-12-12");
 				a.bool.should.be(true);
-				a.int.should.be(2000);				
+				a.int.should.be(2000);
+				Reflect.hasField(a, "doesNotExist").should.be(false);
+				a.anything.should.be("{ test => 123 }");
 			});
 
 			it("should fail unless validated.", {
 				var data = Json.parse('{
 					"date": "2015-12-12",
 					"bool": "1",
-					"int": "100"
+					"int": "100",
+					"anything": "123"
 				}');
 				
 				#if cs
