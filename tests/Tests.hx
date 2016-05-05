@@ -294,6 +294,12 @@ class Tests extends BuddySuite implements Buddy<[Tests, ConverterTests]>
 				});
 			});
 			
+			describe("Manual validation", {
+				it("should be done using the static 'validate' field", {
+					Validator.validate({}).should.contain("oeuoeuoe");
+				});
+			});
+			
 			describe("Implementing HaxeContracts", {
 				it("should throw ContractException instead of a string.", {				
 					(function() new TestHaxeContracts({ id: -1 })).should.throwType(ContractException);

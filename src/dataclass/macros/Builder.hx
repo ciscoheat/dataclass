@@ -142,6 +142,7 @@ class Builder
 		
 		var assignments = [];
 		var validationFields = [];
+		var dataValidationExpressions = [];
 		var anonymousValidationFields : Array<Field> = [];
 		var allOptional = ![for (f in fieldMap) f].exists(function(f) return f.optional == false);
 		
@@ -152,6 +153,11 @@ class Builder
 			var validator = data.validator;
 			var name = f.name;
 			var clsName = cls.name;
+			
+			var fieldType = switch f.kind {
+				case FVar(t, _), FProp(_, _, t, _): t;
+				case FFun(f): f.ret;
+			}
 			
 			var assignment = optional
 				? macro data.$name != null ? data.$name : $defaultValue
@@ -180,35 +186,7 @@ class Builder
 				case _:
 			}
 
-			function createValidator(paramName : String, e : Expr) : Expr {
-				var test : Expr;
-				var name = f.name;
-				var clsName = cls.name;				
-				
-				function replaceParam(e : Expr) return switch e.expr { 
-					case EConst(CIdent("_")): macro $i{paramName};
-					case _: e.map(replaceParam);
-				}
-				
-				switch e.expr {
-					case EConst(CRegexp(r, optional)):
-						if (!r.startsWith('^') && !r.endsWith('$')) r = '^' + r + "$";
-						test = macro new EReg($v{r}, $v{optional}).match($i{paramName});
-					case _: 
-						test = replaceParam(e);
-				}
-				
-				e.expr = EConst(CString(e.toString()));
-				
-				var errorString = macro "Field " + $v{clsName} + "." + $v{name} + ' failed validation "' + $e + '" with value "' + this.$name + '"';
-				var throwType = throwError(errorString);
-				
-				return nullTestAllowed(f)
-					? macro if ((!$v{optional} || $i{paramName} != null) && !$test) $throwType
-					: macro if (!$v{optional} && !$test) $throwType;
-			}
-
-			function fieldAssignmentTests(param : String) : Array<Expr> {
+			function fieldAssignmentTests(param : String) : Array<Expr> {				
 				var assignments = [];
 
 				if (!optional && nullTestAllowed(f)) {
@@ -216,8 +194,15 @@ class Builder
 					assignments.push(macro if ($i{param} == null) $throwStatement);
 				}
 				
-				if (validator != null) assignments.push(createValidator(param, validator));
-
+				if (validator != null) {
+					var errorString = macro "Field " + $v{clsName} + "." + $v{name} + ' failed validation "' + $validator + '" with value "' + this.$name + '"';
+					assignments.push(Validator.createValidator(fieldType, macro $i{param}, optional, validator, throwError(errorString)));
+					
+					// Assumptions for these expressions data is Dynamic<Dynamic>, failed an Array<String>
+					// will be used to create a static "validate" field on each DataClass implemented type.
+					dataValidationExpressions.push(Validator.createValidator(fieldType, macro $p{['data', param]}, optional, validator, macro failed.push($v{name})));
+				}
+				
 				return assignments;
 			}
 
@@ -303,8 +288,13 @@ class Builder
 			
 			// Add to assignment in constructor
 			assignments.push(macro this.$name = $assignment);
+			
+			if(validator != null) {
+				// Set the validator expr to a const so it will pass compilation
+				validator.expr = EConst(CString(validator.toString()));
+			}
 		};
-
+		
 		if (!cls.isInterface) {
 			var constructor = fields.find(function(f) return f.name == "new");
 
@@ -366,8 +356,35 @@ class Builder
 				case _:
 			}			
 		}
+		
+		// Create a static validation method
+		
+		dataValidationExpressions.unshift(macro var failed = []);
+		// All the validation expressions are now located here
+		dataValidationExpressions.push(macro return failed);
+		
+		//trace(dataValidationExpressions.map(function(e) return e.toString() + "\n"));
+		
+		var validate = if(cls.isInterface) [] else [{
+			pos: Context.currentPos(),
+			name: 'validate',
+			meta: null,
+			kind: FFun({
+				ret: macro : Array<String>,
+				params: null,
+				expr: {expr: EBlock(dataValidationExpressions), pos: Context.currentPos()},
+				args: [{
+					value: null,
+					type: macro : Dynamic<Dynamic>,
+					opt: false,
+					name: 'data'
+				}]
+			}),
+			doc: null,
+			access: [APublic, AStatic]
+		}];
 
-		return fields.concat(validationFields);	
+		return fields.concat(validationFields).concat(validate);
 	}
 	
 	////////////////////////////////////////////////////////////////////////////////
