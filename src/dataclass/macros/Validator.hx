@@ -33,7 +33,7 @@ class Validator
 			macro Reflect.hasField($i{f[0]}, $v{f[1]});
 		} else macro true;
 		
-		var isNullAndNullIsAllowed = nullTestAllowed(type) ? (macro ($v{isOptional} && $field == null)) : (macro $v{isOptional});
+		var isNullAndNullIsAllowed = nullTestAllowed(type) ? (macro ($v{isOptional} && $field == null)) : (macro false);
 		
 		validator = validator == null ? (macro true) : validator;
 		
@@ -46,7 +46,7 @@ class Validator
 		}
 		
 		var output = macro if (!($fieldExists && ($isNullAndNullIsAllowed || $validatorTest))) $failExpr;
-		//if (isOptional) trace(output.toString());
+		//trace(output.toString());
 		return output;
 	}
 }

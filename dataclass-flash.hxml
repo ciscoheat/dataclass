@@ -1,0 +1,8 @@
+-lib HaxeContracts
+-lib buddy
+-cp src 
+-cp tests
+-main Tests
+-D static
+-swf bin/flash.swf
+-debug

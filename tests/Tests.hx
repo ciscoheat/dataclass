@@ -302,7 +302,9 @@ class Tests extends BuddySuite implements Buddy<[Tests, ConverterTests]>
 					Validator.validate({ date: "2016-05-06" }).should.containAll(['str', 'int']);
 					Validator.validate( { date: "2016-05-06" } ).length.should.be(2);
 					
-					Validator.validate({ date: "2016-05-06", str: "AAA", int: 1001 }).length.should.be(0);
+					var input = { int: 1001, date: "2016-05-06", str: "AAA" };
+					Reflect.setField(input, "int", 1001); // Required for flash, see https://github.com/HaxeFoundation/haxe/issues/5215
+					Validator.validate(input).length.should.be(0);
 					
 					RequireId.validate({}).should.contain("id");
 					RequireId.validate({id: 1001}).length.should.be(0);

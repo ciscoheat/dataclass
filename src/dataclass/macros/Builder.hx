@@ -32,20 +32,6 @@ class Builder
 			return ct.name == "HaxeContracts";
 		});
 
-		// Complications: Testing for null is only allowed if on a non-static platform or the type is not a basic type.
-		function nullTestAllowed(f : Field) {			
-			var staticPlatform = Context.defined("cpp") || Context.defined("java") || Context.defined("flash") || Context.defined("cs");
-			if (!staticPlatform) return true;
-			
-			return switch f.kind {
-				case FVar(TPath(p), _), FProp(_, _, TPath(p), _):
-					if (p.pack.length == 0 && ['Int', 'Float', 'Bool'].has(p.name)) false;
-					else true;
-				case _: 
-					true;
-			}
-		}
-
 		function throwError(errorString : ExprOf<String>) : Expr {
 			return haxeContracts
 				? macro throw new haxecontracts.ContractException($errorString, this)
@@ -189,8 +175,8 @@ class Builder
 			function setterAssignmentExpressions(param : String, existingSetter : Null<Expr>) : Array<Expr> {
 				function fieldAssignmentTests(param : String) : Array<Expr> {				
 					var assignments = [];
-	
-					if (!optional && nullTestAllowed(f)) {
+
+					if (!optional && Validator.nullTestAllowed(fieldType)) {
 						var throwStatement = throwError(macro "Field " + $v{clsName} + "." + $v{name} + " was null.");
 						assignments.push(macro if ($i{param} == null) $throwStatement);
 					}
