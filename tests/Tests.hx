@@ -52,6 +52,7 @@ class DefaultValue implements DataClass
 
 class HasProperty implements DataClass
 {
+	@validate(_.length == 0)
 	public var called : Array<String> = [];
 	
 	public var def_null(default, null) : String;
@@ -194,7 +195,7 @@ class Tests extends BuddySuite implements Buddy<[Tests, ConverterTests]>
 					o.city.should.be("Nowhere");
 					o.color.should.equal(Color.Blue);
 					o.date.should.not.be(null);
-					(o.date.getTime() - now.getTime()).should.beLessThan(10);
+					(o.date.getTime() - now.getTime()).should.beLessThan(100);
 				});
 				it("should be set to the supplied value if field value is supplied", {
 					new DefaultValue( { city: "Somewhere" } ).city.should.be("Somewhere");
@@ -256,9 +257,8 @@ class Tests extends BuddySuite implements Buddy<[Tests, ConverterTests]>
 
 			describe("Validators", {
 #if !php
-				it("should validate with @validate(...) expressions", function(done) {
-					new Validator({ date: "2015-12-12", str: "AAA", int: 1001 });
-					done();
+				it("should validate with @validate(...) expressions", {
+					(function() new Validator({ date: "2015-12-12", str: "AAA", int: 1001 })).should.not.throwAnything();
 				});
 #end
 
@@ -296,7 +296,26 @@ class Tests extends BuddySuite implements Buddy<[Tests, ConverterTests]>
 			
 			describe("Manual validation", {
 				it("should be done using the static 'validate' field", {
-					Validator.validate({}).should.contain("oeuoeuoe");
+					Validator.validate({}).should.containAll(['date', 'str', 'int']);
+					Validator.validate({}).length.should.be(3);
+					
+					Validator.validate({ date: "2016-05-06" }).should.containAll(['str', 'int']);
+					Validator.validate( { date: "2016-05-06" } ).length.should.be(2);
+					
+					Validator.validate({ date: "2016-05-06", str: "AAA", int: 1001 }).length.should.be(0);
+					
+					RequireId.validate({}).should.contain("id");
+					RequireId.validate({id: 1001}).length.should.be(0);
+				});
+				
+				it("should fail a default value field if it exists but has an incorrect value", {
+					HasProperty.validate( { } ).should.containAll(['def_null', 'def_def', 'get_set', 'get_null']);
+					HasProperty.validate( { } ).length.should.be(4);
+					
+					HasProperty.validate( { called: ["should fail"] } ).should.containAll(
+						['called', 'def_null', 'def_def', 'get_set', 'get_null']
+					);
+					HasProperty.validate( { called: ["should fail"] } ).length.should.be(5);
 				});
 			});
 			

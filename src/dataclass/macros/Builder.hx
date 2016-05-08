@@ -186,29 +186,25 @@ class Builder
 				case _:
 			}
 
-			function fieldAssignmentTests(param : String) : Array<Expr> {				
-				var assignments = [];
-
-				if (!optional && nullTestAllowed(f)) {
-					var throwStatement = throwError(macro "Field " + $v{clsName} + "." + $v{name} + " was null.");
-					assignments.push(macro if ($i{param} == null) $throwStatement);
-				}
-				
-				if (validator != null) {
-					var errorString = macro "Field " + $v{clsName} + "." + $v{name} + ' failed validation "' + $validator + '" with value "' + this.$name + '"';
-					assignments.push(Validator.createValidator(fieldType, macro $i{param}, optional, validator, throwError(errorString)));
+			function setterAssignmentExpressions(param : String, existingSetter : Null<Expr>) : Array<Expr> {
+				function fieldAssignmentTests(param : String) : Array<Expr> {				
+					var assignments = [];
+	
+					if (!optional && nullTestAllowed(f)) {
+						var throwStatement = throwError(macro "Field " + $v{clsName} + "." + $v{name} + " was null.");
+						assignments.push(macro if ($i{param} == null) $throwStatement);
+					}
 					
-					// Assumptions for these expressions data is Dynamic<Dynamic>, failed an Array<String>
-					// will be used to create a static "validate" field on each DataClass implemented type.
-					dataValidationExpressions.push(Validator.createValidator(fieldType, macro $p{['data', param]}, optional, validator, macro failed.push($v{name})));
+					if (validator != null) {
+						var errorString = macro "Field " + $v{clsName} + "." + $v{name} + ' failed validation "' + $validator + '" with value "' + this.$name + '"';
+						assignments.push(Validator.createValidator(fieldType, macro $i{param}, optional, validator, throwError(errorString), false));
+					}
+					
+					return assignments;
 				}
 				
-				return assignments;
-			}
-
-			function setterAssignmentExpressions(param : String, e : Null<Expr>) : Array<Expr> {
-				if (e == null) e = {expr: EBlock([]), pos: f.pos};
-				switch e.expr {
+				if (existingSetter == null) existingSetter = {expr: EBlock([]), pos: f.pos};
+				switch existingSetter.expr {
 					case EBlock(exprs):
 						var assignments = fieldAssignmentTests(param);						
 						if (exprs.length == 0) assignments.push(macro return this.$name = $i{param});
@@ -216,7 +212,7 @@ class Builder
 						return assignments.concat(exprs);
 						
 					case _: 
-						return setterAssignmentExpressions(param, {expr: EBlock([e]), pos: e.pos});
+						return setterAssignmentExpressions(param, {expr: EBlock([existingSetter]), pos: existingSetter.pos});
 				}				
 			}
 			
@@ -255,6 +251,13 @@ class Builder
 					doc: null,
 					access: []
 				});
+				
+				// Assumptions for these expressions: data is Dynamic<Dynamic>, failed an Array<String>
+				// will be used to create a static "validate" field on each DataClass implemented type.
+				dataValidationExpressions.push(Validator.createValidator(
+					fieldType, macro $p{['data', name]}, optional, validator, 
+					macro failed.push($v{name}), !optional // Test field existence only for non-optional fields
+				));
 			}
 
 			switch f.kind {
@@ -375,7 +378,7 @@ class Builder
 				expr: {expr: EBlock(dataValidationExpressions), pos: Context.currentPos()},
 				args: [{
 					value: null,
-					type: macro : Dynamic<Dynamic>,
+					type: macro : Dynamic,
 					opt: false,
 					name: 'data'
 				}]
