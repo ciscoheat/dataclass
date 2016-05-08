@@ -306,7 +306,7 @@ class Test implements DataClass
 
 ```haxe
 import js.Browser;
-using dataclass.Converter;
+import dataclass.HtmlFormConverter;
 
 class Main {
 	static function main() {
