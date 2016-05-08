@@ -1,0 +1,7 @@
+-lib HaxeContracts
+-lib buddy
+-cp src 
+-cp tests
+-main Tests
+#-D reporter=buddy.reporting.TraceReporter
+-js bin/js-browser.js

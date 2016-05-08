@@ -4,6 +4,14 @@ import haxe.Json;
 import haxecontracts.ContractException;
 import haxecontracts.HaxeContracts;
 
+#if js
+import js.Browser;
+import js.html.DivElement;
+import js.html.InputElement;
+import js.html.OptionElement;
+import js.html.SelectElement;
+#end
+
 #if cpp
 import hxcpp.StaticStd;
 import hxcpp.StaticRegexp;
@@ -157,7 +165,13 @@ interface ExtendingInterface extends DataClass
 {
 }
 
-class Tests extends BuddySuite implements Buddy<[Tests, ConverterTests]>
+class Tests extends BuddySuite implements Buddy<[
+	Tests, 
+	ConverterTests, 
+	#if (js && !nodejs)
+	HtmlFormConverterTests
+	#end
+]>
 {	
 	public function new() {
 		describe("DataClass", {
@@ -479,7 +493,93 @@ class ConverterTests extends BuddySuite
 				test.int.toString().should.be("123");
 				test.date.toStringFormat("%Y-%m-%d").should.be("2015-01-01");
 				test.float.toString().should.be("456.789");				
-			});			
+			});
 		});
 	}
 }
+
+#if (js && !nodejs)
+class HtmlFormConverterTests extends BuddySuite
+{
+	var date : InputElement;
+	var str : InputElement;
+	var int : SelectElement;
+	
+	var conv : HtmlFormConverter;
+	
+	public function new() {
+		beforeEach({			
+			Browser.document.getElementById("tests").innerHTML = formHtml;
+			date = cast Browser.document.querySelector("input[name=date]");
+			str = cast Browser.document.querySelector("input[name=str]");
+			int = cast Browser.document.querySelector("select[name=int]");
+			
+			int.selectedIndex = 2;
+			date.value = "2016-05-08";
+			str.checked = true;
+			
+			conv = Browser.document.querySelector("form");
+		});
+		
+		describe("HtmlFormConverter", {
+			it("should convert form fields into useful data structures", {				
+				var anon : Dynamic = conv.toAnonymous();
+				anon.int.should.be("1001");
+				anon.date.should.be("2016-05-08");
+				anon.str.should.be("ab<cde");
+				
+				var map = conv.toMap();
+				map.get('int').should.be("1001");
+				map.get('date').should.be("2016-05-08");
+				map.get('str').should.be("ab<cde");
+				
+				conv.toJson().should.be('{"date":"2016-05-08","int":"1001","str":"ab<cde","submit":"Submit"}');
+				conv.toQueryString().should.be("date=2016-05-08&int=1001&str=ab%3Ccde&submit=Submit");
+				
+				Validator.fromDynamic(conv).int.should.be(1001);
+				Validator.fromDynamic(conv).date.should.be("2016-05-08");
+				Validator.fromDynamic(conv).str.should.be("ab<cde");
+			});
+				
+			it("should validate and convert to DataClass objects", {
+				conv.validate(Validator).length.should.be(0);
+				conv.toDataClass(Validator).int.should.be(1001);
+				conv.toDataClass(Validator).str.should.be("ab<cde");
+			});
+			
+			it("should validate properly with failed fields", {
+				int.selectedIndex = 0;
+				conv.validate(Validator).length.should.be(1);
+				conv.validate(Validator)[0].should.be("int");
+			});
+		});
+	}
+	
+	static var formHtml = '
+<form>
+	<input type="text" name="date">
+	<select name="int">
+		<option>10</option>
+		<option>100</option>
+		<option>1001</option>
+	</select>
+	<input type="checkbox" name="str" value="ab&lt;cde">
+	<input type="submit" name="submit" value="Submit"/>
+</form>
+';
+
+	static var testHtml = '
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8"/>
+	<title>dataclass tests</title>
+</head>
+<body>
+	<script src="js-browser.js"></script>
+	<div id="tests"></div>
+</body>
+</html>	
+';	
+}
+#end

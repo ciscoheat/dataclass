@@ -63,8 +63,12 @@ class DynamicObjectConverter {
 		
 		return output;
 	}
-	
+
 	public static function fromDynamic<T : DataClass>(cls : Class<T>, data : {}, ?delimiter : String) : T {
+		return Type.createInstance(cls, [convertToCorrectTypes(cls, data, delimiter)]);
+	}
+
+	public static function convertToCorrectTypes<T : DataClass>(cls : Class<T>, data : {}, ?delimiter : String) : Dynamic {
 		if (delimiter == null) delimiter = Converter.delimiter;
 		
 		//trace("===== fromDynamicObject: " + Type.getClassName(cls));
@@ -108,7 +112,7 @@ class DynamicObjectConverter {
 			Reflect.setField(output, fieldName, converted);
 		}
 
-		return Type.createInstance(cls, [output]);		
+		return output;
 	}
 }
 

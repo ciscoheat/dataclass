@@ -103,10 +103,10 @@ All classes implementing `dataclass.DataClass` will get a static `validate` meth
 ```haxe
 class Main {
 	static function main() {
-		var p : Person;
+		var errors : Array<String>;
 		
 		// Will return an empty array, meaning that all data passed validation
-		Person.validate({
+		errors = Person.validate({
 			id: 1,
 			email: "test@example.com",
 			city: "Punxsutawney"
@@ -115,15 +115,20 @@ class Main {
 		// This will return an array with two fields, ["email", "city"], since
 		// the email field isn't a valid email according the the Person class,
 		// and the city field is missing.
-		Person.validate({
+		errors = Person.validate({
 			id: 2,
 			email: "none"
-		});		
+		});
+		
+		// Easy to use afterwards
+		for(field in errors) {
+			// Set attributes on html fields that failed validation, for example
+		}
 	}
 }
 ```
 
-The `validate` method will never throw an exception, and can be used with anonymous objects. It's useful for validating web form data.
+The `validate` method will never throw an exception, and can be used with anonymous objects. It's useful for validating web form data, more about that in the conversion section below.
 
 ## Conversion utilities
 
@@ -269,6 +274,53 @@ class Main {
 		trace(test.first); // "123"
 		trace(test.second); // "22/06/15"
 		trace(test.third); // "YES"
+	}
+}
+```	
+
+### Converting and validating a html form in the browser
+
+Assuming a simple data class and a form exists:
+	
+```haxe
+class Test implements DataClass
+{
+	@validate(~/\d{4}-\d\d-\d\d/) public var date : String;
+	@validate(_.length > 2 && _.length < 9) public var str : String;
+	@validate(_ > 1000) public var int : Int;
+}
+```
+
+```html
+<form>
+	<input type="text" name="date">
+	<select name="int">
+		<option>10</option>
+		<option>100</option>
+		<option selected>1001</option>
+	</select>
+	<input type="checkbox" name="str" value="abcde" checked>
+	<input type="submit" name="submit" value="Submit"/>
+</form>
+```
+
+```haxe
+import js.Browser;
+using dataclass.Converter;
+
+class Main {
+	static function main() {
+		var form : HtmlFormConverter = Browser.document.querySelector('form');
+		
+		// Basic conversions
+		form.toMap();
+		form.toJson();
+		form.toAnonymous();
+		form.toQueryString();
+		
+		// Validation and DataClass conversion
+		var errors = form.validate(Test);
+		var test = form.toDataClass(Test);
 	}
 }
 ```	

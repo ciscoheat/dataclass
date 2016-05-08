@@ -3,8 +3,8 @@
     "url": "https://github.com/ciscoheat/dataclass",
     "description": "A more convenient way to instantiate data classes.",
     "license": "MIT",
-    "releasenote": "Dataclass implemented classes now has a static validate field.",
+    "releasenote": "HtmlFormConverter added.",
     "contributors": ["ciscoheat"],
-    "version": "0.17.0",
+    "version": "0.18.0",
     "tags": ["data", "validation", "contracts", "dci"]
 }
