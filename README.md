@@ -180,14 +180,14 @@ class Main {
 		// A row parsed from a CSV file:
 		var input = ["123", "2015-01-01", "yes"];
 		
-		var test = CsvTest.fromClassData(input);
+		var test = CsvTest.fromColMetaData(input);
 		
 		trace(test.third); // true (converted to a Bool type of course)
 	}
 }
 ```
 
-Or if you prefer to keep your classes clean (and risk typos):
+Or if you prefer to keep your classes clean:
 
 ```haxe
 using dataclass.Converter;
@@ -265,7 +265,7 @@ class Main {
 		var o = new JsonTest({first: 123, second: Date.now(), third: true});
 		
 		// Demonstrating the converter settings:
-		var test = o.toDynamic({
+		var test = o.toStringData({
 			delimiter: ",",
 			dateFormat: "%d/%m/%y",
 			boolValues: { tru: "YES", fals: "NO" } // (No typo, it's to avoid the reserved words)

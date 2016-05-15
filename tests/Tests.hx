@@ -1,6 +1,8 @@
 import buddy.*;
 import dataclass.*;
+import haxe.DynamicAccess;
 import haxe.Json;
+import haxe.rtti.Meta;
 import haxecontracts.ContractException;
 import haxecontracts.HaxeContracts;
 
@@ -131,6 +133,12 @@ class NullValidateTest implements DataClass
 	public var float : Null<Float>;
 }
 
+// Testing how convertTo reacts on a different type
+@:keep class TestFakeFloatConverter implements DataClass
+{
+	public var float : String;
+}
+
 @:keep class TestColumnConverter implements DataClass
 {
 	@col(1) public var first : Int;
@@ -153,6 +161,7 @@ class ExcludeTest implements DataClass {
 class IncludeTest implements DataClass {
 	@include var id : Int;	
 	public function itsId() return id;
+	public var notUsed = "not used";
 }
 
 @immutable class Immutable implements DataClass
@@ -410,7 +419,7 @@ class Tests extends BuddySuite implements Buddy<[
 			
 			it("should parse column data when using the @col metadata", {
 				var data = ["123", "2015-01-01", "1"];
-				var obj = TestColumnConverter.fromClassData(data);
+				var obj = TestColumnConverter.fromColMetaData(data);
 				
 				obj.first.should.be(123);
 				obj.second.toString().should.be("2015-01-01 00:00:00");
@@ -435,7 +444,7 @@ class Tests extends BuddySuite implements Buddy<[
 					float: "123.45"
 				});
 				
-				var o = a.toDynamic({
+				var o = a.toStringData({
 					delimiter: ',',
 					boolValues: { tru: "YES", fals: "NO" },
 					dateFormat: "%Y%m%d"
@@ -472,7 +481,9 @@ class ConverterTests extends BuddySuite
 {	
 	public function new() {
 		describe("Converter", {
-			it("should work with the supported types", {
+			var test : TestConverter;
+			
+			beforeEach({
 				var data = {
 					bool: "true".toBool(),
 					int: "123".toInt(),
@@ -480,8 +491,10 @@ class ConverterTests extends BuddySuite
 					float: "456.789".toFloat()
 				};
 				
-				var test = new TestConverter(data);
-				
+				test = new TestConverter(data);
+			});
+			
+			it("should work with the supported types", {
 				test.bool.should.be(true);
 				test.int.should.be(123);
 				DateTools.format(test.date, "%Y-%m-%d %H:%M:%S").should.be("2015-01-01 00:00:00");
@@ -493,6 +506,75 @@ class ConverterTests extends BuddySuite
 				test.int.toString().should.be("123");
 				test.date.toStringFormat("%Y-%m-%d").should.be("2015-01-01");
 				test.float.toString().should.be("456.789");				
+			});
+			
+			it("should be able to assign a number of fields in one operation", {
+				var date = new Date(2016, 4, 15, 0, 0, 0);
+				var other = {
+					bool: false,
+					float: -20.05
+				};
+				
+				test.assignFromVars(date, other.bool, other.float);
+				
+				test.bool.should.be(false);
+				test.date.toStringFormat("%Y-%m-%d").should.be("2016-05-15");
+				test.float.should.beCloseTo(-20.05);
+			});
+
+			it("should be able to create a DataClass from local vars", {
+				var date = new Date(2016, 4, 15, 0, 0, 0);
+				var other = {
+					bool: false,
+					float: -20.05,
+					int: 123
+				};
+				
+				// Adding a subpackage to test the conversion
+				var test = subpack.AnotherConverter.createFromVars(date, other.bool, other.float, other.int);				
+				test.bool.should.be(false);
+				test.int.should.be(123);
+				test.date.toStringFormat("%Y-%m-%d").should.be("2016-05-15");
+				test.float.should.beCloseTo( -20.05);
+				
+				var test2 = TestConverter.createFromVars(date, other.bool, other.float, other.int);
+				test2.bool.should.be(false);
+				test2.int.should.be(123);
+				test2.date.toStringFormat("%Y-%m-%d").should.be("2016-05-15");
+				test2.float.should.beCloseTo( -20.05);
+				
+				// Test using the static method (no extension)
+				var test3 = Converter.createFromVars(TestConverter, date, other.bool, other.float, other.int);
+				test3.bool.should.be(false);
+				test3.int.should.be(123);
+				test3.date.toStringFormat("%Y-%m-%d").should.be("2016-05-15");
+				test3.float.should.beCloseTo( -20.05);				
+			});
+
+			it("should be able to create one object from another", {
+				var testFloat = test.convertTo(TestFloatConverter);				
+				Std.is(testFloat, TestFloatConverter).should.be(true);
+				testFloat.float.should.beCloseTo(456.789, 3);
+				
+				var ex = (function() test.convertTo(Validator)).should.throwType(String);
+				ex.indexOf("Validator").should.beGreaterThan( -1);
+				
+				var fakeFloat = new TestFakeFloatConverter( { float: "not a float..." } );
+				var testFloat2 = fakeFloat.convertTo(TestFloatConverter);
+				testFloat2.float.toString().should.be(Math.NaN.toString());
+			});
+			
+			it("should convert all public dataclass fields of an object to an anonymous structure", {
+				// Using IncludeTest since it has a private var that is included in the constructor data
+				var test = new IncludeTest({id: 123});
+				var output : DynamicAccess<Dynamic> = test.toAnonymousStructure();
+				
+				output.keys().length.should.be(1);
+				output.get("notUsed").should.be("not used");
+				
+				var output2 : DynamicAccess<String> = test.toStringData();
+				output2.keys().length.should.be(1);
+				output2.get("notUsed").should.be("not used");
 			});
 		});
 	}

@@ -105,7 +105,7 @@ abstract HtmlFormConverter(FormElement) from FormElement {
 
 	public function validate<T : DataClass>(cls : Class<T>, ?delimiter : String) : Array<String> {
 		if (!Reflect.hasField(cls, "validate")) throw "No static validate method on class " + cls;
-		var data = DynamicObjectConverter.convertToCorrectTypes(cls, toAnonymous(), delimiter);
+		var data = DynamicObjectConverter.toCorrectTypes(cls, toAnonymous(), delimiter);
 		return untyped __js__('cls.validate({0})', data);
 	}
 }

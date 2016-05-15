@@ -163,7 +163,15 @@ class Builder
 					};
 					
 					if (Converter.DynamicObjectConverter.supportedTypes.has(typeName)) {
+						// convertFrom is for incoming fields
 						f.meta.push({
+							pos: f.pos,
+							params: [{expr: EConst(CString(typeName)), pos: f.pos}],
+							name: "convertFrom"
+						});
+
+						// convertTo excludes non-public fields in conversions
+						if(f.access.has(APublic)) f.meta.push({
 							pos: f.pos,
 							params: [{expr: EConst(CString(typeName)), pos: f.pos}],
 							name: "convertTo"
@@ -282,7 +290,10 @@ class Builder
 				// Set the validator expr to a const so it will pass compilation
 				validator.expr = EConst(CString(validator.toString()));
 			}
-		};
+		}
+
+		cls.meta.add("dataClassFields", [for(f in dataClassFields) if(f.access.has(APublic)) macro $v{f.name}], cls.pos);
+
 		
 		if (!cls.isInterface) {
 			var constructor = fields.find(function(f) return f.name == "new");
