@@ -39,23 +39,32 @@ class Converter
 			}
 		}]), pos: Context.currentPos() };
 		
+		function error() return Context.error("Invalid Class type: " + cls.toString(), cls.pos);
+		
 		// cls will be "this" if used as an extension, so the real type must be extracted
 		var classType = switch Context.typeof(cls) {
 			case TType(t, params): 
 				// The real type is found within Class<...>
 				var type = ~/^Class<(.*)>$/;
-				type.match(t.get().name);				
-				var module = type.matched(1).split(".");
+				if (!type.match(t.get().name)) error();
+				
+				var name = type.matched(1).split(".");
+				var module = t.get().module.split(".");
+				//trace("======="); trace(module); trace(name);
+
+				// And now some crazy stuff...				
+				
+				var topClassInPackage = name.length > 1 && module.slice(0, -1).join("") == name.slice(0, -1).join("");
 				
 				{ 
-					sub: null,
+					sub: topClassInPackage ? name[name.length-1] : null,
 					params: null,
-					pack: module.length > 1 ? module.slice(0, -1) : [],
-					name: module[module.length-1]
+					pack: module.slice(0, -1),
+					name: topClassInPackage ? module[module.length-1] : name[name.length-1]
 				};
 				
 			case _: 
-				Context.error("Invalid class type: " + cls, cls.pos);
+				error();
 		}
 		
 		return macro new $classType($assignments);

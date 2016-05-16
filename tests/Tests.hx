@@ -536,7 +536,7 @@ class ConverterTests extends BuddySuite
 				test.int.should.be(123);
 				test.date.toStringFormat("%Y-%m-%d").should.be("2016-05-15");
 				test.float.should.beCloseTo( -20.05);
-				
+
 				var test2 = TestConverter.createFromVars(date, other.bool, other.float, other.int);
 				test2.bool.should.be(false);
 				test2.int.should.be(123);
@@ -548,7 +548,13 @@ class ConverterTests extends BuddySuite
 				test3.bool.should.be(false);
 				test3.int.should.be(123);
 				test3.date.toStringFormat("%Y-%m-%d").should.be("2016-05-15");
-				test3.float.should.beCloseTo( -20.05);				
+				test3.float.should.beCloseTo( -20.05);
+				
+				var test4 = Converter.createFromVars(subpack.AnotherConverter.SubConverter, date, other.bool, other.float, other.int);
+				test4.bool.should.be(false);
+				test4.int.should.be(123);
+				test4.date.toStringFormat("%Y-%m-%d").should.be("2016-05-15");
+				test4.float.should.beCloseTo( -20.05);
 			});
 
 			it("should be able to create one object from another", {
