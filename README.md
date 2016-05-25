@@ -12,7 +12,7 @@ class Person implements dataclass.DataClass
 	public var id : Int;             // Required field (cannot be null)
 	public var name : Null<String>;  // Null<T> allows null
 
-	@validate(~/[\w-.]+@[\w-.]+/)              // Regexp validation (auto-adding ^ and $ unless one of them exists)
+	@validate(~/[\w-.]+@[\w-.]+/)    // Regexp validation (adding ^ and $ unless one of them exists)
 	public var email(default, null) : String;  // Works with properties
 
 	@validate(_.length > 2)   // Expression validation, "_" is replaced with the field
@@ -95,6 +95,28 @@ class Custom implements dataclass.DataClass {
 ## Immutability
 
 Previously, a class coulde be made immutable by marking it with `@immutable`. This has been deprecated, and the way to do it now is to use the [immutable](http://lib.haxe.org/p/immutable/) haxelib. Add it with `-lib immutable` and let your classes implement `Immutable` instead.
+
+## Inheritance
+
+If you let a DataClass extend another class, fields in the superclass will be regarded as DataClass fields, so you will need to supply them when creating the object. Example.
+
+```haxe
+class Parent {
+	@validate(_ > 0) public var id : Int;
+}
+
+class Person extends Parent implements DataClass {
+	public var name : String;
+}
+```
+
+```haxe
+// Creating a Person
+var p = new Person({name: "Test"}); // Doesn't work, requires id
+var p = new Person({id: 1, name: "Test"}); // Ok
+```
+
+Note that in general, the superclass should not implement `DataClass`, rather it should be considered an abstract class for generic data like primary keys in a database.
 
 ## Manual validation
 
