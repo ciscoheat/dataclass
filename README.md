@@ -77,7 +77,7 @@ class Custom implements dataclass.DataClass {
 }
 ```
 
-Note specifically that the first parameter must be called `data`. 
+Note especially that the parameter must be called `data`.
 
 At the top of this constructor, all the assignments will be inserted. So when running it will look similar to this:
 
@@ -94,7 +94,7 @@ class Custom implements dataclass.DataClass {
 
 ## Immutability
 
-A class can be made immutable, or at least shallow immutable (meaning that Arrays and such can still be modified), by marking it with `@immutable`. This will change all `public var` fields to `public var(default, null)`, and prevent internal changes to those. 
+Previously, a class coulde be made immutable by marking it with `@immutable`. This has been deprecated, and the way to do it now is to use the [immutable](http://lib.haxe.org/p/immutable/) haxelib. Add it with `-lib immutable` and let your classes implement `Immutable` instead.
 
 ## Manual validation
 

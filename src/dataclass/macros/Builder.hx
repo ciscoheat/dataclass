@@ -22,6 +22,8 @@ class Builder
 		var cls = Context.getLocalClass().get();
 		var immutable = cls.meta.has("immutable");
 		
+		if (immutable) Context.error("@immutable is deprecated, use '-lib immutable' and 'implements Immutable' instead.", cls.pos);
+		
 		// Fields aren't available on Context.getLocalClass().
 		// need to supply them here. They're available on the superclass though.
 		var dataClassFields = includedFields(fields, cls);

@@ -3,8 +3,9 @@
     "url": "https://github.com/ciscoheat/dataclass",
     "description": "A more convenient way to instantiate data classes.",
     "license": "MIT",
-    "releasenote": "Fixed module sub-types for macros.",
     "contributors": ["ciscoheat"],
-    "version": "0.19.1",
-    "tags": ["data", "validation", "contracts", "dci"]
+    "version": "0.20.0",
+    "releasenote": "Immutability is now done through the 'immutable' haxelib.",
+    "tags": ["data", "validation", "contracts", "dci"],
+	"dependencies": { "immutable": "" }
 }

@@ -90,7 +90,7 @@ class HasProperty implements DataClass
 	public var def_null_defValue(default, null) : String = "def_null_defValue";
 }
 
-@immutable class HasPropertyWithImmutable implements DataClass
+class HasPropertyWithImmutable implements DataClass implements Immutable
 {
 	public var def_null(default, null) : String;
 	public var def_never(default, never) : String;
@@ -164,7 +164,7 @@ class IncludeTest implements DataClass {
 	public var notUsed = "not used";
 }
 
-@immutable class Immutable implements DataClass
+class ImmutableClass implements DataClass implements Immutable
 {
 	public var id : Int;
 	public var name : String;	
@@ -353,8 +353,8 @@ class Tests extends BuddySuite implements Buddy<[
 			describe("Using the @immutable metadata", {
 				it("should convert all var fields into (default, null) properties.", {
 					// Difficult to test compilations errors...!
-					var immutable = new Immutable({ id: 123, name: "Test" });
-					immutable.should.beType(Immutable);
+					var immutable = new ImmutableClass({ id: 123, name: "Test" });
+					immutable.should.beType(ImmutableClass);
 					
 					//immutable.id = 456;
 					immutable.id.should.be(123);
