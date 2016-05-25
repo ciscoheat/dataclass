@@ -5,7 +5,7 @@
     "license": "MIT",
     "contributors": ["ciscoheat"],
     "version": "0.20.0",
-    "releasenote": "Immutability is now done through the 'immutable' haxelib.",
+    "releasenote": "Added superclass field support. Immutability is now done through the 'immutable' haxelib.",
     "tags": ["data", "validation", "contracts", "dci"],
 	"dependencies": { "immutable": "" }
 }

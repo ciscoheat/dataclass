@@ -56,11 +56,13 @@ class Builder
 			//trace('===' + f.name);
 			//trace(f.kind);
 			
-			// TODO: Allow fields with only a default value, no type
 			var optional = switch f.kind {
-				case FVar(TPath(p), _) if (p.name == "Null"): true;
-				case FProp(_, _, TPath(p), _) if (p.name == "Null"): true;
-				case _: false;
+				case FVar(TPath(p), _) | FProp(_, _, TPath(p), _): 
+					// StdTypes.Null is created when Context.toComplexType is used.
+					p.name == "Null" || (p.name == "StdTypes" && p.sub == "Null");
+				
+				case _: 
+					false;
 			}
 			
 			var fieldType : ComplexType = switch f.kind {

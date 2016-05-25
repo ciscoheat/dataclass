@@ -589,12 +589,11 @@ class ConverterTests extends BuddySuite
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
 
-// Modelled by the ArangoDB index fields, available on every document.
 class Document
 {
-	@ignore public var _id(default, null) : String;
+	@ignore public var _id(default, null) : Null<String>;
 	@validate(_ == null || _.length > 0) public var _key(default, set) : Null<String>;
-	@ignore public var _rev(default, never) : String;
+	public var _rev(default, null) : Null<String>;
 	
 	function set__key(v : String) {
 		if (_key != null) throw '_key already exists: $_key';
