@@ -1,57 +1,30 @@
-# The first thing is to tell which VM environment we want the test to be run on.
-# It dosen't quite matter for Haxe, just choose one of the targets our project support (e.g. PHP),
-# and than apt-get install the others (e.g. Neko, C++).
-# For more info, see http://about.travis-ci.org/docs/user/ci-environment/
-language: node_js
+sudo: required
+dist: trusty
 
-before_install:
-  # Install Haxe
-  - wget http://www.openfl.org/builds/haxe/haxe-3.2.1-linux-installer.tar.gz -O - | tar -xv
-  - sudo sh install-haxe.sh -y
+language: haxe
 
-  # haxelib dependencies
-  - haxelib install HaxeContracts
-  - haxelib install buddy
-  - haxelib install immutable
-  - haxelib install hxcpp
-  - haxelib install hxjava
-  - haxelib install hxcs
+os:
+  - linux
+  - osx
+  
+haxe:
+  - "3.2.1"
+  - development
+  
+matrix:
+  allow_failures:
+    - haxe: development
+    
+install:
+  - haxelib install travix
+  - haxelib run travix install
 
-  # apt packages
-  - sudo apt-get update
-  - sudo apt-get install gcc-multilib g++-multilib -y
-  - sudo apt-get install mono-devel -y
-  - sudo apt-get install phantomjs -y
-  - sudo apt-get install php5-cli -y
-  - chmod +x ./flash-travis-setup.sh && ./flash-travis-setup.sh
-  - sudo apt-get install python3 -y
-
-# Run the test!
 script:
-  - haxe tests.hxml
-  - neko bin/neko.n
-  - node bin/nodejs.js
-  # -phantomjs
-  #.- ./.travis-phantomjs-script.sh phantomjs.js '0 failures'
-  - java -jar bin/Tests.jar
-  - php bin/index.php
-  - mono bin/bin/Tests.exe
-  - chmod +x ./flash-travis-run.sh && ./flash-travis-run.sh bin/flash.swf
-  - ./bin/Tests
-  - python3 bin/python.py
-
-  - haxe -dce full tests.hxml
-  - neko bin/neko.n
-  - node bin/nodejs.js
-  # -phantomjs
-  #.- ./.travis-phantomjs-script.sh phantomjs.js '0 failures'
-  - java -jar bin/Tests.jar
-  - php bin/index.php
-  - mono bin/bin/Tests.exe
-  - chmod +x ./flash-travis-run.sh && ./flash-travis-run.sh bin/flash.swf
-  - ./bin/Tests
-  - python3 bin/python.py
-
-branches:
-      only:
-          - master
+  - haxelib run travix neko
+  - haxelib run travix python
+  - haxelib run travix node
+  - haxelib run travix flash
+  - haxelib run travix java
+  - haxelib run travix cpp
+  - haxelib run travix cs
+  - haxelib run travix php
