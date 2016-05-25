@@ -178,8 +178,9 @@ class Tests extends BuddySuite implements Buddy<[
 	Tests, 
 	ConverterTests, 
 	#if (js && !nodejs)
-	HtmlFormConverterTests
+	HtmlFormConverterTests,
 	#end
+	InheritanceTests
 ]>
 {	
 	public function new() {
@@ -585,6 +586,51 @@ class ConverterTests extends BuddySuite
 		});
 	}
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////////
+
+// Modelled by the ArangoDB index fields, available on every document.
+class Document
+{
+	@ignore public var _id(default, null) : String;
+	@validate(_ == null || _.length > 0) public var _key(default, set) : Null<String>;
+	@ignore public var _rev(default, never) : String;
+	
+	function set__key(v : String) {
+		if (_key != null) throw '_key already exists: $_key';
+		if (v == null) throw '_key cannot be null';
+		return _key = v;
+	}
+}
+
+// SomePerson should now include the _key attribute.
+class SomePerson extends Document implements DataClass
+{
+	@validate(_.length > 0) public var name : String;
+	@validate(_.indexOf("@") > 0) public var email : String;
+}
+
+class InheritanceTests extends BuddySuite
+{
+	public function new() {
+		describe("When inheriting from another class", {
+			it("should required the public and @included fields in the constructor", {
+				var p = new SomePerson({
+					_key: "1",
+					name: "Test Person",
+					email: "test@example.com"
+				});
+				
+				p._key.should.be("1");
+				p.name.should.be("Test Person");
+				(function() p._key = "2").should.throwType(String);
+				(function() p._key = null).should.throwType(String);
+			});
+		});
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////
 
 #if (js && !nodejs)
 class HtmlFormConverterTests extends BuddySuite

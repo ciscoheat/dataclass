@@ -1,0 +1,8 @@
+-lib immutable
+-lib HaxeContracts
+-lib buddy
+-cp src 
+-cp tests
+-main Tests
+-php bin
+-cmd d:\Program\xampp\php\php.exe bin/index.php

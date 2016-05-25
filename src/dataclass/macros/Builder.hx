@@ -20,9 +20,9 @@ class Builder
 	static public function build() : Array<Field> {
 		var fields = Context.getBuildFields();
 		var cls = Context.getLocalClass().get();
-		var immutable = cls.meta.has("immutable");
 		
-		if (immutable) Context.error("@immutable is deprecated, use '-lib immutable' and 'implements Immutable' instead.", cls.pos);
+		if (cls.meta.has("immutable")) 
+			Context.error("@immutable is deprecated, use '-lib immutable' and 'implements Immutable' instead.", cls.pos);
 		
 		// Fields aren't available on Context.getLocalClass().
 		// need to supply them here. They're available on the superclass though.
@@ -258,17 +258,11 @@ class Builder
 
 			switch f.kind {
 				case FVar(type, e):
-					if(!immutable)
-						createValidationSetter("default", type);
-					else
-						f.kind = FProp('default', 'null', type, e);
-						
+					createValidationSetter("default", type);
 					createAnonymousValidationField(type);
 
 				// If a property setter already exists, inject validation into the beginning of it.
 				case FProp(get, set, type, e) if (set == "set"):
-					if (immutable) Context.error("Class is marked as immutable, cannot have setters.", f.pos);
-					
 					var accessorField = fields.find(function(f2) return f2.name == "set_" + f.name);
 					switch accessorField.kind {
 						case FFun(f2):
@@ -279,7 +273,6 @@ class Builder
 					createAnonymousValidationField(type);
 					
 				case FProp(_, set, type, _):
-					if (immutable && set == "default") Context.error("Class is marked as immutable, cannot have setters.", f.pos);
 					createAnonymousValidationField(type);
 					
 				case FFun(_):
@@ -340,25 +333,6 @@ class Builder
 			}
 		}
 		
-		if (immutable) {
-			var replaceThis = ~/^this\./;
-			var fieldNames = fields
-				.filter(function(f) return dataClassFields.exists(function(pf) return pf.name == f.name))
-				.map(function(f) return f.name);
-			
-			function preventAssign(e : Expr) switch e.expr {
-				case EBinop(OpAssign, e1, _) if (fieldNames.has(replaceThis.replace(e1.toString(), ''))): 
-					Context.error("Class " + cls.name + " is marked as immutable, cannot assign to any fields.", e.pos);
-				case _: 
-					e.iter(preventAssign);
-			}
-			
-			for (f in fields) switch f.kind {
-				case FFun(fun) if(f.name != 'new'): preventAssign(fun.expr);
-				case _:
-			}			
-		}
-		
 		// Create a static validation method
 		
 		dataValidationExpressions.unshift(macro var failed = []);
@@ -400,13 +374,59 @@ class Builder
 		if (f.access.has(AStatic) || !f.access.has(APublic)) return false;
 		return switch(f.kind) {
 			case FVar(_, _): true;
-			case FProp(_, set, _, _): set == "default" || set == "null" || set == "set";
+			case FProp(_, set, _, _): 
+				// Need to test accessor method if it starts with set. It can be both "set" and "set_method".
+				set == "default" || set == "null" || set.startsWith("set");
 			case _: false;
 		}
 	}
 
 	static function includedFields(fields : Array<Field>, cls : ClassType) : Array<Field> {
-		return fields.filter(ignored).filter(publicVarOrPropOrIncluded);
+		var superClass = cls.superClass == null ? null : cls.superClass.t.get();
+			
+		var allFields = superClass == null 
+			? fields
+			: fields.concat(superclassFields(superClass));
+			
+		// Need to remove the validate meta from the superClass, unless it also implements Dataclass.
+		if (superClass != null && !superClass.interfaces.exists(function(i) return i.t.get().name == 'DataClass')) {
+			for (field in superClass.fields.get()) {
+				field.meta.remove("validate");
+			}			
+		}
+		
+			
+		return allFields.filter(ignored).filter(publicVarOrPropOrIncluded);
+	}
+	
+	static function superclassFields(cls : ClassType) : Array<Field> {
+		return includedFields(cls.fields.get().map(function(f) return {
+			pos: f.pos,
+			name: f.name,
+			meta: f.meta.get(),
+			kind: switch f.kind {
+				case FVar(read, write):
+					function toPropType(access : VarAccess, read : Bool) {
+						return switch access {
+							case AccNormal: 'default';
+							case AccNo: 'null';
+							case AccNever: 'never';
+							case AccCall: (read ? 'get_' : 'set_') + f.name; // Need to append accessor method
+							case _: Context.error("Unsupported field for DataClass inheritance.", f.pos);
+						}
+					}
+					var get = toPropType(read, true);
+					var set = toPropType(write, false);
+					
+					var expr = f.expr() == null ? null : Context.getTypedExpr(f.expr());
+					
+					FProp(get, set, Context.toComplexType(f.type), expr);
+				
+				case _: null;
+			},
+			doc: f.doc,
+			access: f.isPublic ? [APublic] : []
+		}), cls);
 	}
 }
 #end
