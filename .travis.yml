@@ -25,6 +25,6 @@ script:
   - haxelib run travix node
   - haxelib run travix flash -D static -D fdb-ci -D reporter=buddy.reporting.TraceReporter
   - haxelib run travix java -D static
-  - haxelib run travix cpp -D static
+  - haxelib run travix cpp -D static -lib hxcpp
   - haxelib run travix cs -D static
   - haxelib run travix php
