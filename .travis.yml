@@ -12,6 +12,7 @@ before_install:
   # haxelib dependencies
   - haxelib install HaxeContracts
   - haxelib install buddy
+  - haxelib install immutable
   - haxelib install hxcpp
   - haxelib install hxjava
   - haxelib install hxcs
