@@ -187,7 +187,7 @@ class Tests extends BuddySuite implements Buddy<[
 		describe("DataClass", {
 			describe("With non-null fields", {
 				it("should not compile if non-null value is missing", {
-					CompilationShould.failFor(new RequireId()).should.be("Not enough arguments");
+					CompilationShould.failFor(new RequireId()).should.startWith("Not enough arguments");
 					CompilationShould.failFor(new RequireId({})).should.startWith("Object requires field id");
 					new RequireId( { id: 123 } ).id.should.be(123);
 				});
