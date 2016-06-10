@@ -34,6 +34,11 @@ class Builder
 			return ct.name == "HaxeContracts";
 		});
 
+		// Test if class implements Immutable, then don't create any setters.
+		var immutable = cls.interfaces.map(function(i) return i.t.get()).exists(function(ct) {
+			return ct.name == "Immutable";
+		});
+
 		function throwError(errorString : ExprOf<String>) : Expr {
 			return haxeContracts
 				? macro throw new haxecontracts.ContractException($errorString, this)
@@ -214,28 +219,6 @@ class Builder
 				}				
 			}
 			
-			function createValidationSetter(getter : String, type : ComplexType) {
-				f.kind = FProp(getter, "set", type, null);
-				validationFields.push({
-					pos: f.pos,
-					name: "set_" + name,
-					meta: null,
-					kind: FFun({
-						ret: type,
-						params: null,
-						args: [{
-							value: null,
-							type: type,
-							opt: false,
-							name: name
-						}],
-						expr: {expr: EBlock(setterAssignmentExpressions(name, null)), pos: f.pos}
-					}),
-					doc: null,
-					access: [APrivate]
-				});
-			}
-
 			function createAnonymousValidationField(type : ComplexType) {
 				anonymousValidationFields.push({
 					pos: f.pos,
@@ -260,7 +243,32 @@ class Builder
 
 			switch f.kind {
 				case FVar(type, e):
-					createValidationSetter("default", type);
+					if(!immutable) {
+						f.kind = FProp("default", "set", type, null);
+						// Add a setter function to the class.
+						validationFields.push({
+							pos: f.pos,
+							name: "set_" + name,
+							meta: null,
+							kind: FFun({
+								ret: type,
+								params: null,
+								args: [{
+									value: null,
+									type: type,
+									opt: false,
+									name: name
+								}],
+								expr: {expr: EBlock(setterAssignmentExpressions(name, null)), pos: f.pos}
+							}),
+							doc: null,
+							access: [APrivate]
+						});						
+					}
+					else {
+						f.kind = FProp("default", "null", type, null);
+					}
+						
 					createAnonymousValidationField(type);
 
 				// If a property setter already exists, inject validation into the beginning of it.

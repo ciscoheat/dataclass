@@ -4,8 +4,8 @@
     "description": "A more convenient way to instantiate data classes.",
     "license": "MIT",
     "contributors": ["ciscoheat"],
-    "version": "0.20.0",
-    "releasenote": "Added superclass field support. Immutability is now done through the 'immutable' haxelib.",
+    "version": "0.20.1",
+    "releasenote": "Fixed some problems with implementing Immutable.",
     "tags": ["data", "validation", "contracts", "dci"],
 	"dependencies": { "immutable": "" }
 }
