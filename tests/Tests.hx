@@ -425,7 +425,7 @@ class Tests extends BuddySuite implements Buddy<[
 					float: "123.45"
 				});
 				
-				#if (haxe_ver < 3.3 && cs)
+				#if (cs && haxe_ver < 3.3)
 				// Works in 3.3 at least.
 				a.date.toString().should.match(~/^\d\d-\d\d-\d\d \d\d:16:14$/);
 				b.date.toString().should.match(~/^\d\d-\d\d-\d\d \d\d:16:14$/);
