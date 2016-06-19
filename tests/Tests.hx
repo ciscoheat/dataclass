@@ -425,8 +425,14 @@ class Tests extends BuddySuite implements Buddy<[
 					float: "123.45"
 				});
 				
+				#if (haxe_ver < 3.3 && cs)
+				// Works in 3.3 at least.
+				a.date.toString().should.match(~/^\d\d-\d\d-\d\d \d\d:16:14$/);
+				b.date.toString().should.match(~/^\d\d-\d\d-\d\d \d\d:16:14$/);
+				#else
 				a.date.toString().should.match(~/^2016-06-1[89] \d\d:16:14$/);
 				b.date.toString().should.match(~/^2016-06-1[89] \d\d:16:14$/);
+				#end
 			});
 			
 			it("should parse money format correctly", {
