@@ -289,7 +289,7 @@ class Builder
 			}
 			
 			// Add to assignment in constructor
-			assignments.push(macro this.$name = $assignment);
+			assignments.push(macro @:pos(f.pos) this.$name = $assignment);
 			
 			if(validator != null) {
 				// Set the validator expr to a const so it will pass compilation

@@ -4,8 +4,8 @@
     "description": "A more convenient way to instantiate data classes.",
     "license": "MIT",
     "contributors": ["ciscoheat"],
-    "version": "0.20.1",
-    "releasenote": "Fixed some problems with implementing Immutable.",
+    "version": "0.21.0",
+    "releasenote": "Int/Float to Date conversion.",
     "tags": ["data", "validation", "contracts", "dci"],
 	"dependencies": { "immutable": "" }
 }

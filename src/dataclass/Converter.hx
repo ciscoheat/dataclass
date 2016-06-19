@@ -180,16 +180,18 @@ class DynamicObjectConverter
 				case "String": Std.string(data);
 
 				case "Bool" if(Std.is(data, String)): StringConverter.toBool(data);
-				case "Bool" if(Std.is(data, Bool)): data;
+				case "Bool" if(Std.is(data, Bool)):   data;
 
 				case "Int" if(Std.is(data, String)): StringConverter.toInt(data, delimiter);
-				case "Int" if(Std.is(data, Int)): data;
+				case "Int" if(Std.is(data, Int)):    data;
 
 				case "Date" if(Std.is(data, String)): StringConverter.toDate(data);
-				case "Date" if(Std.is(data, Date)): data;
+				case "Date" if(Std.is(data, Float)):  FloatConverter.toDate(data);
+				case "Date" if(Std.is(data, Int)):    IntConverter.toDate(data);
+				case "Date" if(Std.is(data, Date)):   data;
 
 				case "Float" if(Std.is(data, String)): StringConverter.toFloat(data, delimiter);
-				case "Float" if(Std.is(data, Float)): data;
+				case "Float" if(Std.is(data, Float)):  data;
 				
 				case _:	throw "Invalid type '" + Type.typeof(data) + '\' ($convert) for field $fieldName';
 			};
@@ -285,6 +287,9 @@ class BoolConverter {
 class IntConverter {
 	public static function toString(i : Int)
 		return Std.string(i);
+		
+	public static function toDate(i : Int)
+		return Date.fromTime(i);
 }
 
 class DateConverter {
@@ -299,4 +304,7 @@ class FloatConverter {
 		if (delimiter == null) delimiter = Converter.delimiter;
 		return Std.string(f).replace(".", delimiter);
 	}
+	
+	public static function toDate(f : Float)
+		return Date.fromTime(f);
 }
