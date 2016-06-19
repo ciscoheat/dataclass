@@ -425,8 +425,8 @@ class Tests extends BuddySuite implements Buddy<[
 					float: "123.45"
 				});
 				
-				a.date.toString().should.be("2016-06-19 04:16:14");
-				b.date.toString().should.be("2016-06-19 04:16:14");
+				a.date.toString().should.match(~/^2016-06-1[89] \d\d:16:14$/);
+				b.date.toString().should.match(~/^2016-06-1[89] \d\d:16:14$/);
 			});
 			
 			it("should parse money format correctly", {
