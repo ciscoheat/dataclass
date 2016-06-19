@@ -410,6 +410,25 @@ class Tests extends BuddySuite implements Buddy<[
 				TestFloatConverter.fromDynamic(data).float.should.beCloseTo(123345.44);
 			});
 			
+			it("should parse Int and Float to Date", {
+				var a = TestConverter.fromDynamic({
+					date: 1466302574606,
+					bool: "1",
+					int: "2000",
+					float: "123.45"
+				});
+				
+				var b = TestConverter.fromDynamic({
+					date: 1466302574606.01,
+					bool: "1",
+					int: "2000",
+					float: "123.45"
+				});
+				
+				a.date.toString().should.be("2016-06-19 04:16:14");
+				b.date.toString().should.be("2016-06-19 04:16:14");
+			});
+			
 			it("should parse money format correctly", {
 				var old = Converter.delimiter;
 				Converter.delimiter = ",";
