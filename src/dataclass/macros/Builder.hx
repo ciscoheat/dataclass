@@ -382,6 +382,8 @@ class Builder
 	static function publicVarOrPropOrIncluded(f : Field) {
 		if (f.meta.exists(function(m) return m.name == "include")) return true;
 		if (f.access.has(AStatic) || !f.access.has(APublic)) return false;
+		if (f.kind == null) return false;
+		
 		return switch(f.kind) {
 			case FVar(_, _): true;
 			case FProp(_, set, _, _): 
