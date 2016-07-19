@@ -360,6 +360,7 @@ test.other = input.other;
 1. If you're using the `-dce full` compiler directive, make sure you add a `@:keep` metadata to the classes you're going to use with the dynamic conversion methods.
 1. If the class has a constructor it must take the data object as first parameter, and have all other parameters optional. 
 1. Due to the runtime type checking there is a performance hit, but it should be negligible in most cases. As usual, don't optimize unless you have obvious performance problems.
+1. You need Haxe 3.3+ to use the dynamic conversion when targeting Python.
 
 ## Specific library support
 

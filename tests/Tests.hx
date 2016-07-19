@@ -174,13 +174,18 @@ interface ExtendingInterface extends DataClass
 {
 }
 
+//////////////////////////////////////////////////////////////////////////////////////////////////////
+
 class Tests extends BuddySuite implements Buddy<[
 	Tests, 
+	#if (python && haxe_ver < 3.3)
+	#else
 	ConverterTests, 
+	InheritanceTests,
+	#end
 	#if (js && !nodejs)
 	HtmlFormConverterTests,
 	#end
-	InheritanceTests
 ]>
 {	
 	public function new() {
@@ -366,6 +371,8 @@ class Tests extends BuddySuite implements Buddy<[
 			});
 		});
 
+		#if (python && haxe_ver < 3.3)
+		#else
 		describe("DataClass conversions", {
 			it("should convert Dynamic to the correct type.", {
 				var data = {
@@ -501,10 +508,13 @@ class Tests extends BuddySuite implements Buddy<[
 
 				Converter.delimiter = old;				
 			});
-		});		
+		});
+		#end
 	}	
 }
 
+#if (python && haxe_ver < 3.3)
+#else
 class ConverterTests extends BuddySuite
 {	
 	public function new() {
@@ -613,6 +623,7 @@ class ConverterTests extends BuddySuite
 		});
 	}
 }
+#end
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -640,6 +651,8 @@ class SomePerson extends Document implements DataClass
 	@validate(_.indexOf("@") > 0) public var email : String;
 }
 
+#if (python && haxe_ver < 3.3)
+#else
 class InheritanceTests extends BuddySuite
 {
 	public function new() {
@@ -675,6 +688,7 @@ class InheritanceTests extends BuddySuite
 		});
 	}
 }
+#end
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
 

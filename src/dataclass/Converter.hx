@@ -10,6 +10,8 @@ import haxe.DynamicAccess;
 import haxe.macro.Context;
 import haxe.rtti.Meta;
 
+#if (python && haxe_ver < 3.3)
+#else
 using StringTools;
 using Converter.StringConverter;
 
@@ -302,3 +304,4 @@ class FloatConverter {
 	public static function toDate(f : Float)
 		return Date.fromTime(f);
 }
+#end
