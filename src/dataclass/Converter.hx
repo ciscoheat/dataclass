@@ -120,11 +120,11 @@ class DynamicObjectConverter
 		    };
 		
 		var cls = Type.getClass(o);
-		var columns = Meta.getFields(cls);
-		var output = { };
+		var columns : DynamicAccess<String> = cast Meta.getType(cls).convertTo[0];
+		var output = {};
 
-		for (fieldName in Reflect.fields(columns)) {
-			var convert = convertMetadata("convertTo", fieldName, columns);
+		for (fieldName in columns.keys()) {
+			var convert = columns.get(fieldName);
 			if (convert == null) continue;
 			
 			var data : Dynamic = Reflect.getProperty(o, fieldName);
@@ -161,15 +161,14 @@ class DynamicObjectConverter
 		//trace("===== fromDynamicObject: " + Type.getClassName(cls));
 		//trace(data);
 		
-		var columns = Meta.getFields(cls);
+		// Set in Builder.hx
+		var columns : DynamicAccess<String> = cast Meta.getType(cls).convertFrom[0];
 		var output = {};
 		
-		//trace(columns);
-		
-		for (fieldName in Reflect.fields(columns)) if(Reflect.hasField(data, fieldName)) {
+		for (fieldName in columns.keys()) if(Reflect.hasField(data, fieldName)) {
 			//trace('Converting field $fieldName: ');
 			
-			var convert = convertMetadata("convertFrom", fieldName, columns);
+			var convert = columns.get(fieldName);
 			if (convert == null) continue;
 			
 			// java requires explicit Dynamic here.
@@ -179,19 +178,19 @@ class DynamicObjectConverter
 			var converted : Dynamic = data == null ? null : switch convert {
 				case "String": Std.string(data);
 
-				case "Bool" if(Std.is(data, String)): StringConverter.toBool(data);
 				case "Bool" if(Std.is(data, Bool)):   data;
+				case "Bool" if(Std.is(data, String)): StringConverter.toBool(data);
 
-				case "Int" if(Std.is(data, String)): StringConverter.toInt(data, delimiter);
 				case "Int" if(Std.is(data, Int)):    data;
+				case "Int" if(Std.is(data, String)): StringConverter.toInt(data, delimiter);
 
+				case "Date" if(Std.is(data, Date)):   data;
 				case "Date" if(Std.is(data, String)): StringConverter.toDate(data);
 				case "Date" if(Std.is(data, Float)):  FloatConverter.toDate(data);
 				case "Date" if(Std.is(data, Int)):    IntConverter.toDate(data);
-				case "Date" if(Std.is(data, Date)):   data;
 
-				case "Float" if(Std.is(data, String)): StringConverter.toFloat(data, delimiter);
 				case "Float" if(Std.is(data, Float)):  data;
+				case "Float" if(Std.is(data, String)): StringConverter.toFloat(data, delimiter);
 				
 				case _:	throw "Invalid type '" + Type.typeof(data) + '\' ($convert) for field $fieldName';
 			};
@@ -206,12 +205,7 @@ class DynamicObjectConverter
 	
 	///////////////////////////////////////////////////////////////////////////
 	
-	public static var supportedTypes(default, null) = ["Bool", "Date", "Int", "Float", "String"];
-
-	static function convertMetadata(metaDataName, fieldName, columns) {
-		var field = Reflect.field(columns, fieldName);
-		return Reflect.hasField(field, metaDataName) ? Reflect.field(field, metaDataName)[0] : null;
-	}	
+	public static var supportedTypes(default, null) = ["Bool" => true, "Date" => true, "Int" => true, "Float" => true, "String" => true];
 }
 
 class ColumnConverter {

@@ -658,6 +658,20 @@ class InheritanceTests extends BuddySuite
 				#end
 				(function() p._key = null).should.throwType(String);
 			});
+			
+			it("should set the parent fields when using the dynamic converter", {
+				var data = {
+					_key: "1",
+					name: "Test Person",
+					email: "test@example.com",
+					notused: 123456
+				};
+				
+				var p = SomePerson.fromDynamic(data);
+				p.name.should.be("Test Person");
+				p._key.should.be("1");
+				p.email.should.be("test@example.com");
+			});
 		});
 	}
 }

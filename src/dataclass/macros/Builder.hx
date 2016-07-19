@@ -1,4 +1,5 @@
 package dataclass.macros;
+import haxe.DynamicAccess;
 
 #if macro
 import haxe.macro.Context;
@@ -140,6 +141,8 @@ class Builder
 		var dataValidationExpressions = [];
 		var anonymousValidationFields : Array<Field> = [];
 		var allOptional = ![for (f in fieldMap) f].exists(function(f) return f.optional == false);
+		var convertFrom = [];
+		var convertTo = [];
 		
 		for (f in dataClassFields) {
 			var data = fieldMap.get(f);
@@ -167,28 +170,24 @@ class Builder
 					var typeName = switch p {
 						case { name: "Null", pack: _, params: [TPType(TPath( { name: n, pack: _, params: _ } ))] } :
 							n;
+						case { name: "StdTypes", pack: _, params: [TPType(TPath( { name: n, pack: _, params: _ } ))] } :
+							n;
 						case _:
 							p.name;
 					};
 					
-					if (Converter.DynamicObjectConverter.supportedTypes.has(typeName)) {
+					if (Converter.DynamicObjectConverter.supportedTypes.exists(typeName)) {
 						// convertFrom is for incoming fields
-						f.meta.push({
-							pos: f.pos,
-							params: [{expr: EConst(CString(typeName)), pos: f.pos}],
-							name: "convertFrom"
-						});
+						//trace(cls.name + ":" + f.name + " -> " + typeName);
+						convertFrom.push({field: f.name, expr: macro $v{typeName}});
 
 						// convertTo excludes non-public fields in conversions
-						if(f.access.has(APublic)) f.meta.push({
-							pos: f.pos,
-							params: [{expr: EConst(CString(typeName)), pos: f.pos}],
-							name: "convertTo"
-						});
+						if (f.access.has(APublic)) 
+							convertTo.push({field: f.name, expr: macro $v{typeName}});
 					}
 				case _:
 			}
-
+			
 			function setterAssignmentExpressions(param : String, existingSetter : Null<Expr>) : Array<Expr> {
 				function fieldAssignmentTests(param : String) : Array<Expr> {				
 					var assignments = [];
@@ -298,6 +297,19 @@ class Builder
 		}
 
 		cls.meta.add("dataClassFields", [for(f in dataClassFields) if(f.access.has(APublic)) macro $v{f.name}], cls.pos);
+
+		// Add convertFrom/To metadata to class
+		cls.meta.add(
+			"convertFrom", 
+			[{expr: EObjectDecl(convertFrom), pos: cls.pos}],
+			cls.pos
+		);
+
+		cls.meta.add(
+			"convertTo", 
+			[{expr: EObjectDecl(convertTo), pos: cls.pos}],
+			cls.pos
+		);
 
 		
 		if (!cls.isInterface) {
