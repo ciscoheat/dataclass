@@ -1,5 +1,6 @@
 package dataclass.macros;
 import haxe.DynamicAccess;
+import haxe.macro.ComplexTypeTools;
 
 #if macro
 import haxe.macro.Context;
@@ -167,14 +168,16 @@ class Builder
 			// If the type can be converted using the DynamicObjectConverter, mark it with metadata
 			switch f.kind {
 				case FVar(TPath(p), _) | FProp(_, _, TPath(p), _):
-					var typeName = switch p {
-						case { name: "Null", pack: _, params: [TPType(TPath( { name: n, pack: _, params: _ } ))] } :
-							n;
-						case { name: "StdTypes", pack: _, params: [TPType(TPath( { name: n, pack: _, params: _ } ))] } :
-							n;
-						case _:
-							p.name;
-					};
+					#if (haxe_ver >= 3.3)
+					var type = Context.followWithAbstracts(ComplexTypeTools.toType(TPath(p)));
+					#else
+					var type = Context.follow(ComplexTypeTools.toType(TPath(p)));
+					#end
+					var typeName = switch type {
+						case TInst(t, _) if(t.get() != null): t.get().name;
+						case TAbstract(t, _) if(t.get() != null): t.get().name;
+						case _: "";
+					}
 					
 					if (Converter.DynamicObjectConverter.supportedTypes.exists(typeName)) {
 						// convertFrom is for incoming fields
