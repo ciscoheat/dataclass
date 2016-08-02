@@ -629,7 +629,8 @@ class ConverterTests extends BuddySuite
 			});
 		});
 		
-		describe("FullConverter", {
+		#if (haxe_ver >= 3.3)
+		describe("RecursiveConverter (3.3+ only)", {
 			var data : Dynamic;
 			
 			beforeEach({
@@ -666,9 +667,14 @@ class ConverterTests extends BuddySuite
 			
 			it("should fail deep conversion as usual, if invalid data", {
 				data.single.int = 10;
+				#if cs
+				DeepTest.convertRecursive.bind(data).should.throwAnything();
+				#else
 				DeepTest.convertRecursive.bind(data).should.throwType(String);
+				#end
 			});
 		});
+		#end
 	}
 }
 #end

@@ -88,6 +88,7 @@ class Converter
 	}
 }
 
+#if (haxe_ver >= 3.3)
 class RecursiveConverter
 {
 	/**
@@ -120,6 +121,7 @@ class RecursiveConverter
 		return Type.createInstance(cls, [output]);
 	}
 }
+#end
 
 class DynamicObjectConverter 
 {
