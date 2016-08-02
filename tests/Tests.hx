@@ -629,7 +629,7 @@ class ConverterTests extends BuddySuite
 			});
 		});
 		
-		@include describe("FullConverter", {
+		describe("FullConverter", {
 			var data : Dynamic;
 			
 			beforeEach({
