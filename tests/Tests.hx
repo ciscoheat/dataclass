@@ -5,6 +5,7 @@ import haxe.Json;
 import haxe.rtti.Meta;
 import haxecontracts.ContractException;
 import haxecontracts.HaxeContracts;
+import subpack.AnotherConverter;
 
 #if js
 import js.Browser;
@@ -168,6 +169,12 @@ class ImmutableClass implements DataClass implements Immutable
 {
 	public var id : Int;
 	public var name : String;	
+}
+
+class DeepTest implements DataClass {
+	public var id : String;
+	public var single : DeepConverter;
+	public var array : Array<ImmutableClass>;
 }
 
 interface ExtendingInterface extends DataClass
@@ -619,6 +626,47 @@ class ConverterTests extends BuddySuite
 				var output2 : DynamicAccess<String> = test.toStringData();
 				output2.keys().length.should.be(1);
 				output2.get("notUsed").should.be("not used");
+			});
+		});
+		
+		@include describe("FullConverter", {
+			var data : Dynamic;
+			
+			beforeEach({
+				data = {
+					id: "1", 
+					single: {
+						int: 100, 
+						another: {
+							bool: true, int: 1, 
+							date: Date.fromString("2016-08-02"), float: 3.14					
+						}				
+					},
+					array: [{id: 2, name: "2"}, {id:3, name:"3"}]
+				};
+			});
+			
+			it("should make a deep conversion of an object, creating dataclasses from an anonymous structure", {
+				var output = DeepTest.convertRecursive(data);
+				
+				output.id.should.be("1");
+				
+				output.single.should.beType(DeepConverter);
+				output.single.int.should.be(100);
+				output.single.another.should.beType(AnotherConverter);
+				output.single.another.bool.should.be(true);
+				
+				output.array.should.beType(Array);
+				output.array.length.should.be(2);
+				output.array[0].should.beType(ImmutableClass);
+				output.array[0].id.should.be(2);
+				output.array[1].should.beType(ImmutableClass);
+				output.array[1].id.should.be(3);
+			});
+			
+			it("should fail deep conversion as usual, if invalid data", {
+				data.single.int = 10;
+				DeepTest.convertRecursive.bind(data).should.throwType(String);
 			});
 		});
 	}

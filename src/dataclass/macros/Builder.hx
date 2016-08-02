@@ -1,6 +1,7 @@
 package dataclass.macros;
 import haxe.DynamicAccess;
 import haxe.macro.ComplexTypeTools;
+import haxe.macro.MacroStringTools;
 
 #if macro
 import haxe.macro.Context;
@@ -144,6 +145,7 @@ class Builder
 		var allOptional = ![for (f in fieldMap) f].exists(function(f) return f.optional == false);
 		var convertFrom = [];
 		var convertTo = [];
+		var fullConversion = [];
 		
 		for (f in dataClassFields) {
 			var data = fieldMap.get(f);
@@ -174,9 +176,12 @@ class Builder
 					var type = Context.follow(ComplexTypeTools.toType(TPath(p)));
 					#end
 					var typeName = switch type {
-						case TInst(t, _) if(t.get() != null): t.get().name;
-						case TAbstract(t, _) if(t.get() != null): t.get().name;
-						case _: "";
+						case TInst(t, _) if (t.get() != null): 
+							MacroStringTools.toDotPath(t.get().pack, t.get().name);
+						case TAbstract(t, _) if (t.get() != null): 
+							MacroStringTools.toDotPath(t.get().pack, t.get().name);
+						case _: 
+							"";
 					}
 					
 					if (Converter.DynamicObjectConverter.supportedTypes.exists(typeName)) {
@@ -191,6 +196,31 @@ class Builder
 				case _:
 			}
 			
+			// Add full conversion metadata
+			function isDataClass(t : Type) : String return switch t {
+				case TInst(t, _) if (t.get().interfaces.exists(function(i) return i.t.get().name == "DataClass")):
+					MacroStringTools.toDotPath(t.get().pack, t.get().name);
+				case _: 
+					null;
+			};
+			
+			switch f.kind {
+				case FVar(TPath(p), _) | FProp(_, _, TPath(p), _):
+					var isArray = p.name == "Array" && p.pack.length == 0;
+					var arrayType = if(isArray) switch p.params[0] {
+						case TPType(t): ComplexTypeTools.toType(t);
+						case _: null;
+					} else null;
+					
+					var type = isArray ? arrayType : ComplexTypeTools.toType(TPath(p));
+					var name = isDataClass(type);
+					
+					var data = if (name == null) "" else isArray ? '[$name' : name;
+					
+					fullConversion.push({ field: f.name, expr: macro $v{data} });
+				case _:
+			}			
+			
 			function setterAssignmentExpressions(param : String, existingSetter : Null<Expr>) : Array<Expr> {
 				function fieldAssignmentTests(param : String) : Array<Expr> {				
 					var assignments = [];
@@ -201,7 +231,7 @@ class Builder
 					}
 					
 					if (validator != null) {
-						var errorString = macro "Field " + $v{clsName} + "." + $v{name} + ' failed validation "' + $validator + '" with value "' + this.$name + '"';
+						var errorString = macro "Field " + $v{clsName} + "." + $v{name} + ' failed validation "' + $validator + '" with value "' + $i{name} + '"';
 						assignments.push(Validator.createValidator(fieldType, macro $i{param}, optional, validator, throwError(errorString), false));
 					}
 					
@@ -311,6 +341,13 @@ class Builder
 		cls.meta.add(
 			"convertTo", 
 			[{expr: EObjectDecl(convertTo), pos: cls.pos}],
+			cls.pos
+		);
+
+		// Add fullConversion data
+		cls.meta.add(
+			"fullConv", 
+			[{expr: EObjectDecl(fullConversion), pos: cls.pos}],
 			cls.pos
 		);
 

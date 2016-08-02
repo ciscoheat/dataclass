@@ -88,6 +88,39 @@ class Converter
 	}
 }
 
+class RecursiveConverter
+{
+	/**
+	 * When loading json from a document DB for example.
+	 */
+	public static function convertRecursive<T : DataClass>(cls : Class<T>, data : {}) : T {
+		var convData : DynamicAccess<String> = Meta.getType(cls).fullConv[0];
+		var output : DynamicAccess<Dynamic> = {};
+		for (field in convData.keys()) if (Reflect.hasField(data, field)) {
+			var value = Reflect.field(data, field);
+			var dataClassName = convData.get(field);
+
+			if (value == null || dataClassName.length == 0) {
+				output.set(field, value);
+				continue;
+			}
+			
+			var isArray = dataClassName.startsWith('[');
+			var name = isArray ? dataClassName.substr(1) : dataClassName;
+			
+			var type = Type.resolveClass(name);			
+			if (type == null) throw 'DataClass not found: $name';
+			
+			if (isArray) 
+				output.set(field, [for (v in cast(value, Array<Dynamic>)) convertRecursive(type, v)]);
+			else
+				output.set(field, convertRecursive(type, value));
+		}
+		
+		return Type.createInstance(cls, [output]);
+	}
+}
+
 class DynamicObjectConverter 
 {
 	public static function convertTo<T : DataClass>(from : DataClass, to : Class<T>) : T {
@@ -98,7 +131,7 @@ class DynamicObjectConverter
 	/**
 	 * Maps all public DataClass fields to an anonymous structure
 	 */
-	public static function toAnonymousStructure<T : DataClass>(from : DataClass) : Dynamic {
+	public static function toAnonymousStructure(from : DataClass) : Dynamic {
 		var meta = Meta.getType(Type.getClass(from));
 		var fields : Array<String> = cast meta.dataClassFields;
 		
@@ -150,15 +183,16 @@ class DynamicObjectConverter
 	/**
 	 * Converts a Dynamic object to a DataClass.
 	 */
-	public static function fromDynamic<T : DataClass>(cls : Class<T>, data : {}, ?delimiter : String) : T {
-		return Type.createInstance(cls, [toCorrectTypes(cls, data, delimiter)]);
+	public static function fromDynamic<T : DataClass>(cls : Class<T>, data : {}, ?passThrough : Array<String>, ?delimiter : String) : T {
+		return Type.createInstance(cls, [toCorrectTypes(cls, data, passThrough, delimiter)]);
 	}
 
 	/**
 	 * Converts a Dynamic object to another Dynamic object with correct types for a specified DataClass.
 	 */
-	public static function toCorrectTypes<T : DataClass>(cls : Class<T>, data : {}, ?delimiter : String) : Dynamic {
+	public static function toCorrectTypes<T : DataClass>(cls : Class<T>, data : {}, ?passThrough : Array<String>, ?delimiter : String) : Dynamic {
 		if (delimiter == null) delimiter = Converter.delimiter;
+		if (passThrough == null) passThrough = [];
 		
 		//trace("===== fromDynamicObject: " + Type.getClassName(cls));
 		//trace(data);
@@ -166,7 +200,11 @@ class DynamicObjectConverter
 		// Set in Builder.hx
 		var columns : DynamicAccess<String> = cast Meta.getType(cls).convertFrom[0];
 		var output = {};
-		
+
+		for(pass in passThrough) {
+			Reflect.setField(output, pass, Reflect.field(data, pass));
+		}
+
 		for (fieldName in columns.keys()) if(Reflect.hasField(data, fieldName)) {
 			//trace('Converting field $fieldName: ');
 			
