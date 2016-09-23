@@ -37,7 +37,9 @@ class Converter
 			case macro $a.$b: {field: b, expr: v};
 			case _: switch v.expr {
 				case EConst(CIdent(s)): {field: s, expr: v };
-				case _: Context.error('Invalid assignment, can only be "var" or "obj.field".', v.pos);
+			case _: 
+				//trace(v.expr);
+				Context.error('Invalid assignment, can only be "var" or "obj.field".', v.pos);
 			}
 		}]), pos: Context.currentPos() };
 		
@@ -57,13 +59,17 @@ class Converter
 				// And now some crazy stuff...				
 				
 				var topClassInPackage = name.length > 1 && module.slice(0, -1).join("") == name.slice(0, -1).join("");
+				//trace(topClassInPackage);
 				
-				{ 
+				var output = { 
 					sub: topClassInPackage ? name[name.length-1] : null,
 					params: null,
 					pack: module.slice(0, -1),
 					name: topClassInPackage ? module[module.length-1] : name[name.length-1]
-				};
+				}
+				
+				//trace(output);
+				output;
 				
 			case _: 
 				error();
@@ -94,30 +100,47 @@ class RecursiveConverter
 	/**
 	 * When loading json from a document DB for example.
 	 */
-	public static function convertRecursive<T : DataClass>(cls : Class<T>, data : {}) : T {
+	public static function convertRecursive<T : DataClass>(cls : Class<T>, data : Dynamic, ?delimiter : String) : T {
+		//trace('=== Recursive converting ' + Type.getClassName(cls));
+		
+		// Allow for constructors that takes an array?
+		//if (Std.is(data, Array)) return Type.createInstance(cls, [data]);
+		
 		var convData : DynamicAccess<String> = Meta.getType(cls).fullConv[0];
-		var output : DynamicAccess<Dynamic> = {};
+		var output : DynamicAccess<Dynamic> = { };
+		
 		for (field in convData.keys()) if (Reflect.hasField(data, field)) {
 			var value = Reflect.field(data, field);
 			var dataClassName = convData.get(field);
 
+			// Is a normal value or object
 			if (value == null || dataClassName.length == 0) {
 				output.set(field, value);
 				continue;
+			} else if (dataClassName.startsWith('*')) {
+				// Convert basic type
+				//trace('Converting basic type $dataClassName for field $field');
+				output.set(field, DynamicObjectConverter.toCorrectValue(dataClassName.substr(1), value, true, delimiter, field));
+				continue;
 			}
 			
+			// Is a DataClass, convert it.
 			var isArray = dataClassName.startsWith('[');
 			var name = isArray ? dataClassName.substr(1) : dataClassName;
 			
 			var type = Type.resolveClass(name);			
 			if (type == null) throw 'DataClass not found: $name';
 			
-			if (isArray) 
+			if (isArray) {
+				//trace('Converting $field -> Array<$name>');
 				output.set(field, [for (v in cast(value, Array<Dynamic>)) convertRecursive(type, v)]);
-			else
+			} else {
+				//trace('Converting $field -> $name');
 				output.set(field, convertRecursive(type, value));
+			}
 		}
 		
+		//trace('=====');
 		return Type.createInstance(cls, [output]);
 	}
 }
@@ -193,7 +216,6 @@ class DynamicObjectConverter
 	 * Converts a Dynamic object to another Dynamic object with correct types for a specified DataClass.
 	 */
 	public static function toCorrectTypes<T : DataClass>(cls : Class<T>, data : {}, ?passThrough : Array<String>, ?delimiter : String) : Dynamic {
-		if (delimiter == null) delimiter = Converter.delimiter;
 		if (passThrough == null) passThrough = [];
 		
 		//trace("===== fromDynamicObject: " + Type.getClassName(cls));
@@ -217,25 +239,7 @@ class DynamicObjectConverter
 			var data : Dynamic = Reflect.field(data, fieldName);
 			//trace('$data to $convert');
 			
-			var converted : Dynamic = data == null ? null : switch convert {
-				case "String": Std.string(data);
-
-				case "Bool" if(Std.is(data, Bool)):   data;
-				case "Bool" if(Std.is(data, String)): StringConverter.toBool(data);
-
-				case "Int" if(Std.is(data, Int)):    data;
-				case "Int" if(Std.is(data, String)): StringConverter.toInt(data, delimiter);
-
-				case "Date" if(Std.is(data, Date)):   data;
-				case "Date" if(Std.is(data, String)): StringConverter.toDate(data);
-				case "Date" if(Std.is(data, Float)):  FloatConverter.toDate(data);
-				case "Date" if(Std.is(data, Int)):    IntConverter.toDate(data);
-
-				case "Float" if(Std.is(data, Float)):  data;
-				case "Float" if(Std.is(data, String)): StringConverter.toFloat(data, delimiter);
-				
-				case _:	throw "Invalid type '" + Type.typeof(data) + '\' ($convert) for field $fieldName';
-			};
+			var converted = toCorrectValue(convert, data, true, delimiter, fieldName);
 			
 			//trace('Result: $converted');
 			
@@ -243,6 +247,34 @@ class DynamicObjectConverter
 		}
 
 		return output;
+	}
+	
+	#if (haxe_ver >= 3.3)
+	@:allow(dataclass.RecursiveConverter)
+	#end
+	private static function toCorrectValue(type : String, data : Dynamic, throwIfNotSupported : Bool, ?delimiter : String, ?fieldName : String) : Dynamic {
+		return data == null ? null : switch type {
+			case "String": Std.string(data);
+
+			case "Bool" if(Std.is(data, Bool)):   data;
+			case "Bool" if(Std.is(data, String)): StringConverter.toBool(data);
+
+			case "Int" if(Std.is(data, Int)):    data;
+			case "Int" if(Std.is(data, String)): StringConverter.toInt(data, delimiter);
+
+			case "Date" if(Std.is(data, Date)):   data;
+			case "Date" if(Std.is(data, String)): StringConverter.toDate(data);
+			case "Date" if(Std.is(data, Float)):  FloatConverter.toDate(data);
+			case "Date" if(Std.is(data, Int)):    IntConverter.toDate(data);
+
+			case "Float" if(Std.is(data, Float)):  data;
+			case "Float" if(Std.is(data, String)): StringConverter.toFloat(data, delimiter);
+			
+			case _:
+				if (throwIfNotSupported)	
+					throw "Invalid type '" + Type.typeof(data) + '\' ($type)' + (fieldName == null ? '' : ' for field $fieldName');
+				data;
+		};		
 	}
 	
 	///////////////////////////////////////////////////////////////////////////
@@ -283,8 +315,25 @@ class StringConverter
 	public static function toBool(s : String) : Bool
 		return !(~/^(?:false|no|0|)$/i.match(s.trim()));
 		
-	public static function toDate(s : String) : Date
-		return Date.fromString(s.trim());
+	public static function toDate(s : String) : Date {
+		var s = s.trim();
+		
+		if (s.endsWith('Z')) {
+			#if js
+			return untyped __js__('new Date({0})', s);
+			#else
+			/*
+			var isoZulu = ~/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2}(?:\.\d*))Z$/;
+			inline function d(pos : Int) return Std.parseInt(isoZulu.matched(pos));
+			if (isoZulu.match(s)) {
+				return DateTools.makeUtc(d(1), d(2), d(3), d(4), d(5), d(6));
+			}
+			*/
+			#end
+		}
+		
+		return Date.fromString(s);
+	}
 		
 	public static function toInt(s : String, ?delimiter : String) : Int {
 		if (delimiter == null) delimiter = Converter.delimiter;	

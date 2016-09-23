@@ -637,10 +637,10 @@ class ConverterTests extends BuddySuite
 				data = {
 					id: "1", 
 					single: {
-						int: 100, 
+						int: '100', 
 						another: {
 							bool: true, int: 1, 
-							date: Date.fromString("2016-08-02"), float: 3.14					
+							date: "2016-08-02", float: 3.14					
 						}				
 					},
 					array: [{id: 2, name: "2"}, {id:3, name:"3"}]
@@ -656,6 +656,7 @@ class ConverterTests extends BuddySuite
 				output.single.int.should.be(100);
 				output.single.another.should.beType(AnotherConverter);
 				output.single.another.bool.should.be(true);
+				output.single.another.date.getFullYear().should.be(2016);
 				
 				output.array.should.beType(Array);
 				output.array.length.should.be(2);

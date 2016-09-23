@@ -4,8 +4,8 @@
     "description": "A more convenient way to instantiate data classes.",
     "license": "MIT",
     "contributors": ["ciscoheat"],
-    "version": "0.21.3",
-    "releasenote": "Now follows converted types properly.",
+    "version": "0.22.0",
+    "releasenote": "Recursive conversion now converts the basic types as well.",
     "tags": ["data", "validation", "dci"],
 	"dependencies": { "immutable": "" }
 }

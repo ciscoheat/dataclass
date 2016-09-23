@@ -20,6 +20,9 @@ private typedef FieldDataProperties = {
 
 class Builder
 {
+	// String is not needed since it won't be converted
+	static var supportedConversions(default, null) = ["Bool" => true, "Date" => true, "Int" => true, "Float" => true];
+	
 	static public function build() : Array<Field> {
 		var fields = Context.getBuildFields();
 		var cls = Context.getLocalClass().get();
@@ -206,6 +209,11 @@ class Builder
 			
 			switch f.kind {
 				case FVar(TPath(p), _) | FProp(_, _, TPath(p), _):
+					if (p.name == "Null") switch(p.params[0]) {
+						case TPType(TPath(p2)): p = p2;
+						case _:
+					}
+					
 					var isArray = p.name == "Array" && p.pack.length == 0;
 					var arrayType = if(isArray) switch p.params[0] {
 						case TPType(t): ComplexTypeTools.toType(t);
@@ -215,7 +223,14 @@ class Builder
 					var type = isArray ? arrayType : ComplexTypeTools.toType(TPath(p));
 					var name = isDataClass(type);
 					
-					var data = if (name == null) "" else isArray ? '[$name' : name;
+					var data = if (name == null) {
+						// If it's a basic type, make it convertable with * syntax:
+						p.pack.length == 0 && supportedConversions.exists(p.name) ? '*${p.name}' : "";
+					}
+					else { 
+						// It's a DataClass, if it's an array use [ syntax.
+						isArray ? '[$name' : name;
+					}
 					
 					fullConversion.push({ field: f.name, expr: macro $v{data} });
 				case _:
