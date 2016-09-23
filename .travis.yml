@@ -19,6 +19,9 @@ install:
   - haxelib install travix
   - haxelib run travix install
 
+before_script:
+  - phpenv config-rm xdebug.ini
+
 script:
   - haxelib run travix neko
   - haxelib run travix python
