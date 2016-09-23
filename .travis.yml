@@ -20,7 +20,7 @@ install:
   - haxelib run travix install
 
 before_script:
-  - phpenv config-rm xdebug.ini
+  - phpenv config-rm xdebug.ini || true
 
 script:
   - haxelib run travix neko
