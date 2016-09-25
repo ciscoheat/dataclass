@@ -322,13 +322,13 @@ class StringConverter
 			#if js
 			return untyped __js__('new Date({0})', s);
 			#else
-			/*
-			var isoZulu = ~/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2}(?:\.\d*))Z$/;
+			var isoZulu = ~/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d+)?Z$/;
 			inline function d(pos : Int) return Std.parseInt(isoZulu.matched(pos));
 			if (isoZulu.match(s)) {
-				return DateTools.makeUtc(d(1), d(2), d(3), d(4), d(5), d(6));
+				var hours = Std.int(Math.round(getTimeZone() / 1000 / 60 / 60));
+				var minutes = hours * 60 - Std.int(Math.round(getTimeZone() / 1000 / 60));
+				return new Date(d(1), d(2) - 1, d(3), d(4) + hours, d(5) + minutes, d(6));
 			}
-			*/
 			#end
 		}
 		
@@ -360,6 +360,13 @@ class StringConverter
 			: clean(s.substr(0, delimPos)) + "." + clean(s.substr(delimPos))
 		);		
 	}
+	
+	// Thanks to https://github.com/HaxeFoundation/haxe/issues/3268#issuecomment-52960338
+	static function getTimeZone() {
+		var now = Date.now();
+		now = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+		return (24. * 3600 * 1000 * Math.round(now.getTime() / 24 / 3600 / 1000) - now.getTime());
+	}	
 }
 
 class BoolConverter {
