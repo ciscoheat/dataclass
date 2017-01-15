@@ -15,6 +15,7 @@ import haxe.rtti.Meta;
 using StringTools;
 using Converter.StringConverter;
 
+// TODO: Move to ORM configuration
 typedef ConverterOptions = {
 	?delimiter : String,
 	?boolValues : { tru: String, fals: String },
@@ -26,72 +27,7 @@ class Converter
 	///// Default configuration /////	
 	public static var delimiter = ".";
 	public static var boolValues = { tru: "1", fals: "0" };
-	public static var dateFormat = "%Y-%m-%d %H:%M:%S";		
-
-	/**
-	 * Creates a DataClass from a series of in-scope variables.
-	 */
-	macro public static function createFromVars<T : DataClass>(cls : ExprOf<Class<T>>, vars : Array<Expr>) {
-		
-		var assignments = {expr: EObjectDecl([for (v in vars) switch v {
-			case macro $a.$b: {field: b, expr: v};
-			case _: switch v.expr {
-				case EConst(CIdent(s)): {field: s, expr: v };
-			case _: 
-				//trace(v.expr);
-				Context.error('Invalid assignment, can only be "var" or "obj.field".', v.pos);
-			}
-		}]), pos: Context.currentPos() };
-		
-		function error() return Context.error("Invalid Class type: " + cls.toString(), cls.pos);
-		
-		// cls will be "this" if used as an extension, so the real type must be extracted
-		var classType = switch Context.typeof(cls) {
-			case TType(t, params): 
-				// The real type is found within Class<...>
-				var type = ~/^Class<(.*)>$/;
-				if (!type.match(t.get().name)) error();
-				
-				var name = type.matched(1).split(".");
-				var module = t.get().module.split(".");
-				//trace("======="); trace(module); trace(name);
-
-				// And now some crazy stuff...				
-				
-				var topClassInPackage = name.length > 1 && module.slice(0, -1).join("") == name.slice(0, -1).join("");
-				//trace(topClassInPackage);
-				
-				var output = { 
-					sub: topClassInPackage ? name[name.length-1] : null,
-					params: null,
-					pack: module.slice(0, -1),
-					name: topClassInPackage ? module[module.length-1] : name[name.length-1]
-				}
-				
-				//trace(output);
-				output;
-				
-			case _: 
-				error();
-		}
-		
-		return macro new $classType($assignments);
-	}
-	
-	/**
-	 * Assigns a series of in-scope variables to the fields with the same name.
-	 */
-	macro public static function assignFromVars(o : ExprOf<DataClass>, vars : Array<Expr>) {
-		var assignments = [for (v in vars) switch v {
-			case macro $a.$b: macro $o.$b = $v;			
-			case _: switch v.expr {
-				case EConst(CIdent(s)): macro $o.$s = $v;
-				case _: Context.error('Invalid assignment, can only be "var" or "obj.field".', v.pos);
-			}
-		}];
-
-		return { expr: EBlock(assignments), pos: Context.currentPos() };
-	}
+	public static var dateFormat = "%Y-%m-%d %H:%M:%S";
 }
 
 #if (haxe_ver >= 3.3)
@@ -282,6 +218,7 @@ class DynamicObjectConverter
 	public static var supportedTypes(default, null) = ["Bool" => true, "Date" => true, "Int" => true, "Float" => true, "String" => true];
 }
 
+// TODO: Move to ORM
 class ColumnConverter {
 	public static function fromColMetaData<T : DataClass>(cls : Class<T>, data : Iterable<String>, ?delimiter : String) : T {
 		var columns = Meta.getFields(cls);
@@ -310,6 +247,7 @@ class ColumnConverter {
 	}
 }
 
+// TODO: Move and allow custom converters?
 class StringConverter
 {
 	public static function toBool(s : String) : Bool

@@ -18,7 +18,294 @@ private typedef FieldDataProperties = {
 	validator: Expr
 }
 
+private typedef DataClassField = {
+	> Field,
+	var validation(default, null) : Array<Expr>;
+}
+
+@:forward(name, access, doc, meta, pos, validation)
+private abstract DataField(DataClassField) to Field
+{
+	inline function new(f : DataClassField) this = f;
+	
+	@:from static public function fromField(f : Field) {
+		return new DataField({
+			access: f.access,
+			doc: f.doc,
+			kind: f.kind,
+			meta: f.meta.filter(function(m) return m.name != 'validate'),
+			name: f.name,
+			pos: f.pos,
+			validation: f.meta.filter(function(m) return m.name == 'validate').map(function(m) {
+				if (m.params.length != 1) Context.error("@validate must have a single parameter", m.pos);
+				return m.params[0];
+			})
+		});
+	}
+	
+	public function isDataClassField() return
+		type() != null &&
+		!this.access.has(AStatic) &&
+		!this.meta.exists(function(m) return m.name == 'exclude') &&
+		(this.access.has(APublic) || this.meta.exists(function(m) return m.name == 'include'));
+
+	public function isOptional() return 
+		canBeNull() || defaultValue() != null;
+
+	// Returns the ComplexType of the var, or null if field isn't a var/prop.
+	public function type() : Null<ComplexType> return switch this.kind {
+		case FVar(t, _): t;
+		case FProp(_, _, t, _): t;
+		case _: null;
+	}
+
+	public function getAccess() : String return switch this.kind {
+		case FVar(_, _): 'default';
+		case FProp(get, _, _, _): get;
+		case _: null;
+	}
+
+	public function setAccess() : String return switch this.kind {
+		case FVar(_, _): 'default';
+		case FProp(_, set, _, _): set;
+		case _: null;
+	}
+
+	function canBeNull() return switch type() {
+		case TPath(p): p.name == "Null" || (p.name == "StdTypes" && p.sub == "Null");
+		case _: false;
+	}
+	
+	public function defaultValue() : Null<Expr> return switch this.kind {
+		case FVar(_, e), FProp(_, _, _, e): e;
+		case _: null;
+	}	
+}
+
+@:forward(name, pos)
+private abstract DataClassType(ClassType) from ClassType
+{
+	public function new(cls : ClassType) {
+		this = cls;
+		
+		// Assert that no parent class implements DataClass
+		for(superClass in superClasses()) {
+			if (superClass.interfaces.exists(function(i) return i.t.get().name == 'DataClass'))
+				Context.error("A parent class cannot implement DataClass", superClass.pos);
+		}
+	}
+	
+	public function superClasses() : Array<ClassType> {
+		var output = [];
+		
+		function getSuper(sc) return sc == null ? null : sc.t.get();
+		var superClass = getSuper(this.superClass);
+			
+		while (superClass != null) {
+			output.push(superClass);
+			superClass = getSuper(superClass.superClass);
+		}
+		
+		return output;
+	}
+	
+	function superclassFields() : Array<DataField> {
+		function isClassFieldDataClassField(classField : ClassField) : Bool { return
+			classField.kind != null &&
+			!classField.meta.has('exclude') &&
+			classField.isPublic || classField.meta.has('include');
+		}
+		
+		var classFields = superClasses().flatMap(function(superClass) 
+			return superClass.fields.get().filter(isClassFieldDataClassField)
+		);
+		
+		return classFields.map(function(f) return {
+			pos: f.pos,
+			name: f.name,
+			meta: f.meta.get(),
+			kind: switch f.kind {
+				case FVar(read, write):
+					function toPropType(access : VarAccess, read : Bool) {
+						return switch access {
+							case AccNormal: 'default';
+							case AccNo: 'null';
+							case AccNever: 'never';
+							case AccCall: (read ? 'get_' : 'set_') + f.name; // Need to append accessor method
+							case _: Context.error("Unsupported field for DataClass inheritance.", f.pos);
+						}
+					}
+					var get = toPropType(read, true);
+					var set = toPropType(write, false);
+					
+					var expr = f.expr() == null ? null : Context.getTypedExpr(f.expr());
+					
+					FProp(get, set, Context.toComplexType(f.type), expr);
+				
+				case _: null;
+			},
+			doc: f.doc,
+			access: f.isPublic ? [APublic] : []
+		}).map(function(f) return DataField.fromField(f)).array();
+	}	
+	
+	public function isImmutable() return this.meta.has("immutable");
+	
+	public function shouldAddValidator() return !this.meta.has("noValidator");
+	
+	public function implementsInterface(interfaceName : String) {
+		// Test if class implements HaxeContracts, then throw ContractException instead.
+		return this.interfaces.map(function(i) return i.t.get()).exists(function(ct) {
+			return ct.name == interfaceName;
+		});
+	}
+}
+
 class Builder
+{
+	// String is not needed since it won't be converted
+	//static var supportedConversions(default, null) = ["Bool" => true, "Date" => true, "Int" => true, "Float" => true];
+
+	var CLASS(default, null) : DataClassType;
+	var OTHERFIELDS(default, null) : Array<Field>;
+	var DATACLASSFIELDS(default, null) : Array<DataField>;
+	
+	static public function build() : Array<Field> {
+		var cls = Context.getLocalClass().get();
+		if (cls.isInterface) return null;
+		
+		return new Builder().createDataClassFields();
+	}
+	
+	function new() {
+		var allFields = Context.getBuildFields();
+		
+		CLASS = Context.getLocalClass().get();
+		OTHERFIELDS = allFields.filter(function(f) return !DataField.fromField(f).isDataClassField());
+		DATACLASSFIELDS = allFields.map(function(f) return DataField.fromField(f)).filter(function(f) return f.isDataClassField());
+		
+		if (CLASS.shouldAddValidator()) {
+			var validateField = OTHERFIELDS.find(function(f) return f.name == "validate");
+			if(validateField != null)
+				Context.error("DataClass without @noValidator metadata cannot have a method called 'validate'", validateField.pos);
+		}		
+	}
+	
+	function createDataClassFields() {
+		trace("======= " + CLASS.name);
+		
+		// TODO: Filter and modify data class fields
+		var newDataClassFields = DATACLASSFIELDS.map(function(field) {
+			return {
+				access: field.access,
+				doc: field.doc,
+				kind: FProp(field.getAccess(), field.setAccess(), field.type(), field.defaultValue()),
+				meta: field.meta.filter(function(m) {
+					trace(m.name);
+					return m.name != 'validate';
+				}),
+				name: field.name,
+				pos: field.pos
+			}
+		});
+		
+		var normalFieldsWithoutConstructor = OTHERFIELDS.filter(function(f) return f.name != 'new');
+		
+		// Finally, need to remove @validate from superclass fields, otherwise their Expr won't compile.
+		for (superClassField in CLASS.superClasses().flatMap(function(f) return f.fields.get())) {
+			superClassField.meta.remove('validate');
+		}
+		
+		return normalFieldsWithoutConstructor
+			.concat([createValidator(), createConstructor()])
+			.concat(newDataClassFields)
+			.filter(function(f) return f != null);
+	}
+	
+	function createValidator() : Field {
+		return if(!CLASS.shouldAddValidator()) null else {
+			access: [APublic, AStatic],
+			doc: null,
+			kind: FFun({
+				args: [{
+					meta: null,
+					name: 'data',
+					opt: false,
+					type: null, // TODO: Full type hint
+					value: null
+				}],
+				expr: macro return [], // TODO: Assignments
+				params: null,
+				ret: macro : Array<String>
+			}),
+			meta: null,
+			name: 'validate',
+			pos: CLASS.pos
+		}
+	}
+	
+	function allDataClassFieldsOptional() return !DATACLASSFIELDS.exists(function(f) return !f.isOptional());
+	
+	function createConstructor() {
+		var existing : Field = OTHERFIELDS.find(function(f) return f.name == 'new');
+		var arguments = if (existing != null) {
+			switch existing.kind {
+				case FFun(f):
+					if (f.args.length == 0) {
+						Context.error("The DataClass constructor must have at least one parameter.", f.expr.pos);
+					}					
+					else if (f.args[0].type != null) {
+						Context.error("The first parameter in a DataClass constructor cannot have a type.", f.expr.pos);
+					} else if (allDataClassFieldsOptional() && (f.args[0].opt == null || !f.args[0].opt)) {
+						Context.error("All DataClass fields are optional, so the first constructor parameter must also be optional.", f.expr.pos);
+					} else if (f.args[0].value != null) {
+						Context.error("The first parameter in a DataClass constructor cannot have a default value.", f.expr.pos);
+					}
+					for (arg in f.args.slice(1)) {
+						if ((arg.opt == null || arg.opt == false) && arg.value == null) {
+							Context.error("All subsequent constructor parameters in a DataClass must be optional", f.expr.pos);
+						}
+					}
+					f.args;
+				case _:
+					Context.error("Invalid constructor", existing.pos);
+			}
+		} else [{
+			meta: null,
+			name: 'data',
+			opt: allDataClassFieldsOptional(),
+			type: null, // TODO: Full type hint
+			value: null
+		}];
+		
+		var newConstructor = {
+			access: if (existing != null) existing.access else [APublic],
+			doc: if (existing != null) existing.doc else null,
+			kind: FFun({
+				args: arguments,
+				expr: macro {}, // TODO: Assignments
+				params: null,
+				ret: null
+			}),
+			meta: if (existing != null) existing.meta else null,
+			name: 'new',
+			pos: CLASS.pos
+		};
+		
+		return newConstructor;
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////
+
+class Builder2
 {
 	// String is not needed since it won't be converted
 	static var supportedConversions(default, null) = ["Bool" => true, "Date" => true, "Int" => true, "Float" => true];
@@ -473,7 +760,6 @@ class Builder
 				field.meta.remove("validate");
 			}			
 		}
-		
 			
 		return allFields.filter(ignored).filter(publicVarOrPropOrIncluded);
 	}

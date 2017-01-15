@@ -552,55 +552,6 @@ class ConverterTests extends BuddySuite
 				test.date.toStringFormat("%Y-%m-%d").should.be("2015-01-01");
 				test.float.toString().should.be("456.789");				
 			});
-			
-			it("should be able to assign a number of fields in one operation", {
-				var date = new Date(2016, 4, 15, 0, 0, 0);
-				var other = {
-					bool: false,
-					float: -20.05
-				};
-				
-				test.assignFromVars(date, other.bool, other.float);
-				
-				test.bool.should.be(false);
-				test.date.toStringFormat("%Y-%m-%d").should.be("2016-05-15");
-				test.float.should.beCloseTo(-20.05);
-			});
-
-			it("should be able to create a DataClass from local vars", {
-				var date = new Date(2016, 4, 15, 0, 0, 0);
-				var other = {
-					bool: false,
-					float: -20.05,
-					int: 123
-				};
-				
-				// Adding a subpackage to test the conversion
-				var test = subpack.AnotherConverter.createFromVars(date, other.bool, other.float, other.int);				
-				test.bool.should.be(false);
-				test.int.should.be(123);
-				test.date.toStringFormat("%Y-%m-%d").should.be("2016-05-15");
-				test.float.should.beCloseTo( -20.05);
-
-				var test2 = TestConverter.createFromVars(date, other.bool, other.float, other.int);
-				test2.bool.should.be(false);
-				test2.int.should.be(123);
-				test2.date.toStringFormat("%Y-%m-%d").should.be("2016-05-15");
-				test2.float.should.beCloseTo( -20.05);
-				
-				// Test using the static method (no extension)
-				var test3 = Converter.createFromVars(TestConverter, date, other.bool, other.float, other.int);
-				test3.bool.should.be(false);
-				test3.int.should.be(123);
-				test3.date.toStringFormat("%Y-%m-%d").should.be("2016-05-15");
-				test3.float.should.beCloseTo( -20.05);
-				
-				var test4 = Converter.createFromVars(subpack.AnotherConverter.SubConverter, date, other.bool, other.float, other.int);
-				test4.bool.should.be(false);
-				test4.int.should.be(123);
-				test4.date.toStringFormat("%Y-%m-%d").should.be("2016-05-15");
-				test4.float.should.beCloseTo( -20.05);
-			});
 
 			it("should be able to create one object from another", {
 				var testFloat = test.convertTo(TestFloatConverter);				
@@ -711,7 +662,7 @@ class SomePerson extends Document implements DataClass
 
 #if (python && haxe_ver < 3.3)
 #else
-class InheritanceTests extends BuddySuite
+@include class InheritanceTests extends BuddySuite
 {
 	public function new() {
 		describe("When inheriting from another class", {
