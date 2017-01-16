@@ -358,7 +358,7 @@ class Builder
 					meta: null,
 					name: 'data',
 					opt: false,
-					type: macro : Dynamic,
+					type: assignmentAnonymousType(true),
 					value: null
 				}],
 				expr: macro { var output = []; $b{validationTests}; return output; },
@@ -458,11 +458,12 @@ class Builder
 		return newConstructor;
 	}
 	
-	function assignmentAnonymousType() : ComplexType {
+	// allOptional is used in the static "validate" method, so any object can be used.
+	function assignmentAnonymousType(allOptional = false) : ComplexType {
 		var fields = dataClassFieldsIncludingSuperFields().map(function(f) return {
 			pos: f.pos,
 			name: f.name,
-			meta: if(f.isOptional()) [{
+			meta: if(allOptional || f.isOptional()) [{
 				pos: f.pos,
 				params: null,
 				name: ":optional"

@@ -95,7 +95,7 @@ class Validator implements DataClass
 {
 	@validate(~/\d{4}-\d\d-\d\d/) public var date : String;
 	@validate(_.length > 2 && _.length < 9) public var str : String;
-	@validate(_ > 1000) public var int : Int;
+	@validate(_ > 1000) public var integ : Int;
 }
 
 class NullValidateTest implements DataClass
@@ -240,7 +240,7 @@ class Tests extends BuddySuite implements Buddy<[
 				});
 				it("should be set to the supplied value if field value is supplied", {
 					new DefaultValue( { city: "Somewhere" } ).city.should.be("Somewhere");
-				});				
+				});
 			});
 
 			describe("With property fields", {
@@ -302,16 +302,16 @@ class Tests extends BuddySuite implements Buddy<[
 
 			describe("Validators", {
 				it("should validate with @validate(...) expressions", {
-					(function() new Validator({ date: "2015-12-12", str: "AAA", int: 1001 })).should.not.throwAnything();
+					(function() new Validator({ date: "2015-12-12", str: "AAA", integ: 1001 })).should.not.throwAnything();
 				});
 
 				it("should validate regexps as a ^...$ regexp.", {
-					(function() new Validator({	date: "*2015-12-12*", str: "AAA", int: 1001 })).should.throwType(String);
+					(function() new Validator({	date: "*2015-12-12*", str: "AAA", integ: 1001 })).should.throwType(String);
 				});
 
 				it("should replace _ with the value and validate", {
-					(function() new Validator({	date: "2015-12-12", str: "A", int: 1001 })).should.throwType(String);
-					(function() new Validator({	date: "2015-12-12", str: "AAA", int: 1 })).should.throwType(String);
+					(function() new Validator({	date: "2015-12-12", str: "A", integ: 1001 })).should.throwType(String);
+					(function() new Validator({	date: "2015-12-12", str: "AAA", integ: 1 })).should.throwType(String);
 				});
 				
 #if !static
@@ -339,14 +339,13 @@ class Tests extends BuddySuite implements Buddy<[
 			
 			describe("Manual validation", {
 				it("should be done using the static 'validate' field", {
-					Validator.validate({}).should.containAll(['date', 'str', 'int']);
+					Validator.validate({}).should.containAll(['date', 'str', 'integ']);
 					Validator.validate({}).length.should.be(3);
 					
-					Validator.validate({ date: "2016-05-06" }).should.containAll(['str', 'int']);
+					Validator.validate({ date: "2016-05-06" }).should.containAll(['str', 'integ']);
 					Validator.validate( { date: "2016-05-06" } ).length.should.be(2);
 					
-					var input = { int: 1001, date: "2016-05-06", str: "AAA" };
-					Reflect.setField(input, "int", 1001); // Required for flash, see https://github.com/HaxeFoundation/haxe/issues/5215
+					var input = { integ: 1001, date: "2016-05-06", str: "AAA" };
 					Validator.validate(input).length.should.be(0);
 					
 					RequireId.validate({}).should.contain("id");
@@ -354,8 +353,8 @@ class Tests extends BuddySuite implements Buddy<[
 				});
 				
 				it("should fail a default value field if it exists but has an incorrect value", {
-					HasProperty.validate( { } ).should.containAll(['def_null', 'def_def', 'get_set', 'get_null']);
-					HasProperty.validate( { } ).length.should.be(4);
+					HasProperty.validate({}).should.containAll(['def_null', 'def_def', 'get_set', 'get_null']);
+					HasProperty.validate({}).length.should.be(4);
 					
 					HasProperty.validate( { called: ["should fail"] } ).should.containAll(
 						['called', 'def_null', 'def_def', 'get_set', 'get_null']
