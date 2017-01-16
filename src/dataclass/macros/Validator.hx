@@ -60,7 +60,7 @@ class Validator
 		} else if (validatorTests.length > 0) {
 			var test = validatorTests[0];
 			if (cannotBeNull) macro $field == null || !($test);
-			else macro !($test);
+			else macro $field != null && !($test);
 		} else {
 			null;
 		}

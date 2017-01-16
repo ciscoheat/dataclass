@@ -659,7 +659,7 @@ class SomePerson extends Document implements DataClass
 
 #if (python && haxe_ver < 3.3)
 #else
-@include class InheritanceTests extends BuddySuite
+class InheritanceTests extends BuddySuite
 {
 	public function new() {
 		describe("When inheriting from another class", {
@@ -678,6 +678,8 @@ class SomePerson extends Document implements DataClass
 				(function() p._key = null).should.throwType(String);
 			});
 			
+			// TODO: ORM test
+			/*
 			it("should set the parent fields when using the dynamic converter", {
 				var data = {
 					_key: "1",
@@ -691,6 +693,7 @@ class SomePerson extends Document implements DataClass
 				p._key.should.be("1");
 				p.email.should.be("test@example.com");
 			});
+			*/
 		});
 	}
 }

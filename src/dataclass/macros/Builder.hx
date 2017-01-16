@@ -156,8 +156,13 @@ private abstract DataClassType(ClassType) from ClassType
 	
 	public function shouldAddValidator() return !this.meta.has("noValidator");
 	
+	// TODO: Throw custom class
+	/*
+	public function throwCustom() return Context.defined("dataclass-throw")
+		? Context.definedValue("dataclass-throw").split(".") : null;
+	*/
+	
 	public function implementsInterface(interfaceName : String) {
-		// Test if class implements HaxeContracts, then throw ContractException instead.
 		return this.interfaces.map(function(i) return i.t.get()).exists(function(ct) {
 			return ct.name == interfaceName;
 		});
@@ -237,22 +242,27 @@ class Builder
 			.filter(function(f) return f != null);
 	}
 	
-	// TODO: Throw anything with meta or -D
-	function createValidationTestExpr(field : DataField, testField : Expr) : Expr {
+	function createValidationTestExpr(field : DataField, testField : Expr, failExpr : Expr) : Expr {
 		var testExpr = Validator.createValidatorTestExpr(field.type(), testField, field.isOptional(), field.validation);
 		
 		return switch testExpr {
 			case None: macro null;
-			case Some(testExpr): 
-				var errorMsg = "Validation failed for " + CLASS.name + "." + field.name;
-				macro if($testExpr) throw $v{errorMsg};
+			case Some(testExpr): macro if ($testExpr) $failExpr;
 		}
+	}
+	
+	function throwFailedValidation(message : String, arg : Expr) {
+		return CLASS.implementsInterface("HaxeContracts")
+			? macro throw new haxecontracts.ContractException($v{message}, this, $arg)
+			: macro throw $v{message};
 	}
 	
 	function createNewSetter(field : DataField) {
 		var fieldName = field.name;
 		var argName = 'v';
-		var testExpr = createValidationTestExpr(field, macro $i{argName});
+		var errorMsg = "Validation failed for " + CLASS.name + "." + field.name;
+		var identifier = macro $i{argName};
+		var validationExpr = createValidationTestExpr(field, identifier, throwFailedValidation(errorMsg, identifier));
 		
 		return {
 			access: [],
@@ -265,7 +275,7 @@ class Builder
 					type: field.type(),
 					value: null
 				}],
-				expr: macro { $testExpr; return this.$fieldName = v; }, // TODO: validation
+				expr: macro { $validationExpr; return this.$fieldName = v; },
 				params: null,
 				ret: field.type()
 			}),
@@ -288,7 +298,10 @@ class Builder
 		if (func.args.length != 1) Context.error("Invalid number of setter arguments", setterField.pos);
 
 		var param = func.args[0];
-		var validationTestExpr = createValidationTestExpr(field, macro $i{param.name});
+
+		var errorMsg = "Validation failed for " + CLASS.name + "." + field.name;
+		var identifier = macro $i{param.name};
+		var validationTestExpr = createValidationTestExpr(field, identifier, throwFailedValidation(errorMsg, identifier));
 		
 		switch func.expr.expr {
 			case EBlock(exprs): exprs.unshift(validationTestExpr);
@@ -296,8 +309,32 @@ class Builder
 		}
 	}
 	
-	function createValidator() : Field {
-		return if(!CLASS.shouldAddValidator()) null else {
+	function dataClassFieldsIncludingSuperFields()
+		return CLASS.superclassFields().concat(DATACLASSFIELDS);
+	
+	function createValidator() : Null<Field> {
+		if (!CLASS.shouldAddValidator()) 
+			return null;
+		
+		var argName = 'data';
+		var validationTests = dataClassFieldsIncludingSuperFields().map(function(f) {
+			var testFieldAccessor = macro $p{[argName, f.name]};
+			var fieldExists = macro Reflect.hasField($i{argName}, $v{f.name});
+			var addToOutput = macro output.push($v{f.name});
+			var isOptional = macro $v{f.isOptional()};
+			
+			var testExpr = switch Validator.createValidatorTestExpr(f.type(), testFieldAccessor, f.isOptional(), f.validation) {
+				case None: macro false;
+				case Some(e): e;
+			}
+			
+			return macro {
+				if (!$isOptional && !$fieldExists) $addToOutput
+				else if ($testExpr) $addToOutput;
+			}
+		});
+		
+		return {
 			access: [APublic, AStatic],
 			doc: null,
 			kind: FFun({
@@ -305,10 +342,10 @@ class Builder
 					meta: null,
 					name: 'data',
 					opt: false,
-					type: null, // TODO: Full type hint
+					type: macro : Dynamic,
 					value: null
 				}],
-				expr: macro return [], // TODO: Assignments
+				expr: macro { var output = []; $b{validationTests}; return output; },
 				params: null,
 				ret: macro : Array<String>
 			}),
@@ -342,6 +379,16 @@ class Builder
 					}
 					// Set type for first argument, and return the args structure
 					f.args[0].type = assignmentAnonymousType();
+					
+					var assignments = dataClassAssignments(f.args[0].name);
+					switch(f.expr.expr) {
+						case EBlock(exprs): exprs.unshift(assignments);
+						case _: f.expr = {
+							pos: f.expr.pos,
+							expr: EBlock([assignments, f.expr])
+						}
+					}
+					
 					f.args;
 				case _:
 					Context.error("Invalid constructor", existing.pos);
@@ -357,7 +404,7 @@ class Builder
 		var newConstructor = {
 			access: if (existing != null) existing.access else [APublic],
 			doc: if (existing != null) existing.doc else null,
-			kind: FFun({
+			kind: if(existing != null) existing.kind else FFun({
 				args: arguments,
 				expr: dataClassAssignments(arguments[0].name),
 				params: null,
@@ -372,7 +419,7 @@ class Builder
 	}
 	
 	function assignmentAnonymousType() : ComplexType {
-		var fields = CLASS.superclassFields().concat(DATACLASSFIELDS).map(function(f) return {
+		var fields = dataClassFieldsIncludingSuperFields().map(function(f) return {
 			pos: f.pos,
 			name: f.name,
 			meta: if(f.isOptional()) [{
@@ -389,7 +436,7 @@ class Builder
 	}
 	
 	function dataClassAssignments(fieldName : String) : Expr {
-		var assignments = CLASS.superclassFields().concat(DATACLASSFIELDS).filter(function(f) {
+		var assignments = dataClassFieldsIncludingSuperFields().filter(function(f) {
 			var access = f.setAccess(CLASS.isImmutable());
 			return access != 'never';
 		})
