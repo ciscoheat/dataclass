@@ -65,9 +65,12 @@ private abstract DataField(DataClassField) to Field
 		case _: null;
 	}
 
-	public function setAccess() : String return switch this.kind {
-		case FVar(_, _): 'default';
-		case FProp(_, set, _, _): set;
+	public function setAccess(isImmutable : Bool) : String return switch this.kind {
+		case FVar(_, _): isImmutable ? 'null' : 'default';
+		case FProp(_, set, _, _): 
+			if (isImmutable && set != 'null' && set != 'never')
+				Context.error("A DataClass marked with @immutable cannot have writable setters.", this.pos);
+			set;
 		case _: null;
 	}
 
@@ -109,7 +112,7 @@ private abstract DataClassType(ClassType) from ClassType
 		return output;
 	}
 	
-	function superclassFields() : Array<DataField> {
+	public function superclassFields() : Array<DataField> {
 		function isClassFieldDataClassField(classField : ClassField) : Bool { return
 			classField.kind != null &&
 			!classField.meta.has('exclude') &&
@@ -182,7 +185,9 @@ class Builder
 		
 		CLASS = Context.getLocalClass().get();
 		OTHERFIELDS = allFields.filter(function(f) return !DataField.fromField(f).isDataClassField());
-		DATACLASSFIELDS = allFields.map(function(f) return DataField.fromField(f)).filter(function(f) return f.isDataClassField());
+		DATACLASSFIELDS = allFields
+			.map(function(f) return DataField.fromField(f))
+			.filter(function(f) return f.isDataClassField());
 		
 		if (CLASS.shouldAddValidator()) {
 			var validateField = OTHERFIELDS.find(function(f) return f.name == "validate");
@@ -192,34 +197,103 @@ class Builder
 	}
 	
 	function createDataClassFields() {
-		trace("======= " + CLASS.name);
+		//trace("======= " + CLASS.name);
 		
-		// TODO: Filter and modify data class fields
+		var newSetters = [];
+		
 		var newDataClassFields = DATACLASSFIELDS.map(function(field) {
+			var setAccess = field.setAccess(CLASS.isImmutable());
+			
+			// Setters are used for validation, so create a setter if access is default
+			if (setAccess == 'default') {
+				newSetters.push(createNewSetter(field));
+				setAccess = 'set';
+			} else if (setAccess == 'set') {
+				// If a setter already exists, inject validation into it
+				injectValidatorIntoSetter(field);
+			}
+			
 			return {
 				access: field.access,
 				doc: field.doc,
-				kind: FProp(field.getAccess(), field.setAccess(), field.type(), field.defaultValue()),
-				meta: field.meta.filter(function(m) {
-					trace(m.name);
-					return m.name != 'validate';
-				}),
+				kind: FProp(field.getAccess(), setAccess, field.type(), field.defaultValue()),
+				meta: field.meta.filter(function(m) return m.name != 'validate'),
 				name: field.name,
 				pos: field.pos
 			}
 		});
 		
-		var normalFieldsWithoutConstructor = OTHERFIELDS.filter(function(f) return f.name != 'new');
-		
-		// Finally, need to remove @validate from superclass fields, otherwise their Expr won't compile.
+		// As a last step, need to remove @validate from superclass fields, otherwise their Expr won't compile.
 		for (superClassField in CLASS.superClasses().flatMap(function(f) return f.fields.get())) {
 			superClassField.meta.remove('validate');
 		}
 		
+		var normalFieldsWithoutConstructor = OTHERFIELDS.filter(function(f) return f.name != 'new');
+		
 		return normalFieldsWithoutConstructor
 			.concat([createValidator(), createConstructor()])
 			.concat(newDataClassFields)
+			.concat(newSetters)
 			.filter(function(f) return f != null);
+	}
+	
+	// TODO: Throw anything with meta or -D
+	function createValidationTestExpr(field : DataField, testField : Expr) : Expr {
+		var testExpr = Validator.createValidatorTestExpr(field.type(), testField, field.isOptional(), field.validation);
+		
+		return switch testExpr {
+			case None: macro null;
+			case Some(testExpr): 
+				var errorMsg = "Validation failed for " + CLASS.name + "." + field.name;
+				macro if($testExpr) throw $v{errorMsg};
+		}
+	}
+	
+	function createNewSetter(field : DataField) {
+		var fieldName = field.name;
+		var argName = 'v';
+		var testExpr = createValidationTestExpr(field, macro $i{argName});
+		
+		return {
+			access: [],
+			doc: null,
+			kind: FFun({
+				args: [{
+					meta: null,
+					name: 'v',
+					opt: false,
+					type: field.type(),
+					value: null
+				}],
+				expr: macro { $testExpr; return this.$fieldName = v; }, // TODO: validation
+				params: null,
+				ret: field.type()
+			}),
+			meta: null,
+			name: 'set_' + field.name,
+			pos: field.pos
+		}
+	}
+	
+	function injectValidatorIntoSetter(field : DataField) {
+		var setterField = OTHERFIELDS.find(function(f) return f.name == 'set_' + field.name);
+		if (setterField == null) Context.error("Missing setter for " + field.name, field.pos);
+		
+		var func = switch setterField.kind {
+			case FFun(f): f;
+			case _: Context.error("Invalid setter: not a method", setterField.pos);
+		}
+		
+		if (func.expr == null) Context.error("Empty setter", setterField.pos);
+		if (func.args.length != 1) Context.error("Invalid number of setter arguments", setterField.pos);
+
+		var param = func.args[0];
+		var validationTestExpr = createValidationTestExpr(field, macro $i{param.name});
+		
+		switch func.expr.expr {
+			case EBlock(exprs): exprs.unshift(validationTestExpr);
+			case _: func.expr = {expr: EBlock([validationTestExpr, func.expr]), pos: func.expr.pos};
+		}
 	}
 	
 	function createValidator() : Field {
@@ -266,6 +340,8 @@ class Builder
 							Context.error("All subsequent constructor parameters in a DataClass must be optional", f.expr.pos);
 						}
 					}
+					// Set type for first argument, and return the args structure
+					f.args[0].type = assignmentAnonymousType();
 					f.args;
 				case _:
 					Context.error("Invalid constructor", existing.pos);
@@ -274,7 +350,7 @@ class Builder
 			meta: null,
 			name: 'data',
 			opt: allDataClassFieldsOptional(),
-			type: null, // TODO: Full type hint
+			type: assignmentAnonymousType(),
 			value: null
 		}];
 		
@@ -283,7 +359,7 @@ class Builder
 			doc: if (existing != null) existing.doc else null,
 			kind: FFun({
 				args: arguments,
-				expr: macro {}, // TODO: Assignments
+				expr: dataClassAssignments(arguments[0].name),
 				params: null,
 				ret: null
 			}),
@@ -293,6 +369,44 @@ class Builder
 		};
 		
 		return newConstructor;
+	}
+	
+	function assignmentAnonymousType() : ComplexType {
+		var fields = CLASS.superclassFields().concat(DATACLASSFIELDS).map(function(f) return {
+			pos: f.pos,
+			name: f.name,
+			meta: if(f.isOptional()) [{
+				pos: f.pos,
+				params: null,
+				name: ":optional"
+			}] else null,
+			kind: FieldType.FVar(f.type(), null),
+			doc: null,
+			access: []
+		});
+		
+		return TAnonymous(fields);
+	}
+	
+	function dataClassAssignments(fieldName : String) : Expr {
+		var assignments = CLASS.superclassFields().concat(DATACLASSFIELDS).filter(function(f) {
+			var access = f.setAccess(CLASS.isImmutable());
+			return access != 'never';
+		})
+		.map(function(f : DataField) {
+			var optionalTest = if (f.isOptional())
+				macro Reflect.hasField($i{fieldName}, $v{f.name})
+			else
+				macro true;
+				
+			return macro if($optionalTest) $p{['this', f.name]} = $p{[fieldName, f.name]};
+		});
+		
+		var block = allDataClassFieldsOptional()
+			? (macro if ($i{fieldName} != null) $b{assignments}) 
+			: macro $b{assignments};
+			
+		return block;
 	}
 }
 
@@ -534,7 +648,7 @@ class Builder2
 					
 					if (validator != null) {
 						var errorString = macro "Field " + $v{clsName} + "." + $v{name} + ' failed validation "' + $validator + '" with value "' + $i{name} + '"';
-						assignments.push(Validator.createValidator(fieldType, macro $i{param}, optional, validator, throwError(errorString), false));
+						//assignments.push(Validator.createValidator(fieldType, macro $i{param}, optional, validator, throwError(errorString), false));
 					}
 					
 					return assignments;
@@ -569,10 +683,12 @@ class Builder2
 				
 				// Assumptions for these expressions: data is Dynamic<Dynamic>, failed an Array<String>
 				// will be used to create a static "validate" field on each DataClass implemented type.
+				/*
 				dataValidationExpressions.push(Validator.createValidator(
 					fieldType, macro $p{['data', name]}, optional, validator, 
 					macro failed.push($v{name}), !optional // Test field existence only for non-optional fields
 				));
+				*/
 			}
 
 			switch f.kind {

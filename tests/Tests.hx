@@ -188,10 +188,7 @@ class Tests extends BuddySuite implements Buddy<[
 	#if (python && haxe_ver < 3.3)
 	#else
 	ConverterTests, 
-	InheritanceTests,
-	#end
-	#if (js && !nodejs)
-	HtmlFormConverterTests,
+	InheritanceTests
 	#end
 ]>
 {	
@@ -696,93 +693,5 @@ class SomePerson extends Document implements DataClass
 			});
 		});
 	}
-}
-#end
-
-////////////////////////////////////////////////////////////////////////////////////////////////
-
-#if (js && !nodejs)
-class HtmlFormConverterTests extends BuddySuite
-{
-	var date : InputElement;
-	var str : InputElement;
-	var int : SelectElement;
-	
-	var conv : HtmlFormConverter;
-	
-	public function new() {
-		beforeEach({			
-			Browser.document.getElementById("tests").innerHTML = formHtml;
-			date = cast Browser.document.querySelector("input[name=date]");
-			str = cast Browser.document.querySelector("input[name=str]");
-			int = cast Browser.document.querySelector("select[name=int]");
-			
-			int.selectedIndex = 2;
-			date.value = "2016-05-08";
-			str.checked = true;
-			
-			conv = Browser.document.querySelector("form");
-		});
-		
-		describe("HtmlFormConverter", {
-			it("should convert form fields into useful data structures", {				
-				var anon : Dynamic = conv.toAnonymous();
-				anon.int.should.be("1001");
-				anon.date.should.be("2016-05-08");
-				anon.str.should.be("ab<cde");
-				
-				var map = conv.toMap();
-				map.get('int').should.be("1001");
-				map.get('date').should.be("2016-05-08");
-				map.get('str').should.be("ab<cde");
-				
-				conv.toJson().should.be('{"date":"2016-05-08","int":"1001","str":"ab<cde","submit":"Submit"}');
-				conv.toQueryString().should.be("date=2016-05-08&int=1001&str=ab%3Ccde&submit=Submit");
-				
-				Validator.fromDynamic(conv).int.should.be(1001);
-				Validator.fromDynamic(conv).date.should.be("2016-05-08");
-				Validator.fromDynamic(conv).str.should.be("ab<cde");
-			});
-				
-			it("should validate and convert to DataClass objects", {
-				conv.validate(Validator).length.should.be(0);
-				conv.toDataClass(Validator).int.should.be(1001);
-				conv.toDataClass(Validator).str.should.be("ab<cde");
-			});
-			
-			it("should validate properly with failed fields", {
-				int.selectedIndex = 0;
-				conv.validate(Validator).length.should.be(1);
-				conv.validate(Validator)[0].should.be("int");
-			});
-		});
-	}
-	
-	static var formHtml = '
-<form>
-	<input type="text" name="date">
-	<select name="int">
-		<option>10</option>
-		<option>100</option>
-		<option>1001</option>
-	</select>
-	<input type="checkbox" name="str" value="ab&lt;cde">
-	<input type="submit" name="submit" value="Submit"/>
-</form>
-';
-
-	static var testHtml = '
-<!DOCTYPE html>
-<html lang="en">
-<head>
-	<meta charset="utf-8"/>
-	<title>dataclass tests</title>
-</head>
-<body>
-	<script src="js-browser.js"></script>
-	<div id="tests"></div>
-</body>
-</html>	
-';	
 }
 #end
