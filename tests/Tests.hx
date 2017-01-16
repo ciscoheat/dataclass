@@ -91,7 +91,7 @@ class HasProperty implements DataClass
 	public var def_null_defValue(default, null) : String = "def_null_defValue";
 }
 
-class HasPropertyWithImmutable implements DataClass implements Immutable
+@immutable class HasPropertyWithImmutable implements DataClass
 {
 	public var def_null(default, null) : String;
 	public var def_never(default, never) : String;
@@ -165,10 +165,10 @@ class IncludeTest implements DataClass {
 	public var notUsed = "not used";
 }
 
-class ImmutableClass implements DataClass implements Immutable
+@immutable class ImmutableClass implements DataClass
 {
 	public var id : Int;
-	public var name : String;	
+	public var name(default, null) : String;
 }
 
 class DeepTest implements DataClass {
@@ -214,6 +214,9 @@ class Tests extends BuddySuite implements Buddy<[
 			});
 
 			describe("With null fields", {
+				it("should compile if all fields are null and nothing is passed to the constructor", {
+					new AllowNull().name.should.be(null);
+				});
 				it("should compile if field value is missing", {
 					new AllowNull({}).name.should.be(null);
 				});
@@ -261,7 +264,11 @@ class Tests extends BuddySuite implements Buddy<[
 				
 				it("should throw an exception when setting a property to an invalid value after instantiation", {
 					(function() prop.get_set = "ABC").should.throwType(String);
-				});				
+				});	
+				
+				it("should not be possible to assign to def_null", {
+					CompilationShould.failFor(prop.def_null = "assigned");
+				});
 			});
 
 			describe("With an existing constructor", {
@@ -364,13 +371,9 @@ class Tests extends BuddySuite implements Buddy<[
 			
 			describe("Using the @immutable metadata", {
 				it("should convert all var fields into (default, null) properties.", {
-					// Difficult to test compilations errors...!
-					var immutable = new ImmutableClass({ id: 123, name: "Test" });
-					immutable.should.beType(ImmutableClass);
-					
-					//immutable.id = 456;
-					immutable.id.should.be(123);
-					immutable.name.should.be("Test");					
+					var immutable = new ImmutableClass( { id: 123, name: "Test" } );
+					CompilationShould.failFor(immutable.id = 456);
+					CompilationShould.failFor(immutable.name = "Not a test");
 				});
 			});
 		});

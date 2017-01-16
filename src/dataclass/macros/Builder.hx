@@ -200,11 +200,51 @@ class Builder
 				Context.error("DataClass without @noValidator metadata cannot have a method called 'validate'", validateField.pos);
 		}		
 	}
-	
+
+	function throwFailedValidation(message : String, arg : Expr) {
+		return CLASS.implementsInterface("HaxeContracts")
+			? macro throw new haxecontracts.ContractException($v{message}, this, $arg)
+			: macro throw $v{message};
+	}
+			
+	function dataClassFieldsIncludingSuperFields()
+		return CLASS.superclassFields().concat(DATACLASSFIELDS);
+
+	function areAllDataClassFieldsOptional() 
+		return !dataClassFieldsIncludingSuperFields().exists(function(f) return !f.isOptional());
+			
 	function createDataClassFields() {
 		//trace("======= " + CLASS.name);
 		
 		var newSetters = [];
+
+		function createNewSetter(field : DataField) {
+			var fieldName = field.name;
+			var argName = 'v';
+			var errorMsg = "Validation failed for " + CLASS.name + "." + field.name;
+			var identifier = macro $i{argName};
+			var validationExpr = createValidationTestExpr(field, identifier, throwFailedValidation(errorMsg, identifier));
+			
+			return {
+				access: [],
+				doc: null,
+				kind: FFun({
+					args: [{
+						meta: null,
+						name: 'v',
+						opt: false,
+						type: field.type(),
+						value: null
+					}],
+					expr: macro { $validationExpr; return this.$fieldName = v; },
+					params: null,
+					ret: field.type()
+				}),
+				meta: null,
+				name: 'set_' + field.name,
+				pos: field.pos
+			}
+		}
 		
 		var newDataClassFields = DATACLASSFIELDS.map(function(field) {
 			var setAccess = field.setAccess(CLASS.isImmutable());
@@ -215,7 +255,27 @@ class Builder
 				setAccess = 'set';
 			} else if (setAccess == 'set') {
 				// If a setter already exists, inject validation into it
-				injectValidatorIntoSetter(field);
+				var setterField = OTHERFIELDS.find(function(f) return f.name == 'set_' + field.name);
+				if (setterField == null) Context.error("Missing setter for " + field.name, field.pos);
+				
+				var func = switch setterField.kind {
+					case FFun(f): f;
+					case _: Context.error("Invalid setter: not a method", setterField.pos);
+				}
+				
+				if (func.expr == null) Context.error("Empty setter", setterField.pos);
+				if (func.args.length != 1) Context.error("Invalid number of setter arguments", setterField.pos);
+
+				var param = func.args[0];
+
+				var errorMsg = "Validation failed for " + CLASS.name + "." + field.name;
+				var identifier = macro $i{param.name};
+				var validationTestExpr = createValidationTestExpr(field, identifier, throwFailedValidation(errorMsg, identifier));
+				
+				switch func.expr.expr {
+					case EBlock(exprs): exprs.unshift(validationTestExpr);
+					case _: func.expr = {expr: EBlock([validationTestExpr, func.expr]), pos: func.expr.pos};
+				}
 			}
 			
 			return {
@@ -250,67 +310,6 @@ class Builder
 			case Some(testExpr): macro if ($testExpr) $failExpr;
 		}
 	}
-	
-	function throwFailedValidation(message : String, arg : Expr) {
-		return CLASS.implementsInterface("HaxeContracts")
-			? macro throw new haxecontracts.ContractException($v{message}, this, $arg)
-			: macro throw $v{message};
-	}
-	
-	function createNewSetter(field : DataField) {
-		var fieldName = field.name;
-		var argName = 'v';
-		var errorMsg = "Validation failed for " + CLASS.name + "." + field.name;
-		var identifier = macro $i{argName};
-		var validationExpr = createValidationTestExpr(field, identifier, throwFailedValidation(errorMsg, identifier));
-		
-		return {
-			access: [],
-			doc: null,
-			kind: FFun({
-				args: [{
-					meta: null,
-					name: 'v',
-					opt: false,
-					type: field.type(),
-					value: null
-				}],
-				expr: macro { $validationExpr; return this.$fieldName = v; },
-				params: null,
-				ret: field.type()
-			}),
-			meta: null,
-			name: 'set_' + field.name,
-			pos: field.pos
-		}
-	}
-	
-	function injectValidatorIntoSetter(field : DataField) {
-		var setterField = OTHERFIELDS.find(function(f) return f.name == 'set_' + field.name);
-		if (setterField == null) Context.error("Missing setter for " + field.name, field.pos);
-		
-		var func = switch setterField.kind {
-			case FFun(f): f;
-			case _: Context.error("Invalid setter: not a method", setterField.pos);
-		}
-		
-		if (func.expr == null) Context.error("Empty setter", setterField.pos);
-		if (func.args.length != 1) Context.error("Invalid number of setter arguments", setterField.pos);
-
-		var param = func.args[0];
-
-		var errorMsg = "Validation failed for " + CLASS.name + "." + field.name;
-		var identifier = macro $i{param.name};
-		var validationTestExpr = createValidationTestExpr(field, identifier, throwFailedValidation(errorMsg, identifier));
-		
-		switch func.expr.expr {
-			case EBlock(exprs): exprs.unshift(validationTestExpr);
-			case _: func.expr = {expr: EBlock([validationTestExpr, func.expr]), pos: func.expr.pos};
-		}
-	}
-	
-	function dataClassFieldsIncludingSuperFields()
-		return CLASS.superclassFields().concat(DATACLASSFIELDS);
 	
 	function createValidator() : Null<Field> {
 		if (!CLASS.shouldAddValidator()) 
@@ -355,19 +354,41 @@ class Builder
 		}
 	}
 	
-	function allDataClassFieldsOptional() return !DATACLASSFIELDS.exists(function(f) return !f.isOptional());
-	
 	function createConstructor() {
+		// Returns all field assignments based on the first constructor parameter.
+		// "this.name = data.name"
+		function constructorAssignments(fieldName : String) : Expr {
+			var assignments = dataClassFieldsIncludingSuperFields().filter(function(f) {
+				var access = f.setAccess(CLASS.isImmutable());
+				return access != 'never';
+			})
+			.map(function(f : DataField) {
+				var optionalTest = if (f.isOptional())
+					macro Reflect.hasField($i{fieldName}, $v{f.name})
+				else
+					macro true;
+					
+				return macro if($optionalTest) $p{['this', f.name]} = $p{[fieldName, f.name]};
+			});
+			
+			var block = areAllDataClassFieldsOptional()
+				? (macro if ($i{fieldName} != null) $b{assignments}) 
+				: macro $b{assignments};
+				
+			return block;
+		}
+		
 		var existing : Field = OTHERFIELDS.find(function(f) return f.name == 'new');
 		var arguments = if (existing != null) {
 			switch existing.kind {
 				case FFun(f):
+					// Testing for a correct constructor definition
 					if (f.args.length == 0) {
 						Context.error("The DataClass constructor must have at least one parameter.", f.expr.pos);
 					}					
 					else if (f.args[0].type != null) {
 						Context.error("The first parameter in a DataClass constructor cannot have a type.", f.expr.pos);
-					} else if (allDataClassFieldsOptional() && (f.args[0].opt == null || !f.args[0].opt)) {
+					} else if (areAllDataClassFieldsOptional() && (f.args[0].opt == null || !f.args[0].opt)) {
 						Context.error("All DataClass fields are optional, so the first constructor parameter must also be optional.", f.expr.pos);
 					} else if (f.args[0].value != null) {
 						Context.error("The first parameter in a DataClass constructor cannot have a default value.", f.expr.pos);
@@ -380,7 +401,7 @@ class Builder
 					// Set type for first argument, and return the args structure
 					f.args[0].type = assignmentAnonymousType();
 					
-					var assignments = dataClassAssignments(f.args[0].name);
+					var assignments = constructorAssignments(f.args[0].name);
 					switch(f.expr.expr) {
 						case EBlock(exprs): exprs.unshift(assignments);
 						case _: f.expr = {
@@ -396,7 +417,7 @@ class Builder
 		} else [{
 			meta: null,
 			name: 'data',
-			opt: allDataClassFieldsOptional(),
+			opt: areAllDataClassFieldsOptional(),
 			type: assignmentAnonymousType(),
 			value: null
 		}];
@@ -406,7 +427,7 @@ class Builder
 			doc: if (existing != null) existing.doc else null,
 			kind: if(existing != null) existing.kind else FFun({
 				args: arguments,
-				expr: dataClassAssignments(arguments[0].name),
+				expr: constructorAssignments(arguments[0].name),
 				params: null,
 				ret: null
 			}),
@@ -433,27 +454,6 @@ class Builder
 		});
 		
 		return TAnonymous(fields);
-	}
-	
-	function dataClassAssignments(fieldName : String) : Expr {
-		var assignments = dataClassFieldsIncludingSuperFields().filter(function(f) {
-			var access = f.setAccess(CLASS.isImmutable());
-			return access != 'never';
-		})
-		.map(function(f : DataField) {
-			var optionalTest = if (f.isOptional())
-				macro Reflect.hasField($i{fieldName}, $v{f.name})
-			else
-				macro true;
-				
-			return macro if($optionalTest) $p{['this', f.name]} = $p{[fieldName, f.name]};
-		});
-		
-		var block = allDataClassFieldsOptional()
-			? (macro if ($i{fieldName} != null) $b{assignments}) 
-			: macro $b{assignments};
-			
-		return block;
 	}
 }
 
