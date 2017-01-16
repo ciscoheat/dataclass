@@ -2,16 +2,14 @@ package dataclass;
 
 #if macro
 import haxe.macro.Expr;
+import haxe.macro.Context;
 using haxe.macro.ExprTools;
 using Lambda;
 #end
 
 import haxe.DynamicAccess;
-import haxe.macro.Context;
 import haxe.rtti.Meta;
 
-#if (python && haxe_ver < 3.3)
-#else
 using StringTools;
 using Converter.StringConverter;
 
@@ -30,7 +28,6 @@ class Converter
 	public static var dateFormat = "%Y-%m-%d %H:%M:%S";
 }
 
-#if (haxe_ver >= 3.3)
 class RecursiveConverter
 {
 	/**
@@ -80,7 +77,6 @@ class RecursiveConverter
 		return Type.createInstance(cls, [output]);
 	}
 }
-#end
 
 class DynamicObjectConverter 
 {
@@ -185,9 +181,7 @@ class DynamicObjectConverter
 		return output;
 	}
 	
-	#if (haxe_ver >= 3.3)
 	@:allow(dataclass.RecursiveConverter)
-	#end
 	private static function toCorrectValue(type : String, data : Dynamic, throwIfNotSupported : Bool, ?delimiter : String, ?fieldName : String) : Dynamic {
 		return data == null ? null : switch type {
 			case "String": Std.string(data);
@@ -338,4 +332,3 @@ class FloatConverter {
 	public static function toDate(f : Float)
 		return Date.fromTime(f);
 }
-#end

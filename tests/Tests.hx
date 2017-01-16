@@ -16,7 +16,7 @@ using StringTools;
 using buddy.Should;
 using dataclass.Converter;
 
-enum Color { Red; Blue; }
+enum Color { Red; Blue; Rgb(r: Int, g: Int, b: Int); }
 
 class RequireId implements DataClass
 {
@@ -183,6 +183,19 @@ class Tests extends BuddySuite implements Buddy<[
 ]>
 {	
 	public function new() {
+		describe("Enum conversion", {
+			it("should be possible to convert strings to simple Enums", {
+				var input = "Red";
+				var type = Type.resolveEnum("Color");
+				
+				var obj = new DefaultValue({
+					color: Type.createEnum(type, input)
+				});
+				
+				obj.color.should.equal(Color.Red);
+			});
+		});
+		
 		describe("DataClass", {
 			describe("With non-null fields", {
 				it("should not compile if non-null value is missing", {

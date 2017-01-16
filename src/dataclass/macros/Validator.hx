@@ -26,13 +26,7 @@ class Validator
 	// Returns an Expr that, if true, should fail validation.
 	public static function createValidatorTestExpr(
 		type : ComplexType, field : Expr, isOptional : Bool, validators : Array<Expr>) : Option<Expr> {
-		/*
-		var fieldExists = if (fieldMustExist) {
-			var f = field.toString().split(".");
-			macro Reflect.hasField($i{f[0]}, $v{f[1]});
-		} else macro true;
-		*/
-		
+
 		// TODO: Support more than one validator
 		if (validators.length > 1) 
 			Context.error("Currently only one @validate() is supported per field", validators[1].pos);

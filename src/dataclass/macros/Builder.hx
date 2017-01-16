@@ -44,19 +44,30 @@ private abstract DataField(DataClassField) to Field
 	}
 	
 	public function isDataClassField() return
-		type() != null &&
+		isVarOrProp() &&
 		!this.access.has(AStatic) &&
 		!this.meta.exists(function(m) return m.name == 'exclude') &&
 		(this.access.has(APublic) || this.meta.exists(function(m) return m.name == 'include'));
 
 	public function isOptional() return 
 		canBeNull() || defaultValue() != null;
-
+		
 	// Returns the ComplexType of the var, or null if field isn't a var/prop.
+	public function isVarOrProp() : Bool return switch this.kind {
+		case FVar(t, _), FProp(_, _, t, _): true;
+		case _: false;
+	}
+
+	// Returns the ComplexType of the var, using the defaultvalue if not type exists.
 	public function type() : Null<ComplexType> return switch this.kind {
-		case FVar(t, _): t;
-		case FProp(_, _, t, _): t;
-		case _: null;
+		case FVar(t, _), FProp(_, _, t, _): 
+			if (t == null && defaultValue() != null) try {
+				Context.toComplexType(Context.typeof(defaultValue()));
+			} catch (e : Dynamic) { 
+				t;
+			} else 
+				t;
+		case _: Context.error("A DataClass field cannot be a function", this.pos);
 	}
 
 	public function getAccess() : String return switch this.kind {
@@ -185,14 +196,19 @@ class Builder
 		return new Builder().createDataClassFields();
 	}
 	
-	function new() {
+	function new() {		
 		var allFields = Context.getBuildFields();
 		
 		CLASS = new DataClassType(Context.getLocalClass().get());
+		//trace("======= " + CLASS.name);
+
 		OTHERFIELDS = allFields.filter(function(f) return !DataField.fromField(f).isDataClassField());
 		DATACLASSFIELDS = allFields
 			.map(function(f) return DataField.fromField(f))
 			.filter(function(f) return f.isDataClassField());
+			
+		//trace('Other: ' + OTHERFIELDS.map(function(f) return f.name));
+		//trace('DataClassFields: ' + DATACLASSFIELDS.map(function(f) return f.name));
 		
 		if (CLASS.shouldAddValidator()) {
 			var validateField = OTHERFIELDS.find(function(f) return f.name == "validate");
@@ -214,9 +230,7 @@ class Builder
 		return !dataClassFieldsIncludingSuperFields().exists(function(f) return !f.isOptional());
 			
 	// Entry point 
-	function createDataClassFields() : Array<Field> {
-		//trace("======= " + CLASS.name);
-		
+	function createDataClassFields() : Array<Field> {		
 		var newSetters = [];
 
 		function createNewSetter(field : DataField) {
@@ -232,7 +246,7 @@ class Builder
 				kind: FFun({
 					args: [{
 						meta: null,
-						name: 'v',
+						name: argName,
 						opt: false,
 						type: field.type(),
 						value: null
@@ -295,6 +309,8 @@ class Builder
 		}
 		
 		var normalFieldsWithoutConstructor = OTHERFIELDS.filter(function(f) return f.name != 'new');
+				
+		//for (f in newDataClassFields) trace(f.name + " -> " + f.kind);
 		
 		return normalFieldsWithoutConstructor
 			.concat([createValidator(), createConstructor()])
@@ -371,11 +387,12 @@ class Builder
 					: assignment;
 			});
 			
+			//trace(assignments.map(function(a) return a.toString()).join(";\n"));
+			
 			var block = areAllDataClassFieldsOptional()
 				? (macro if ($i{fieldName} != null) $b{assignments}) 
 				: macro $b{assignments};
 			
-			//trace(block.toString());
 				
 			return block;
 		}
