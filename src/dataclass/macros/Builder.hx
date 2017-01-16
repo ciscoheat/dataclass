@@ -86,13 +86,13 @@ private abstract DataField(DataClassField) to Field
 }
 
 @:forward(name, pos)
-private abstract DataClassType(ClassType) from ClassType
+private abstract DataClassType(ClassType)
 {
 	public function new(cls : ClassType) {
 		this = cls;
 		
 		// Assert that no parent class implements DataClass
-		for(superClass in superClasses()) {
+		for (superClass in superClasses()) {
 			if (superClass.interfaces.exists(function(i) return i.t.get().name == 'DataClass'))
 				Context.error("A parent class cannot implement DataClass", superClass.pos);
 		}
@@ -188,7 +188,7 @@ class Builder
 	function new() {
 		var allFields = Context.getBuildFields();
 		
-		CLASS = Context.getLocalClass().get();
+		CLASS = new DataClassType(Context.getLocalClass().get());
 		OTHERFIELDS = allFields.filter(function(f) return !DataField.fromField(f).isDataClassField());
 		DATACLASSFIELDS = allFields
 			.map(function(f) return DataField.fromField(f))
@@ -213,7 +213,8 @@ class Builder
 	function areAllDataClassFieldsOptional() 
 		return !dataClassFieldsIncludingSuperFields().exists(function(f) return !f.isOptional());
 			
-	function createDataClassFields() {
+	// Entry point 
+	function createDataClassFields() : Array<Field> {
 		//trace("======= " + CLASS.name);
 		
 		var newSetters = [];
@@ -363,17 +364,18 @@ class Builder
 				return access != 'never';
 			})
 			.map(function(f : DataField) {
-				var optionalTest = if (f.isOptional())
-					macro Reflect.hasField($i{fieldName}, $v{f.name})
-				else
-					macro true;
-					
-				return macro if($optionalTest) $p{['this', f.name]} = $p{[fieldName, f.name]};
+				var assignment = macro $p{['this', f.name]} = $p{[fieldName, f.name]};
+				
+				return f.isOptional()
+					? (macro if(Reflect.hasField($i{fieldName}, $v{f.name})) $assignment)
+					: assignment;
 			});
 			
 			var block = areAllDataClassFieldsOptional()
 				? (macro if ($i{fieldName} != null) $b{assignments}) 
 				: macro $b{assignments};
+			
+			//trace(block.toString());
 				
 			return block;
 		}

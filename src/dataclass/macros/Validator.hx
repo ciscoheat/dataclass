@@ -23,7 +23,6 @@ class Validator
 		}
 	}
 	
-	// TODO: Verify that Null<Int> cannot be used on static platforms
 	// Returns an Expr that, if true, should fail validation.
 	public static function createValidatorTestExpr(
 		type : ComplexType, field : Expr, isOptional : Bool, validators : Array<Expr>) : Option<Expr> {
@@ -54,15 +53,24 @@ class Validator
 					replaceParam(validator);
 			}
 		});
-		
-		var testExpr = if (validatorTests.length == 0 && cannotBeNull) {
-			macro $field == null;
-		} else if (validatorTests.length > 0) {
-			var test = validatorTests[0];
-			if (cannotBeNull) macro $field == null || !($test);
-			else macro $field != null && !($test);
+
+		var testExpr = if(nullTestAllowed(type)) {
+			if (validatorTests.length == 0 && !isOptional) {
+				macro $field == null;
+			} else if (validatorTests.length > 0) {
+				var test = validatorTests[0];
+				if (!isOptional) macro $field == null || !($test);
+				else macro $field != null && !($test);
+			} else {
+				null;
+			}
 		} else {
-			null;
+			if (validatorTests.length > 0) {
+				var test = validatorTests[0];
+				macro !($test);
+			} else {
+				null;
+			}
 		}
 		
 		//trace(testExpr.toString());

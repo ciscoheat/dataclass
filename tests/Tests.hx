@@ -7,14 +7,6 @@ import haxecontracts.ContractException;
 import haxecontracts.HaxeContracts;
 import subpack.AnotherConverter;
 
-#if js
-import js.Browser;
-import js.html.DivElement;
-import js.html.InputElement;
-import js.html.OptionElement;
-import js.html.SelectElement;
-#end
-
 #if cpp
 import hxcpp.StaticStd;
 import hxcpp.StaticRegexp;
@@ -108,7 +100,8 @@ class Validator implements DataClass
 
 class NullValidateTest implements DataClass
 {
-	@validate(_ > 1000) public var int : Null<Int>;
+	// Field cannot be called "int" on flash!
+	@validate(_ > 1000) public var integ : Null<Int>;
 }
 
 // Need @:keep to work in dce=full
@@ -116,7 +109,7 @@ class NullValidateTest implements DataClass
 {
 	public var date : String;
 	public var bool : Bool;
-	@validate(_ > 1000) public var int : Int;
+	@validate(_ > 1000) public var integ : Int;
 	public var anything : String;
 }
 
@@ -124,7 +117,7 @@ class NullValidateTest implements DataClass
 @:keep class TestConverter implements DataClass
 {
 	public var bool : Bool;
-	public var int : Int;
+	public var integ : Int;
 	public var date : Date;
 	public var float : Float;
 }
@@ -185,11 +178,8 @@ interface ExtendingInterface extends DataClass
 
 class Tests extends BuddySuite implements Buddy<[
 	Tests, 
-	#if (python && haxe_ver < 3.3)
-	#else
-	ConverterTests, 
+	//ConverterTests, 
 	InheritanceTests
-	#end
 ]>
 {	
 	public function new() {
@@ -298,11 +288,9 @@ class Tests extends BuddySuite implements Buddy<[
 			});
 
 			describe("Validators", {
-#if !php
 				it("should validate with @validate(...) expressions", {
 					(function() new Validator({ date: "2015-12-12", str: "AAA", int: 1001 })).should.not.throwAnything();
 				});
-#end
 
 				it("should validate regexps as a ^...$ regexp.", {
 					(function() new Validator({	date: "*2015-12-12*", str: "AAA", int: 1001 })).should.throwType(String);
@@ -315,24 +303,24 @@ class Tests extends BuddySuite implements Buddy<[
 				
 #if !static
 				it("should accept null values if field can be null", {
-					new NullValidateTest({ int: null }).int.should.be(null);
-					new NullValidateTest().int.should.be(null);
-					(function() new NullValidateTest( { int: 1 } )).should.throwType(String);
-					new NullValidateTest({ int: 2000 }).int.should.be(2000);
+					new NullValidateTest({ integ: null }).integ.should.be(null);
+					new NullValidateTest().integ.should.be(null);
+					(function() new NullValidateTest( { integ: 1 } )).should.throwType(String);
+					new NullValidateTest({ integ: 2000 }).integ.should.be(2000);
 				});
 #end
 
 				it("should throw an exception when setting a var to an invalid value after instantiation", {
-					var test = new NullValidateTest( { int: 2000 } );
-					test.int.should.be(2000);
+					var test = new NullValidateTest( { integ: 2000 } );
+					test.integ.should.be(2000);
 #if !static
-					test.int = null;
-					test.int.should.be(null);
+					test.integ = null;
+					test.integ.should.be(null);
 #end
-					test.int = 3000;
-					test.int.should.be(3000);
-					(function() test.int = 100).should.throwType(String);
-					test.int.should.be(3000);
+					test.integ = 3000;
+					test.integ.should.be(3000);
+					(function() test.integ = 100).should.throwType(String);
+					test.integ.should.be(3000);
 				});
 			});
 			
@@ -378,9 +366,7 @@ class Tests extends BuddySuite implements Buddy<[
 			});
 		});
 
-		#if (python && haxe_ver < 3.3)
-		#else
-		describe("DataClass conversions", {
+		@exclude describe("DataClass conversions", {
 			it("should convert Dynamic to the correct type.", {
 				var data = {
 					date: "2015-12-12",
@@ -394,7 +380,7 @@ class Tests extends BuddySuite implements Buddy<[
 				
 				a.date.should.be("2015-12-12");
 				a.bool.should.be(true);
-				a.int.should.be(2000);
+				a.integ.should.be(2000);
 				Reflect.hasField(a, "doesNotExist").should.be(false);
 				a.anything.should.match(~/\{\s*test\b.+\b123\s*\}/);
 			});
@@ -439,14 +425,8 @@ class Tests extends BuddySuite implements Buddy<[
 					float: "123.45"
 				});
 				
-				#if (cs && haxe_ver < 3.3)
-				// Works in 3.3 at least.
-				a.date.toString().should.match(~/^\d\d-\d\d-\d\d \d\d:16:14$/);
-				b.date.toString().should.match(~/^\d\d-\d\d-\d\d \d\d:16:14$/);
-				#else
 				a.date.toString().should.match(~/^2016-06-1[89] \d\d:16:14$/);
 				b.date.toString().should.match(~/^2016-06-1[89] \d\d:16:14$/);
-				#end
 			});
 			
 			it("should parse money format correctly", {
@@ -516,12 +496,9 @@ class Tests extends BuddySuite implements Buddy<[
 				Converter.delimiter = old;				
 			});
 		});
-		#end
 	}	
 }
 
-#if (python && haxe_ver < 3.3)
-#else
 class ConverterTests extends BuddySuite
 {	
 	public function new() {
@@ -531,7 +508,7 @@ class ConverterTests extends BuddySuite
 			beforeEach({
 				var data = {
 					bool: "true".toBool(),
-					int: "123".toInt(),
+					integ: "123".toInt(),
 					date: "2015-01-01 00:00:00".toDate(),
 					float: "456.789".toFloat()
 				};
@@ -541,14 +518,14 @@ class ConverterTests extends BuddySuite
 			
 			it("should work with the supported types", {
 				test.bool.should.be(true);
-				test.int.should.be(123);
+				test.integ.should.be(123);
 				DateTools.format(test.date, "%Y-%m-%d %H:%M:%S").should.be("2015-01-01 00:00:00");
 				test.float.should.beCloseTo(456.789, 3);
 				
 				test.bool.toString({tru: "YES", fals: "NO"}).should.be("YES");
 				(false).toString({tru: "YES", fals: "NO"}).should.be("NO");
 				
-				test.int.toString().should.be("123");
+				test.integ.toString().should.be("123");
 				test.date.toStringFormat("%Y-%m-%d").should.be("2015-01-01");
 				test.float.toString().should.be("456.789");				
 			});
@@ -580,7 +557,6 @@ class ConverterTests extends BuddySuite
 			});
 		});
 		
-		#if (haxe_ver >= 3.3)
 		describe("RecursiveConverter (3.3+ only)", {
 			var data : Dynamic;
 			
@@ -629,10 +605,8 @@ class ConverterTests extends BuddySuite
 				#end
 			});
 		});
-		#end
 	}
 }
-#end
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -660,8 +634,6 @@ class SomePerson extends Document implements DataClass
 	@validate(_.indexOf("@") > 0) public var email : String;
 }
 
-#if (python && haxe_ver < 3.3)
-#else
 class InheritanceTests extends BuddySuite
 {
 	public function new() {
@@ -700,4 +672,3 @@ class InheritanceTests extends BuddySuite
 		});
 	}
 }
-#end
