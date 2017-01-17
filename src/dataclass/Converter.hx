@@ -13,6 +13,11 @@ import haxe.rtti.Meta;
 using StringTools;
 using Converter.StringConverter;
 
+typedef ValueConverter<T> = {
+	function from(string : String) : T;
+	function to(value : T) : String;
+}
+
 // TODO: Move to ORM configuration
 typedef ConverterOptions = {
 	?delimiter : String,
@@ -24,7 +29,7 @@ class Converter
 {
 	///// Default configuration /////	
 	public static var delimiter = ".";
-	public static var boolValues = { tru: "1", fals: "0" };
+	public static var boolValues = { tru: "1", fals: "0" };	
 	public static var dateFormat = "%Y-%m-%d %H:%M:%S";
 }
 

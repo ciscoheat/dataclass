@@ -16,7 +16,12 @@ using StringTools;
 using buddy.Should;
 using dataclass.Converter;
 
-enum Color { Red; Blue; Rgb(r: Int, g: Int, b: Int); }
+@:enum abstract HttpStatus(Int) {
+	var NotFound = 404;
+	var MethodNotAllowed = 405;
+}
+
+enum Color { Red; Blue; } //Rgb(r: Int, g: Int, b: Int); }
 
 class RequireId implements DataClass
 {
@@ -28,14 +33,22 @@ class IdWithConstructor implements DataClass
 {
 	public var id : Int;
 	@exclude public var initialId : Int;
+	@exclude public var defaultParameter : String;
+	@exclude public var nullParameter : String;
+	@exclude public var extra : String;
 	
 	// Dataclass code will be injected before other things in the constructor.
-	public function new(data) {
+	public function new(data : {extra : String}, second = "ok", ?third : String) {
 		// This value will be tested
 		this.id = 9876;
+		this.defaultParameter = second;
+		this.nullParameter = third;
 		
 		// Test if type is correct
 		initialId = data.id;
+		
+		// Extra parameter assignment
+		this.extra = data.extra;
 	}
 }
 
@@ -48,9 +61,10 @@ class AllowNull implements DataClass
 class DefaultValue implements DataClass
 {
 	// Default value set if no other supplied
-	public var city : String = "Nowhere";
+	@validate(_.length > 0) public var city : String = "Nowhere";
 	public var color : Color = Blue;
 	public var date : Date = Date.now();
+	public var status : HttpStatus = NotFound;
 }
 
 class HasProperty implements DataClass
@@ -168,6 +182,7 @@ class DeepTest implements DataClass {
 	public var id : String;
 	public var single : DeepConverter;
 	public var array : Array<ImmutableClass>;
+	public var csv : Array<Array<String>>;
 	@exclude public var unconvertable : Array<String -> Int>;
 }
 
@@ -179,26 +194,11 @@ interface ExtendingInterface extends DataClass
 
 class Tests extends BuddySuite implements Buddy<[
 	Tests, 
-	//ConverterTests, 
+	ConverterTests, 
 	InheritanceTests
 ]>
 {	
 	public function new() {
-		describe("Enum conversion", {
-			it("should be possible to convert strings to simple Enums", {
-				var input = "Red";
-				var type = Type.resolveEnum("Color");
-				
-				var obj = new DefaultValue({
-					color: Type.createEnum(type, input)
-				});
-				
-				obj.color.should.equal(Color.Red);
-				
-				//new IdWithConstructor({
-			});
-		});
-		
 		describe("DataClass", {
 			describe("With non-null fields", {
 				it("should not compile if non-null value is missing", {
@@ -244,6 +244,12 @@ class Tests extends BuddySuite implements Buddy<[
 				it("should be set to the supplied value if field value is supplied", {
 					new DefaultValue( { city: "Somewhere" } ).city.should.be("Somewhere");
 				});
+				
+				it("should fail validation if set to an invalid value", {
+					var o = new DefaultValue();
+					(function() o.city = "").should.throwType(String);
+					(function() o.date = null).should.throwType(String);
+				});
 			});
 
 			describe("With property fields", {
@@ -279,28 +285,32 @@ class Tests extends BuddySuite implements Buddy<[
 
 			describe("With an existing constructor", {
 				it("should inject the dataclass code at the top", {
-					var prop = new IdWithConstructor({
-						id: 1234
+					var prop2 = new IdWithConstructor({
+						id: 1234,
+						extra: "extraField"
 					});
 					
-					// Set in constructor, below the dataclass code.
-					prop.id.should.be(9876);
-					prop.initialId.should.be(1234);
+					// Set in constructor
+					prop2.id.should.be(9876);
+					prop2.initialId.should.be(1234);
+					prop2.defaultParameter.should.be("ok");
+					prop2.nullParameter.should.be(null);
+					prop2.extra.should.be("extraField");
 				});
 			});
 
 			describe("With @exclude on a public field", {
 				it("should skip the field altogether", {
-					var o = new ExcludeTest({ id: 123 });
-					o.input.should.be(null);
+					var o2 = new ExcludeTest({ id: 123 });
+					o2.input.should.be(null);
 				});
 			});
 
 			describe("With @include on a private field", {
 				it("should include the field", {
-					var o = new IncludeTest({ id: 123 });					
-					o.itsId().should.be(123);
-					o.notUsed.should.be("not used");
+					var o3 = new IncludeTest({ id: 123 });					
+					o3.itsId().should.be(123);
+					o3.notUsed.should.be("not used");
 				});
 			});
 
@@ -365,7 +375,7 @@ class Tests extends BuddySuite implements Buddy<[
 					HasProperty.validate( { called: ["should fail"] } ).should.containAll(
 						['called', 'def_null', 'def_def', 'get_set', 'get_null']
 					);
-					HasProperty.validate( { called: ["should fail"] } ).length.should.be(5);
+					HasProperty.validate( { called: ["should fail"] } ).length.should.be(5);					
 				});
 			});
 			
@@ -520,12 +530,31 @@ class Tests extends BuddySuite implements Buddy<[
 class ConverterTests extends BuddySuite
 {	
 	public function new() {
+		@include describe("Enum conversion", {
+			it("should be possible to convert strings to simple Enums and back", {
+				var input = "Red";
+				var type = Type.resolveEnum("Color");
+				
+				var obj = new DefaultValue({
+					color: Type.createEnum(type, input)
+				});
+				
+				obj.color.should.equal(Color.Red);
+				obj.status.should.be(HttpStatus.NotFound);
+				
+				var json = Orm.toJson(obj);
+				var reconverted = Orm.fromJson(DefaultValue, json);
+				
+				Json.stringify(json).should.be(Json.stringify(Orm.toJson(reconverted)));
+			});
+		});
+		
 		describe("Converter", {
 			var test : TestConverter;
 			
 			beforeEach({
 				var data = {
-					bool: "true".toBool(),
+					bool: true,
 					integ: "123".toInt(),
 					date: "2015-01-01 00:00:00".toDate(),
 					float: "456.789".toFloat()
@@ -539,13 +568,6 @@ class ConverterTests extends BuddySuite
 				test.integ.should.be(123);
 				DateTools.format(test.date, "%Y-%m-%d %H:%M:%S").should.be("2015-01-01 00:00:00");
 				test.float.should.beCloseTo(456.789, 3);
-				
-				test.bool.toString({tru: "YES", fals: "NO"}).should.be("YES");
-				(false).toString({tru: "YES", fals: "NO"}).should.be("NO");
-				
-				test.integ.toString().should.be("123");
-				test.date.toStringFormat("%Y-%m-%d").should.be("2015-01-01");
-				test.float.toString().should.be("456.789");				
 			});
 
 			it("should be able to create one object from another", {
