@@ -9,6 +9,7 @@ import haxe.macro.Expr;
 import haxe.macro.Type;
 
 using haxe.macro.ExprTools;
+using haxe.macro.MacroStringTools;
 using Lambda;
 using StringTools;
 
@@ -58,15 +59,9 @@ private abstract DataField(DataClassField) to Field
 		case _: false;
 	}
 
-	// Returns the ComplexType of the var, using the defaultvalue if not type exists.
+	// Returns the ComplexType of the var
 	public function type() : Null<ComplexType> return switch this.kind {
-		case FVar(t, _), FProp(_, _, t, _): 
-			if (t == null && defaultValue() != null) try {
-				Context.toComplexType(Context.typeof(defaultValue()));
-			} catch (e : Dynamic) { 
-				t;
-			} else 
-				t;
+		case FVar(t, _), FProp(_, _, t, _): t;
 		case _: Context.error("A DataClass field cannot be a function", this.pos);
 	}
 
@@ -96,7 +91,7 @@ private abstract DataField(DataClassField) to Field
 	}	
 }
 
-@:forward(name, pos)
+@:forward(name, pos, meta, pack)
 private abstract DataClassType(ClassType)
 {
 	public function new(cls : ClassType) {
@@ -188,7 +183,7 @@ class Builder
 	var CLASS(default, null) : DataClassType;
 	var OTHERFIELDS(default, null) : Array<Field>;
 	var DATACLASSFIELDS(default, null) : Array<DataField>;
-	
+		
 	static public function build() : Array<Field> {
 		var cls = Context.getLocalClass().get();
 		if (cls.isInterface) return null;
@@ -199,9 +194,7 @@ class Builder
 	function new() {		
 		var allFields = Context.getBuildFields();
 		
-		CLASS = new DataClassType(Context.getLocalClass().get());
-		//trace("======= " + CLASS.name);
-
+		CLASS = new DataClassType(Context.getLocalClass().get());		
 		OTHERFIELDS = allFields.filter(function(f) return !DataField.fromField(f).isDataClassField());
 		DATACLASSFIELDS = allFields
 			.map(function(f) return DataField.fromField(f))
@@ -230,7 +223,9 @@ class Builder
 		return !dataClassFieldsIncludingSuperFields().exists(function(f) return !f.isOptional());
 			
 	// Entry point 
-	function createDataClassFields() : Array<Field> {		
+	function createDataClassFields() : Array<Field> {
+		//trace("======= " + CLASS.name);
+		
 		var newSetters = [];
 
 		function createNewSetter(field : DataField) {
@@ -302,6 +297,56 @@ class Builder
 				pos: field.pos
 			}
 		});
+		
+		// Create metadata for ORM
+		function ormFieldType(t : Type, field : DataField) : String {
+			function error(msg = "Unsupported DataClass type, mark with @exclude if it's required.") {
+				Context.error(msg, field.pos);
+				return null;
+			}
+			
+			return switch t {
+				case TEnum(enumType, _):
+					var e = enumType.get();
+					for (c in e.constructs) if (c.params.length > 0) 
+						error("Only Enums without constructors can be a DataClass field.");
+					"Enum<" + e.pack.toDotPath(e.name) + ">";
+				case TAbstract(t, params):
+					var type = t.get();
+					switch type.name {
+						case 'Int', 'Bool', 'Float': type.name;
+						case _: error();
+					}
+				case TInst(t, params):
+					var type = t.get();
+					switch type.name {
+						case 'String', 'Date': type.name;
+						case 'Array': "Array<" + ormFieldType(params[0], field) + ">";
+						case _:
+							var name = type.pack.toDotPath(type.name);
+							if (!type.interfaces.exists(function(i) return i.t.get().name == "DataClass"))
+								error('Class $name does not implement DataClass.');
+							name;
+					}
+				case _:
+					error();
+			}
+		}
+			
+		var ormMetadata = [for (field in newDataClassFields) switch field.kind {
+			case FProp(_, _, t, _):
+				var type = Context.followWithAbstracts(ComplexTypeTools.toType(t));
+				{
+					field: field.name, 
+					expr: macro $v{ormFieldType(type, field)}
+				}
+			case _: Context.error("Invalid DataClass field", field.pos);
+		}];
+		
+		//trace('===== ' + CLASS.name);
+		//trace(ormMetadata.map(function(f) return f.field + ": " + f.expr.toString()));
+
+		CLASS.meta.add("dataClassRtti", [{expr: EObjectDecl(ormMetadata), pos: CLASS.pos}], CLASS.pos);
 		
 		// As a last step, need to remove @validate from superclass fields, otherwise their Expr won't compile.
 		for (superClassField in CLASS.superClasses().flatMap(function(f) return f.fields.get())) {
@@ -398,7 +443,8 @@ class Builder
 		}
 		
 		var existing : Field = OTHERFIELDS.find(function(f) return f.name == 'new');
-		var arguments = if (existing != null) {
+		
+		var arguments : Array<FunctionArg> = if (existing != null) {
 			switch existing.kind {
 				case FFun(f):
 					// Testing for a correct constructor definition
@@ -406,7 +452,7 @@ class Builder
 						Context.error("The DataClass constructor must have at least one parameter.", f.expr.pos);
 					}					
 					else if (f.args[0].type != null) {
-						Context.error("The first parameter in a DataClass constructor cannot have a type.", f.expr.pos);
+						Context.warning("The first parameter in a DataClass constructor cannot have a type.", f.expr.pos);
 					} else if (areAllDataClassFieldsOptional() && (f.args[0].opt == null || !f.args[0].opt)) {
 						Context.error("All DataClass fields are optional, so the first constructor parameter must also be optional.", f.expr.pos);
 					} else if (f.args[0].value != null) {
@@ -417,7 +463,9 @@ class Builder
 							Context.error("All subsequent constructor parameters in a DataClass must be optional", f.expr.pos);
 						}
 					}
+					
 					// Set type for first argument, and return the args structure
+					// TODO: Code completion doesn't work for the constructor parameter
 					f.args[0].type = assignmentAnonymousType();
 					
 					var assignments = constructorAssignments(f.args[0].name);
@@ -447,8 +495,8 @@ class Builder
 			kind: if(existing != null) existing.kind else FFun({
 				args: arguments,
 				expr: constructorAssignments(arguments[0].name),
-				params: null,
-				ret: null
+				params: [],
+				ret: macro : Void
 			}),
 			meta: if (existing != null) existing.meta else null,
 			name: 'new',

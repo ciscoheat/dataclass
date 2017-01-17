@@ -49,8 +49,8 @@ class DefaultValue implements DataClass
 {
 	// Default value set if no other supplied
 	public var city : String = "Nowhere";
-	public var color = Blue;
-	public var date = Date.now();
+	public var color : Color = Blue;
+	public var date : Date = Date.now();
 }
 
 class HasProperty implements DataClass
@@ -155,7 +155,7 @@ class ExcludeTest implements DataClass {
 class IncludeTest implements DataClass {
 	@include var id : Int;	
 	public function itsId() return id;
-	public var notUsed = "not used";
+	public var notUsed : String = "not used";
 }
 
 @immutable class ImmutableClass implements DataClass
@@ -168,6 +168,7 @@ class DeepTest implements DataClass {
 	public var id : String;
 	public var single : DeepConverter;
 	public var array : Array<ImmutableClass>;
+	@exclude public var unconvertable : Array<String -> Int>;
 }
 
 interface ExtendingInterface extends DataClass
@@ -193,6 +194,8 @@ class Tests extends BuddySuite implements Buddy<[
 				});
 				
 				obj.color.should.equal(Color.Red);
+				
+				//new IdWithConstructor({
 			});
 		});
 		
@@ -297,6 +300,7 @@ class Tests extends BuddySuite implements Buddy<[
 				it("should include the field", {
 					var o = new IncludeTest({ id: 123 });					
 					o.itsId().should.be(123);
+					o.notUsed.should.be("not used");
 				});
 			});
 
@@ -344,6 +348,8 @@ class Tests extends BuddySuite implements Buddy<[
 					
 					Validator.validate({ date: "2016-05-06" }).should.containAll(['str', 'integ']);
 					Validator.validate( { date: "2016-05-06" } ).length.should.be(2);
+					
+					//var a = new Validator(
 					
 					var input = { integ: 1001, date: "2016-05-06", str: "AAA" };
 					Validator.validate(input).length.should.be(0);
