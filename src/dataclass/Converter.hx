@@ -11,9 +11,9 @@ typedef ValueConverter<From, To> = {
 	function output(value : To) : From;
 }
 
-interface Converter 
+interface Converter
 {
-	function toDataClass<T : DataClass>(cls : Class<T>, json : Dynamic) : T;
+	function toDataClass<T : DataClass>(cls : Class<T>, input : Dynamic) : T;
 	function fromDataClass(cls : DataClass) : DynamicAccess<Dynamic>;
 	
 	var valueConverters(default, null) : Map<String, ValueConverter<Dynamic, Dynamic>>;

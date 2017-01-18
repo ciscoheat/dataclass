@@ -15,7 +15,9 @@ import hxcpp.StaticRegexp;
 
 using StringTools;
 using buddy.Should;
+
 using dataclass.JsonConverter;
+using dataclass.CsvConverter;
 
 @:enum abstract HttpStatus(Int) {
 	var NotFound = 404;
@@ -421,9 +423,9 @@ class ConverterTests extends BuddySuite
 			});
 		});
 		
-		describe("ORM", {
+		describe("Converter", {
 			describe("From JSON", {
-				var orm1 : DeepTest;
+				var conv1 : DeepTest;
 				var json = {
 					id: "id",
 					single: {
@@ -446,33 +448,33 @@ class ConverterTests extends BuddySuite
 				};
 				
 				beforeEach({
-					orm1 = DeepTest.fromJson(json);
+					conv1 = DeepTest.fromJson(json);
 				});
 					
 				it("should convert json to DataClass", {
-					orm1.id.should.be("id");
+					conv1.id.should.be("id");
 					
-					orm1.single.integ.should.be(100);
+					conv1.single.integ.should.be(100);
 					
-					orm1.single.another.bool.should.be(true);
-					orm1.single.another.integ.should.be(1);
-					orm1.single.another.date.getFullYear().should.be(2017);
-					orm1.single.another.date.getMonth().should.be(0);
-					orm1.single.another.float.should.beCloseTo(3.1416, 4);
+					conv1.single.another.bool.should.be(true);
+					conv1.single.another.integ.should.be(1);
+					conv1.single.another.date.getFullYear().should.be(2017);
+					conv1.single.another.date.getMonth().should.be(0);
+					conv1.single.another.float.should.beCloseTo(3.1416, 4);
 					
-					orm1.array.length.should.be(2);
-					orm1.array[0].id.should.be(1);
-					orm1.array[0].name.should.be("1");
-					orm1.array[1].id.should.be(2);
-					orm1.array[1].name.should.be("2");
+					conv1.array.length.should.be(2);
+					conv1.array[0].id.should.be(1);
+					conv1.array[0].name.should.be("1");
+					conv1.array[1].id.should.be(2);
+					conv1.array[1].name.should.be("2");
 					
-					orm1.csv.length.should.be(2);
-					orm1.csv[0].length.should.be(3);
-					orm1.csv[1].length.should.be(3);
+					conv1.csv.length.should.be(2);
+					conv1.csv[0].length.should.be(3);
+					conv1.csv[1].length.should.be(3);
 				});
 				
 				it("should convert a DataClass to json", {
-					var oj = orm1.toJson();
+					var oj = conv1.toJson();
 					
 					oj['id'].should.be("id");
 					
@@ -491,6 +493,32 @@ class ConverterTests extends BuddySuite
 					csv.length.should.be(2);
 					var innerCsv = csv[0];
 					innerCsv[0].should.be("123");
+				});
+			});
+			
+			describe("From CSV", {
+				var csvDataClass = [
+					new TestConverter(
+						{bool: true, integ: 123, date: Date.fromString("2017-01-18 05:14:00"), float: 123.456 }
+					),
+					new TestConverter(
+						{bool: false, integ: -123, date: Date.fromString("2000-01-01 00:00:00"), float: -123.456 }
+					)
+				];
+				
+				var csvData = [
+					['bool', 'integ', 'date', 'float'],
+					['true', '123', "2017-01-18T05:14:00Z", '123.456'],
+					['false', '-123', "2000-01-01T00:00:00Z", '-123.456']
+				];
+				
+				it("should convert CSV to DataClass", {
+					var csvDataClasses = csvData.fromCsvArray(TestConverter);
+					trace(csvDataClasses);
+				});
+				it("should convert DataClass to CSV", {
+					var csvOutput = csvDataClass.toCsvArray();
+					trace(csvOutput);
 				});
 			});
 		});
