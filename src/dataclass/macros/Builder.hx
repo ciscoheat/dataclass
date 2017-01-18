@@ -16,19 +16,12 @@ using StringTools;
 
 // ============================================================================
 
-private typedef FieldDataProperties = {
-	optional: Bool, 
-	defaultValue: Expr, 
-	validator: Expr
-}
-
 private typedef DataClassField = {
 	> Field,
 	var validation(default, null) : Array<Expr>;
 }
 
 // ============================================================================
-
 
 @:forward(name, access, doc, meta, pos, validation)
 private abstract DataField(DataClassField) to Field
@@ -221,8 +214,11 @@ class Builder
 		
 		if (CLASS.shouldAddValidator()) {
 			var validateField = OTHERFIELDS.find(function(f) return f.name == "validate");
-			if(validateField != null)
-				Context.error("DataClass without @noValidator metadata cannot have a method called 'validate'", validateField.pos);
+			if(validateField != null) {
+				Context.error(
+					"DataClass without @noValidator metadata cannot have a method called 'validate'"
+				, validateField.pos);
+			}
 		}		
 	}
 	
@@ -323,7 +319,7 @@ class Builder
 		});
 		
 		// Create metadata for ORM
-		var ormMetadata = OrmBuilder.createMetadata(dataClassFieldsIncludingSuperFields());
+		var ormMetadata = RttiBuilder.createMetadata(dataClassFieldsIncludingSuperFields());
 		
 		//trace('===== ' + CLASS.name); trace(ormMetadata.map(function(f) return f.field + ": " + f.expr.toString()));
 
@@ -536,7 +532,7 @@ class Builder
 
 // ============================================================================
 
-private class OrmBuilder
+private class RttiBuilder
 {
 	public static function createMetadata(dataClassFields : Array<DataField>) : Array<{field: String, expr: Expr}> {
 		function ormFieldType(t : Type, field : DataField) : String {
@@ -581,15 +577,13 @@ private class OrmBuilder
 			}
 		}
 			
-		var ormMetadata = [for (field in dataClassFields) {
+		return [for (field in dataClassFields) {
 			var type = Context.followWithAbstracts(ComplexTypeTools.toType(field.type()));
 			{
 				field: field.name, 
 				expr: macro $v{ormFieldType(type, field)}
 			}
 		}];
-		
-		return ormMetadata;
 	}
 }
 
@@ -599,10 +593,12 @@ private class Validator
 {
 	static var illegalNullTypes = ['Int', 'Float', 'Bool'];
 	
-	// Complications: Testing for null is only allowed if on a non-static platform or the type is not a basic type.
+	static var isStaticPlatform = Context.defined("cpp") || Context.defined("java") || 
+		Context.defined("flash") || Context.defined("cs");
+	
+	// Testing for null is only allowed if on a non-static platform or the type is not a basic type.
 	public static function nullTestAllowed(type : ComplexType) : Bool {
-		var staticPlatform = Context.defined("cpp") || Context.defined("java") || Context.defined("flash") || Context.defined("cs");
-		if (!staticPlatform) return true;
+		if (!isStaticPlatform) return true;
 		
 		return switch Context.followWithAbstracts(ComplexTypeTools.toType(type)) {
 			case TAbstract(t, _):
