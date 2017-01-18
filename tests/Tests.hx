@@ -14,7 +14,7 @@ import hxcpp.StaticRegexp;
 
 using StringTools;
 using buddy.Should;
-using dataclass.Orm;
+using dataclass.JsonConverter;
 
 @:enum abstract HttpStatus(Int) {
 	var NotFound = 404;
