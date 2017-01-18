@@ -29,7 +29,6 @@
   </build>
   <!-- haxelib libraries -->
   <haxelib>
-    <library name="immutable" />
     <library name="HaxeContracts" />
     <library name="buddy" />
   </haxelib>

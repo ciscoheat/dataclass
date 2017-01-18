@@ -164,13 +164,7 @@ private abstract DataClassType(ClassType)
 	public function isImmutable() return this.meta.has("immutable");
 	
 	public function shouldAddValidator() return !this.meta.has("noValidator");
-	
-	// TODO: Throw custom class
-	/*
-	public function throwCustom() return Context.defined("dataclass-throw")
-		? Context.definedValue("dataclass-throw").split(".") : null;
-	*/
-	
+		
 	public function implementsInterface(interfaceName : String) {
 		return this.interfaces.map(function(i) return i.t.get()).exists(function(ct) {
 			return ct.name == interfaceName;
@@ -224,10 +218,29 @@ class Builder
 	
 	///////////////////////////////////////////////////////////////////////////
 
-	function throwFailedValidation(message : String, arg : Expr) {
-		return CLASS.implementsInterface("HaxeContracts")
-			? macro throw new haxecontracts.ContractException($v{message}, this, $arg)
-			: macro throw $v{message};
+	function failedValidationThrowExpr(message : String, arg : Expr) {
+		return if (Context.defined("dataclass-throw-custom")) {
+			var throwClass = Context.definedValue("dataclass-throw").split(".");
+			var newCustomClass = { expr: 
+				ENew({
+					name: throwClass[throwClass.length - 1],
+					pack: throwClass.slice(0, throwClass.length - 1),
+					params: null,
+					sub: null
+				}, [macro $v{message}, macro this, macro $arg])
+			, pos: Context.currentPos()
+			};
+			
+			macro throw $newCustomClass;
+		}
+		else if (Context.defined("dataclass-throw-js-error")) {
+			macro throw new js.Error($v{message});
+		}
+		else {
+			CLASS.implementsInterface("HaxeContracts")
+				? macro throw new haxecontracts.ContractException($v{message}, this, $arg)
+				: macro throw $v{message};
+		}
 	}
 	
 	///////////////////////////////////////////////////////////////////////////
@@ -251,9 +264,9 @@ class Builder
 		function createNewSetter(field : DataField) {
 			var fieldName = field.name;
 			var argName = 'v';
-			var errorMsg = "Validation failed for " + CLASS.name + "." + field.name;
+			var errorMsg = "DataClass validation failed for " + CLASS.name + "." + field.name + ".";
 			var identifier = macro $i{argName};
-			var validationExpr = createValidationTestExpr(field, identifier, throwFailedValidation(errorMsg, identifier));
+			var validationExpr = createValidationTestExpr(field, identifier, failedValidationThrowExpr(errorMsg, identifier));
 			
 			return {
 				access: [],
@@ -298,9 +311,9 @@ class Builder
 
 				var param = func.args[0];
 
-				var errorMsg = "Validation failed for " + CLASS.name + "." + field.name;
+				var errorMsg = "DataClass validation failed for " + CLASS.name + "." + field.name + ".";
 				var identifier = macro $i{param.name};
-				var validationTestExpr = createValidationTestExpr(field, identifier, throwFailedValidation(errorMsg, identifier));
+				var validationTestExpr = createValidationTestExpr(field, identifier, failedValidationThrowExpr(errorMsg, identifier));
 				
 				switch func.expr.expr {
 					case EBlock(exprs): exprs.unshift(validationTestExpr);
