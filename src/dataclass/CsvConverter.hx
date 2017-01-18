@@ -7,7 +7,6 @@ using Lambda;
 using StringTools;
 using DateTools;
 
-// TODO: Move to ORM configuration
 typedef CsvConverterOptions = {
 	?floatDelimiter : String,
 	?boolValues : { tru: String, fals: String },
@@ -47,120 +46,85 @@ class CsvConverter extends JsonConverter
 	
 	///////////////////////////////////////////////////////////////////////////
 		
-	var options(default, null) : CsvConverterOptions;
-	
 	public function new(?options : CsvConverterOptions) {
 		super();
-		//valueConverters.set('Date', new Converter.DateValueConverter());
-		this.options = options;
-	}
-	
-	/*
-	public function toDataClass<T : DataClass>(cls : Class<T>, json : Dynamic) : T {
-		var rtti = Converter.Rtti.rttiData(cls);
-		var inputData : DynamicAccess<Dynamic> = json;
-		var outputData : DynamicAccess<Dynamic> = {};
+
+		valueConverters.set('Int', new IntValueConverter());
 		
-		for (field in rtti.keys()) {
-			var input = inputData.get(field);
-			var output = convertFromJsonField(rtti[field], input);
-			
-			//trace(field + ': ' + input + ' -[' + rtti[field] + ']-> ' + output);
-			outputData.set(field, output);
-		}
+		valueConverters.set('Bool', new BoolValueConverter(
+			Reflect.hasField(options, 'boolValues') ? options.boolValues : { tru: "1", fals: "0" }
+		));
 
-		return Type.createInstance(cls, [outputData]);
+		valueConverters.set('Float', new FloatValueConverter(
+			Reflect.hasField(options, 'floatDelimiter') ? options.floatDelimiter : "."
+		));
+
+		valueConverters.set('Date', new DateValueConverter(
+			Reflect.hasField(options, 'dateFormat') ? options.dateFormat : "%Y-%m-%d %H:%M:%S"
+		));
+	}
+}
+
+private class IntValueConverter
+{
+	public function new() { }
+
+	public function input(input : String) : Int {
+		return Std.parseInt(input);
 	}
 	
-	function convertFromJsonField(data : String, value : Dynamic) : Dynamic {
-		if (value == null) return value;
+	public function output(input : Int) : String {
+		return Std.string(input);
+	}
+}
 
-		if (valueConverters.exists(data)) {
-			return valueConverters.get(data).input(value);
-		}
-		// Check reserved structures
-		else if (directConversions.has(data)) {
-			return value;
-		}
-		else if (data.startsWith("Array<")) {
-			var arrayType = data.substring(6, data.length - 1);
-			return [for (v in cast(value, Array<Dynamic>)) convertFromJsonField(arrayType, v)];
-		}
-		else if (data.startsWith("Enum<")) {
-			var enumT = enumType(data.substring(5, data.length - 1));
-			return Type.createEnum(enumT, value);
-		}
-		else if (data.startsWith("DataClass<")) {
-			var classT = classType(data.substring(10, data.length - 1));
-			return fromJson(cast classT, value);
-		}
-		else 
-			throw "Unsupported DataClass ORM mapping: " + data;
+private class BoolValueConverter
+{
+	var boolValues : { tru: String, fals: String };
+	
+	public function new(boolValues) {
+		this.boolValues = boolValues;
 	}
 
-	///////////////////////////////////////////////////////////////////////////
-	
-	public function fromDataClass(cls : DataClass) : DynamicAccess<Dynamic> {
-		var rtti = Converter.Rtti.rttiData(Type.getClass(cls));
-		var outputData : DynamicAccess<Dynamic> = {};
-		
-		for (field in rtti.keys()) {
-			var input = Reflect.getProperty(cls, field);
-			var output = convertToJsonField(rtti[field], input);
-			
-			//trace(field + ': ' + input + ' -[' + rtti[field] + ']-> ' + output);
-			outputData.set(field, output);
-		}
-
-		return outputData;
+	public function input(input : String) : Bool {
+		return input == boolValues.tru ? true : false;
 	}
 	
-	function convertToJsonField(data : String, value : Dynamic) : Dynamic {
-		if (value == null) return value;
-
-		if (valueConverters.exists(data)) {
-			return valueConverters.get(data).output(cast value);
-		}
-		else if (directConversions.has(data)) {
-			return value;
-		}
-		else if (data.startsWith("Array<")) {
-			var arrayType = data.substring(6, data.length - 1);
-			return [for (v in cast(value, Array<Dynamic>)) convertToJsonField(arrayType, v)];
-		}
-		else if (data.startsWith("Enum<")) {
-			return Std.string(value);
-		}
-		else if (data.startsWith("DataClass<")) {
-			return toJson(cast value);
-		}
-		else 
-			throw "Unsupported DataClass ORM mapping: " + data;
+	public function output(input : Bool) : String {
+		return input == true ? boolValues.tru : boolValues.fals;
 	}
-	
-	///// Type retrieval /////
-	
-	static var enumCache = new Map<String, Enum<Dynamic>>();
-	static var classCache = new Map<String, Class<Dynamic>>();
-	
-	static function enumType(name : String) : Enum<Dynamic> {
-		if (enumCache.exists(name)) return enumCache.get(name);
-		
-		var output = Type.resolveEnum(name);
-		if (output == null) throw "Enum not found: " + name;
+}
 
-		enumCache.set(name, output);
-		return output;
+private class FloatValueConverter
+{
+	var separator : String;
+	
+	public function new(separator) {
+		this.separator = separator;
 	}
 
-	static function classType(name : String) : Class<Dynamic> {
-		if (classCache.exists(name)) return classCache.get(name);
-		
-		var output = Type.resolveClass(name);
-		if (output == null) throw "Class not found: " + name;
-
-		classCache.set(name, output);
-		return output;
+	public function input(input : String) : Float {
+		return Std.parseFloat(input.replace(separator, "."));
 	}
-	*/
+	
+	public function output(input : Float) : String {
+		return Std.string(input).replace(".", separator);
+	}
+}
+
+private class DateValueConverter
+{
+	var format : String;
+	
+	public function new(format) {
+		this.format = format;
+	}
+
+	public function input(input : String) : Date {
+		return Date.fromString(input);
+	}
+	
+	public function output(input : Date) : String {
+		return DateTools.format(input, format);
+	}
 }

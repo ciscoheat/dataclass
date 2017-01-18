@@ -497,7 +497,7 @@ class ConverterTests extends BuddySuite
 			});
 			
 			describe("From CSV", {
-				var csvDataClass = [
+				var csvDataArray = [
 					new TestConverter(
 						{bool: true, integ: 123, date: Date.fromString("2017-01-18 05:14:00"), float: 123.456 }
 					),
@@ -508,17 +508,33 @@ class ConverterTests extends BuddySuite
 				
 				var csvData = [
 					['bool', 'integ', 'date', 'float'],
-					['true', '123', "2017-01-18T05:14:00Z", '123.456'],
-					['false', '-123', "2000-01-01T00:00:00Z", '-123.456']
+					['1', '123', "2017-01-18 05:14:00", '123,456'],
+					['0', '-123', "2000-01-01 00:00:00", '-123,456']
 				];
 				
+				CsvConverter.current = new CsvConverter({floatDelimiter: ","});
+				
 				it("should convert CSV to DataClass", {
-					var csvDataClasses = csvData.fromCsvArray(TestConverter);
-					trace(csvDataClasses);
+					var csvC = csvData.fromCsvArray(TestConverter);
+					csvC.length.should.be(2);
+					
+					csvC[0].bool.should.be(true);
+					csvC[0].integ.should.be(123);
+					csvC[0].date.getFullYear().should.be(2017);
+					csvC[0].float.should.beCloseTo(123.456, 3);
+
+					csvC[1].bool.should.be(false);
+					csvC[1].integ.should.be(-123);
+					csvC[1].date.getFullYear().should.be(2000);
+					csvC[1].float.should.beCloseTo(-123.456, 3);
 				});
 				it("should convert DataClass to CSV", {
-					var csvOutput = csvDataClass.toCsvArray();
-					trace(csvOutput);
+					var csvO = csvDataArray.toCsvArray();
+					csvO.length.should.be(3);
+					for (i in 0...3) csvO[i].length.should.be(4);
+					csvO[0].should.containAll(csvData[0]);
+					csvO[1].should.containAll(csvData[1]);
+					csvO[2].should.containAll(csvData[2]);
 				});
 			});
 		});
