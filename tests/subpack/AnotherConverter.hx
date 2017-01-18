@@ -1,5 +1,5 @@
 package subpack;
-import dataclass.DataClass;
+import DataClass;
 
 class AnotherConverter implements DataClass
 {

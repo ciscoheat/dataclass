@@ -1,3 +1,3 @@
-package dataclass;
+package;
 
 @:autoBuild(dataclass.macros.Builder.build()) interface DataClass {}

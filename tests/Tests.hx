@@ -1,3 +1,4 @@
+import DataClass;
 import buddy.*;
 import dataclass.*;
 import haxe.DynamicAccess;

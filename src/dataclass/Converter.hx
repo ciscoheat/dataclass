@@ -1,5 +1,6 @@
 package dataclass;
 
+import DataClass;
 import haxe.DynamicAccess;
 import haxe.rtti.Meta;
 
