@@ -35,11 +35,12 @@ class CsvConverter extends JsonConverter
 	public static function toCsvArray<T : DataClass>(cls : Array<T>) : Array<Array<String>> {
 		if (cls.length == 0) return [];
 		var header = Converter.Rtti.rttiData(Type.getClass(cls[0])).keys();
-		
-		return [header].concat(cls.map(function(dataClass) {
+		var rows = cls.map(function(dataClass) {
 			var converted = current.fromDataClass(dataClass);
-			return header.map(function(field) return converted.get(field));
-		}));
+			return header.map(function(field) return Std.string(converted.get(field)));
+		});
+		
+		return [header].concat(rows);
 	}
 	
 	public static var current(default, default) : CsvConverter = new CsvConverter();
@@ -48,6 +49,8 @@ class CsvConverter extends JsonConverter
 		
 	public function new(?options : CsvConverterOptions) {
 		super();
+		
+		if (options == null) options = {};
 
 		valueConverters.set('Int', new IntValueConverter());
 		
