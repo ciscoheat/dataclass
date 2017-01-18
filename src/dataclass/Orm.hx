@@ -18,12 +18,14 @@ class Orm
 	
 	public static var valueConverters : Map<String, OrmValueConverter<Dynamic, Dynamic>>;
 	
-	static function __init__() {
+	static function _init() {
 		valueConverters = new Map<String, OrmValueConverter<Dynamic, Dynamic>>();
 		valueConverters.set('Date', new DateConverter());
 	}
 	
 	public static function fromJson<T : DataClass>(cls : Class<T>, json : Dynamic) : T {
+		if (valueConverters == null) _init();
+		
 		var rtti = rttiData(cls);
 		var inputData : DynamicAccess<Dynamic> = json;
 		var outputData : DynamicAccess<Dynamic> = {};
@@ -68,6 +70,8 @@ class Orm
 	///////////////////////////////////////////////////////////////////////////
 	
 	public static function toJson(cls : DataClass) : DynamicAccess<Dynamic> {
+		if (valueConverters == null) _init();
+		
 		var rtti = rttiData(Type.getClass(cls));
 		var outputData : DynamicAccess<Dynamic> = {};
 		

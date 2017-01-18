@@ -321,7 +321,7 @@ class IntConverter {
 		return Date.fromTime(i);
 }
 
-class DateConverter {
+private class DateConverter {
 	public static function toStringFormat(d : Date, ?format : String) {
 		if (format == null) format = Converter.dateFormat;
 		return DateTools.format(d, format);

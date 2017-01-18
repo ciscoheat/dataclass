@@ -600,13 +600,17 @@ private class OrmBuilder
 
 private class Validator
 {
+	static var illegalNullTypes = ['Int', 'Float', 'Bool'];
+	
 	// Complications: Testing for null is only allowed if on a non-static platform or the type is not a basic type.
 	public static function nullTestAllowed(type : ComplexType) : Bool {
 		var staticPlatform = Context.defined("cpp") || Context.defined("java") || Context.defined("flash") || Context.defined("cs");
 		if (!staticPlatform) return true;
 		
-		return switch type {
-			case TPath(p): !(p.pack.length == 0 && ['Int', 'Float', 'Bool'].has(p.name));
+		return switch Context.followWithAbstracts(ComplexTypeTools.toType(type)) {
+			case TAbstract(t, _):
+				var type = MacroStringTools.toDotPath(t.get().pack, t.get().name);
+				return !illegalNullTypes.has(type);
 			case _: true;
 		}
 	}

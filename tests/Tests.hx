@@ -14,7 +14,8 @@ import hxcpp.StaticRegexp;
 
 using StringTools;
 using buddy.Should;
-using dataclass.Converter;
+//using dataclass.Converter;
+using dataclass.Orm;
 
 @:enum abstract HttpStatus(Int) {
 	var NotFound = 404;
@@ -176,14 +177,6 @@ class IncludeTest implements DataClass {
 {
 	public var id : Int;
 	public var name(default, null) : String;
-}
-
-class DeepTest implements DataClass {
-	public var id : String;
-	public var single : DeepConverter;
-	public var array : Array<ImmutableClass>;
-	public var csv : Array<Array<String>>;
-	@exclude public var unconvertable : Array<String -> Int>;
 }
 
 interface ExtendingInterface extends DataClass
@@ -393,144 +386,21 @@ class Tests extends BuddySuite implements Buddy<[
 				});
 			});
 		});
-
-		@exclude describe("DataClass conversions", {
-			it("should convert Dynamic to the correct type.", {
-				var data = {
-					date: "2015-12-12",
-					bool: "1",
-					int: "2000",
-					doesNotExist: "should not be added",
-					anything: { test: 123 }
-				};
-				
-				var a = StringConverter.fromDynamic(data);
-				
-				a.date.should.be("2015-12-12");
-				a.bool.should.be(true);
-				a.integ.should.be(2000);
-				Reflect.hasField(a, "doesNotExist").should.be(false);
-				a.anything.should.match(~/\{\s*test\b.+\b123\s*\}/);
-			});
-
-			it("should fail unless validated.", {
-				var data = Json.parse('{
-					"date": "2015-12-12",
-					"bool": "1",
-					"int": "100",
-					"anything": "123"
-				}');
-				
-				#if cs
-				try {
-					StringConverter.fromDynamic(data);
-					fail("Object should fail validation.");
-				} catch (e : Dynamic) {
-					e.should.not.be(null);
-				}
-				#else
-				(function() StringConverter.fromDynamic(data)).should.throwType(String);
-				#end
-			});
-			
-			it("should parse floats correctly", {
-				var data = { float: "123345.44" };
-				TestFloatConverter.fromDynamic(data).float.should.beCloseTo(123345.44);
-			});
-			
-			it("should parse Int and Float to Date", {
-				var a = TestConverter.fromDynamic({
-					date: 1466302574606,
-					bool: "1",
-					int: "2000",
-					float: "123.45"
-				});
-				
-				var b = TestConverter.fromDynamic({
-					date: 1466302574606.01,
-					bool: "1",
-					int: "2000",
-					float: "123.45"
-				});
-				
-				a.date.toString().should.match(~/^2016-06-1[89] \d\d:16:14$/);
-				b.date.toString().should.match(~/^2016-06-1[89] \d\d:16:14$/);
-			});
-			
-			it("should parse money format correctly", {
-				var old = Converter.delimiter;
-				Converter.delimiter = ",";
-				
-				var data = { float: "$123.345,44" };
-				TestFloatConverter.fromDynamic(data).float.should.beCloseTo(123345.44);
-				
-				Converter.delimiter = old;
-			});
-			
-			it("should parse column data when using the @col metadata", {
-				var data = ["123", "2015-01-01", "1"];
-				var obj = TestColumnConverter.fromColMetaData(data);
-				
-				obj.first.should.be(123);
-				obj.second.toString().should.be("2015-01-01 00:00:00");
-				obj.third.should.be(true);
-			});
-
-			it("should parse column data when using an array of columns", {
-				var data = ["123", "2015-01-01", "1"];
-				var columns = ["first", "second", "third"];
-				var obj = TestColumnConverter.fromColumnData(columns,data);
-				
-				obj.first.should.be(123);
-				obj.second.toString().should.be("2015-01-01 00:00:00");
-				obj.third.should.be(true);
-			});
-
-			it("should convert public fields to the specified string format.", {
-				var a = TestConverter.fromDynamic({
-					date: "2015-12-12",
-					bool: "1",
-					int: "2000",
-					float: "123.45"
-				});
-				
-				var o = a.toStringData({
-					delimiter: ',',
-					boolValues: { tru: "YES", fals: "NO" },
-					dateFormat: "%Y%m%d"
-				});
-				
-				Reflect.fields(o).length.should.be(4);
-				a.float.should.be(123.45);
-				o.date.should.be("20151212");
-				o.bool.should.be("YES");
-				o.int.should.be("2000");
-				o.float.should.be("123,45");
-			});
-			
-			it("should auto-detect delimiter if set to an empty string", {
-				var old = Converter.delimiter;
-				Converter.delimiter = "";
-				
-				var data = { float: "$123.345,44" };
-				TestFloatConverter.fromDynamic(data).float.should.beCloseTo(123345.44);
-
-				data = { float: "123 345.44" };
-				TestFloatConverter.fromDynamic(data).float.should.beCloseTo(123345.44);
-
-				data = { float: "123345,44" };
-				TestFloatConverter.fromDynamic(data).float.should.beCloseTo(123345.44);
-
-				Converter.delimiter = old;				
-			});
-		});
 	}	
+}
+
+class DeepTest implements DataClass {
+	public var id : String;
+	public var single : DeepConverter;
+	public var array : Array<ImmutableClass>;
+	public var csv : Array<Array<String>>;
+	@exclude public var unconvertable : Array<String -> Int>;
 }
 
 class ConverterTests extends BuddySuite
 {	
 	public function new() {
-		@include describe("Enum conversion", {
+		describe("Enum conversion", {
 			it("should be possible to convert strings to simple Enums and back", {
 				var input = "Red";
 				var type = Type.resolveEnum("Color");
@@ -542,13 +412,90 @@ class ConverterTests extends BuddySuite
 				obj.color.should.equal(Color.Red);
 				obj.status.should.be(HttpStatus.NotFound);
 				
-				var json = Orm.toJson(obj);
-				var reconverted = Orm.fromJson(DefaultValue, json);
+				var json = obj.toJson();
+				var reconverted = DefaultValue.fromJson(json);
 				
-				Json.stringify(json).should.be(Json.stringify(Orm.toJson(reconverted)));
+				cast(json.get("date"), String).should.match(~/^.*T.*Z$/);
+				
+				Json.stringify(json).should.be(Json.stringify(reconverted.toJson()));
 			});
 		});
 		
+		describe("ORM", {
+			describe("From JSON", {
+				var orm1 : DeepTest;
+				var json = {
+					id: "id",
+					single: {
+						integ: 100,
+						another: {
+							bool: true,
+							integ: 1,
+							date: "2017-01-18T00:58:00Z",
+							float: 3.1416
+						}
+					},
+					array: [
+						{ id: 1, name: "1" },
+						{ id: 2, name: "2" }
+					],
+					csv: [
+						['123', '456', '789'],
+						['987', '654', '321']
+					]
+				};
+				
+				beforeEach({
+					orm1 = DeepTest.fromJson(json);
+				});
+					
+				it("should convert json to DataClass", {
+					orm1.id.should.be("id");
+					
+					orm1.single.integ.should.be(100);
+					
+					orm1.single.another.bool.should.be(true);
+					orm1.single.another.integ.should.be(1);
+					orm1.single.another.date.getFullYear().should.be(2017);
+					orm1.single.another.date.getMonth().should.be(0);
+					orm1.single.another.float.should.beCloseTo(3.1416, 4);
+					
+					orm1.array.length.should.be(2);
+					orm1.array[0].id.should.be(1);
+					orm1.array[0].name.should.be("1");
+					orm1.array[1].id.should.be(2);
+					orm1.array[1].name.should.be("2");
+					
+					orm1.csv.length.should.be(2);
+					orm1.csv[0].length.should.be(3);
+					orm1.csv[1].length.should.be(3);
+				});
+				
+				it("should convert a DataClass to json", {
+					var oj = orm1.toJson();
+					
+					oj['id'].should.be("id");
+					
+					var single : DynamicAccess<Dynamic> = oj['single'];
+					single['integ'].should.be(100);
+					
+					var another : DynamicAccess<Dynamic> = single['another'];
+					another['bool'].should.be(true);
+					cast(another['date'], String).should.match(~/^2017-01-\d\dT.*Z$/);
+					
+					oj['array'].length.should.be(2);
+					var array : DynamicAccess<Dynamic> = oj['array'][0];
+					array.get('name').should.be("1");
+					
+					var csv : Array<Array<String>> = oj['csv'];
+					csv.length.should.be(2);
+					var innerCsv = csv[0];
+					innerCsv[0].should.be("123");
+				});
+			});
+		});
+		
+		/*
 		describe("Converter", {
 			var test : TestConverter;
 			
@@ -581,70 +528,9 @@ class ConverterTests extends BuddySuite
 				var fakeFloat = new TestFakeFloatConverter( { float: "not a float..." } );
 				var testFloat2 = fakeFloat.convertTo(TestFloatConverter);
 				testFloat2.float.toString().should.be(Math.NaN.toString());
-			});
-			
-			it("should convert all public dataclass fields of an object to an anonymous structure", {
-				// Using IncludeTest since it has a private var that is included in the constructor data
-				var test = new IncludeTest({id: 123});
-				var output : DynamicAccess<Dynamic> = test.toAnonymousStructure();
-				
-				output.keys().length.should.be(1);
-				output.get("notUsed").should.be("not used");
-				
-				var output2 : DynamicAccess<String> = test.toStringData();
-				output2.keys().length.should.be(1);
-				output2.get("notUsed").should.be("not used");
-			});
+			});			
 		});
-		
-		describe("RecursiveConverter (3.3+ only)", {
-			var data : Dynamic;
-			
-			beforeEach({
-				data = {
-					id: "1", 
-					single: {
-						int: '100', 
-						another: {
-							bool: true, int: 1, 
-							date: "2016-01-02T12:00:00.000Z", float: 3.14					
-						}				
-					},
-					array: [{id: 2, name: "2"}, {id:3, name:"3"}]
-				};
-			});
-			
-			it("should make a deep conversion of an object, creating dataclasses from an anonymous structure", {
-				var output = DeepTest.convertRecursive(data);
-				
-				output.id.should.be("1");
-				
-				output.single.should.beType(DeepConverter);
-				output.single.int.should.be(100);
-				output.single.another.should.beType(AnotherConverter);
-				output.single.another.bool.should.be(true);
-				
-				output.single.another.date.getFullYear().should.be(2016);
-				output.single.another.date.getMonth().should.be(0);
-				output.single.another.date.getDate().should.be(2);
-				
-				output.array.should.beType(Array);
-				output.array.length.should.be(2);
-				output.array[0].should.beType(ImmutableClass);
-				output.array[0].id.should.be(2);
-				output.array[1].should.beType(ImmutableClass);
-				output.array[1].id.should.be(3);
-			});
-			
-			it("should fail deep conversion as usual, if invalid data", {
-				data.single.int = 10;
-				#if cs
-				DeepTest.convertRecursive.bind(data).should.throwAnything();
-				#else
-				DeepTest.convertRecursive.bind(data).should.throwType(String);
-				#end
-			});
-		});
+		*/
 	}
 }
 
