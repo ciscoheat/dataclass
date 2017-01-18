@@ -14,7 +14,6 @@ import hxcpp.StaticRegexp;
 
 using StringTools;
 using buddy.Should;
-//using dataclass.Converter;
 using dataclass.Orm;
 
 @:enum abstract HttpStatus(Int) {
@@ -494,43 +493,6 @@ class ConverterTests extends BuddySuite
 				});
 			});
 		});
-		
-		/*
-		describe("Converter", {
-			var test : TestConverter;
-			
-			beforeEach({
-				var data = {
-					bool: true,
-					integ: "123".toInt(),
-					date: "2015-01-01 00:00:00".toDate(),
-					float: "456.789".toFloat()
-				};
-				
-				test = new TestConverter(data);
-			});
-			
-			it("should work with the supported types", {
-				test.bool.should.be(true);
-				test.integ.should.be(123);
-				DateTools.format(test.date, "%Y-%m-%d %H:%M:%S").should.be("2015-01-01 00:00:00");
-				test.float.should.beCloseTo(456.789, 3);
-			});
-
-			it("should be able to create one object from another", {
-				var testFloat = test.convertTo(TestFloatConverter);				
-				Std.is(testFloat, TestFloatConverter).should.be(true);
-				testFloat.float.should.beCloseTo(456.789, 3);
-				
-				var ex = (function() test.convertTo(Validator)).should.throwType(String);
-				ex.indexOf("Validator").should.beGreaterThan( -1);
-				
-				var fakeFloat = new TestFakeFloatConverter( { float: "not a float..." } );
-				var testFloat2 = fakeFloat.convertTo(TestFloatConverter);
-				testFloat2.float.toString().should.be(Math.NaN.toString());
-			});			
-		});
-		*/
 	}
 }
 
@@ -579,8 +541,6 @@ class InheritanceTests extends BuddySuite
 				(function() p._key = null).should.throwType(String);
 			});
 			
-			// TODO: ORM test
-			/*
 			it("should set the parent fields when using the dynamic converter", {
 				var data = {
 					_key: "1",
@@ -589,12 +549,11 @@ class InheritanceTests extends BuddySuite
 					notused: 123456
 				};
 				
-				var p = SomePerson.fromDynamic(data);
+				var p = SomePerson.fromJson(data);
 				p.name.should.be("Test Person");
 				p._key.should.be("1");
 				p.email.should.be("test@example.com");
 			});
-			*/
 		});
 	}
 }

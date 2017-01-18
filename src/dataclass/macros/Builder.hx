@@ -323,7 +323,7 @@ class Builder
 		});
 		
 		// Create metadata for ORM
-		var ormMetadata = OrmBuilder.createMetadata(newDataClassFields);
+		var ormMetadata = OrmBuilder.createMetadata(dataClassFieldsIncludingSuperFields());
 		
 		//trace('===== ' + CLASS.name); trace(ormMetadata.map(function(f) return f.field + ": " + f.expr.toString()));
 
@@ -538,7 +538,7 @@ class Builder
 
 private class OrmBuilder
 {
-	public static function createMetadata(dataClassFields : Array<Field>) : Array<{field: String, expr: Expr}> {
+	public static function createMetadata(dataClassFields : Array<DataField>) : Array<{field: String, expr: Expr}> {
 		function ormFieldType(t : Type, field : DataField) : String {
 			function error(msg) {
 				Context.error(msg, field.pos);
@@ -581,15 +581,12 @@ private class OrmBuilder
 			}
 		}
 			
-		var ormMetadata = [for (field in dataClassFields) switch field.kind {
-			case FProp(_, _, t, _):
-				var type = Context.followWithAbstracts(ComplexTypeTools.toType(t));
-				{
-					field: field.name, 
-					expr: macro $v{ormFieldType(type, field)}
-				}
-			case _: 
-				Context.error("Invalid DataClass field", field.pos);
+		var ormMetadata = [for (field in dataClassFields) {
+			var type = Context.followWithAbstracts(ComplexTypeTools.toType(field.type()));
+			{
+				field: field.name, 
+				expr: macro $v{ormFieldType(type, field)}
+			}
 		}];
 		
 		return ormMetadata;
