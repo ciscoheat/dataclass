@@ -1,6 +1,6 @@
 package dataclass;
 
-import DataClass;
+import dataclass.Converter.ValueConverter;
 import haxe.DynamicAccess;
 
 using Lambda;
@@ -13,9 +13,36 @@ typedef CsvConverterOptions = {
 	?dateFormat : String
 }
 
-class CsvConverter extends JsonConverter
+class CsvConverter implements Converter
 {
-	public static function fromCsvArray<T : DataClass>(csv : Array<Array<String>>, cls : Class<T>) : Array<T> {
+	public var valueConverters(default, null) : Map<String, ValueConverter<Dynamic, Dynamic>>;
+	
+	var converter : JsonConverter;
+	
+	public function new(?options : CsvConverterOptions) {
+		if (options == null) options = { };
+		
+		this.converter = new JsonConverter({
+			dateFormat: Reflect.hasField(options, 'dateFormat') ? options.dateFormat : "%Y-%m-%d %H:%M:%S"
+		});
+
+		converter.valueConverters.set('Int', new IntValueConverter());
+
+		converter.valueConverters.set('Float', new FloatValueConverter(
+			Reflect.hasField(options, 'floatDelimiter') ? options.floatDelimiter : "."
+		));
+
+		converter.valueConverters.set('Bool', new BoolValueConverter(
+			if (Reflect.hasField(options, 'boolValues')) 
+				{ tru: options.boolValues.tru, fals: options.boolValues.fals }
+			else
+				{ tru: "1", fals: "0" }
+		));
+		
+		this.valueConverters = converter.valueConverters;
+	}
+	
+	public function fromCsvArray<T : DataClass>(csv : Array<Array<String>>, cls : Class<T>) : Array<T> {
 		var it = csv.iterator();
 		if (!it.hasNext()) return [];
 		
@@ -28,43 +55,19 @@ class CsvConverter extends JsonConverter
 			for (i in 0...Std.int(Math.min(values.length, header.length)))
 				obj.set(header[i], values[i]);
 				
-			current.toDataClass(cls, obj);
+			converter.toDataClass(cls, obj);
 		}];
 	}
 
-	public static function toCsvArray<T : DataClass>(cls : Array<T>) : Array<Array<String>> {
+	public function toCsvArray<T : DataClass>(cls : Array<T>) : Array<Array<String>> {
 		if (cls.length == 0) return [];
 		var header = Converter.Rtti.rttiData(Type.getClass(cls[0])).keys();
 		var rows = cls.map(function(dataClass) {
-			var converted = current.fromDataClass(dataClass);
+			var converted = converter.fromDataClass(dataClass);
 			return header.map(function(field) return Std.string(converted.get(field)));
 		});
 		
 		return [header].concat(rows);
-	}
-	
-	public static var current(default, default) : CsvConverter = new CsvConverter();
-	
-	///////////////////////////////////////////////////////////////////////////
-		
-	public function new(?options : CsvConverterOptions) {
-		super();
-		
-		if (options == null) options = {};
-
-		valueConverters.set('Int', new IntValueConverter());
-		
-		valueConverters.set('Bool', new BoolValueConverter(
-			Reflect.hasField(options, 'boolValues') ? options.boolValues : { tru: "1", fals: "0" }
-		));
-
-		valueConverters.set('Float', new FloatValueConverter(
-			Reflect.hasField(options, 'floatDelimiter') ? options.floatDelimiter : "."
-		));
-
-		valueConverters.set('Date', new DateValueConverter(
-			Reflect.hasField(options, 'dateFormat') ? options.dateFormat : "%Y-%m-%d %H:%M:%S"
-		));
 	}
 }
 

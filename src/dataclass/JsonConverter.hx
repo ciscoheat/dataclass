@@ -1,12 +1,18 @@
 package dataclass;
 
-import DataClass;
 import haxe.DynamicAccess;
+import haxe.ds.ObjectMap;
 
 using Lambda;
 using StringTools;
 using DateTools;
 
+typedef JsonConverterOptions = {
+	?nullifyCircularReferences : Bool,
+	?dateFormat : String
+}
+
+// TODO: Date and circular reference options
 class JsonConverter implements Converter
 {
 	public static function fromJson<T : DataClass>(cls : Class<T>, json : Dynamic) : T {
@@ -25,10 +31,20 @@ class JsonConverter implements Converter
 	
 	public var valueConverters(default, null) : Map<String, Converter.ValueConverter<Dynamic, Dynamic>>;
 	
-	public function new() {
+	var nullifyCircularReferences : Bool;
+	
+	public function new(?options : JsonConverterOptions) {
+		if (options == null) options = {};
+
 		valueConverters = new Map<String, Converter.ValueConverter<Dynamic, Dynamic>>();
-		valueConverters.set('Date', new DateValueConverter());
-	}
+
+		valueConverters.set('Date', new DateValueConverter(
+			Reflect.hasField(options, 'dateFormat') ? options.dateFormat : null
+		));
+		
+		nullifyCircularReferences = Reflect.hasField(options, 'nullifyCircularReferences') 
+			? options.nullifyCircularReferences : false;
+	}	
 	
 	public function toDataClass<T : DataClass>(cls : Class<T>, json : Dynamic) : T {
 		var rtti = Converter.Rtti.rttiData(cls);
@@ -66,7 +82,7 @@ class JsonConverter implements Converter
 		}
 		else if (data.startsWith("DataClass<")) {
 			var classT = classType(data.substring(10, data.length - 1));
-			return fromJson(cast classT, value);
+			return toDataClass(cast classT, value);
 		}
 		else 
 			throw "Unsupported DataClass converter: " + data;
@@ -75,12 +91,23 @@ class JsonConverter implements Converter
 	///////////////////////////////////////////////////////////////////////////
 	
 	public function fromDataClass(cls : DataClass) : DynamicAccess<Dynamic> {
+		return _fromDataClass(cls, []);
+	}
+		
+	function _fromDataClass(cls : DataClass, refs : Array<Dynamic>) : DynamicAccess<Dynamic> {
+		if (refs.has(cls)) {
+			if (nullifyCircularReferences) return null 
+			else throw "Converting circular structure to JSON.";
+		}
+		
 		var rtti = Converter.Rtti.rttiData(Type.getClass(cls));
 		var outputData : DynamicAccess<Dynamic> = {};
+		var newRefs = refs.concat([cls]);
 		
 		for (field in rtti.keys()) {
 			var input = Reflect.getProperty(cls, field);
-			var output = convertToJsonField(rtti[field], input);
+			// TODO: Move refs array above loop?
+			var output = convertToJsonField(rtti[field], input, newRefs);
 			
 			//trace(field + ': ' + input + ' -[' + rtti[field] + ']-> ' + output);
 			outputData.set(field, output);
@@ -89,7 +116,7 @@ class JsonConverter implements Converter
 		return outputData;
 	}
 	
-	function convertToJsonField(data : String, value : Dynamic) : Dynamic {
+	function convertToJsonField(data : String, value : Dynamic, refs : Array<Dynamic>) : Dynamic {
 		if (value == null) return value;
 
 		if (valueConverters.exists(data)) {
@@ -100,13 +127,13 @@ class JsonConverter implements Converter
 		}
 		else if (data.startsWith("Array<")) {
 			var arrayType = data.substring(6, data.length - 1);
-			return [for (v in cast(value, Array<Dynamic>)) convertToJsonField(arrayType, v)];
+			return [for (v in cast(value, Array<Dynamic>)) convertToJsonField(arrayType, v, refs)];
 		}
 		else if (data.startsWith("Enum<")) {
 			return Std.string(value);
 		}
 		else if (data.startsWith("DataClass<")) {
-			return toJson(cast value);
+			return _fromDataClass(cast value, refs);
 		}
 		else 
 			throw "Unsupported DataClass converter: " + data;
@@ -140,7 +167,11 @@ class JsonConverter implements Converter
 
 class DateValueConverter
 {
-	public function new() { }
+	var format : String;
+	
+	public function new(format : Null<String>) {
+		this.format = format == null ? "%Y-%m-%dT%H:%M:%SZ" : format;
+	}
 
 	public function input(input : String) : Date {
 		var s = input.trim();
@@ -163,8 +194,8 @@ class DateValueConverter
 	}
 	
 	public function output(input : Date) : String {
-		var utc = DateTools.delta(input, -getTimeZone());
-		return DateTools.format(utc, "%Y-%m-%dT%H:%M:%SZ");
+		var time = format.endsWith("Z") ? DateTools.delta(input, -getTimeZone()) : input;
+		return DateTools.format(time, format);
 	}
 	
 	// Thanks to https://github.com/HaxeFoundation/haxe/issues/3268#issuecomment-52960338

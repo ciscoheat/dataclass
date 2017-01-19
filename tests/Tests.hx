@@ -17,7 +17,7 @@ using StringTools;
 using buddy.Should;
 
 using dataclass.JsonConverter;
-using dataclass.CsvConverter;
+import dataclass.CsvConverter;
 
 @:enum abstract HttpStatus(Int) {
 	var NotFound = 404;
@@ -179,6 +179,13 @@ class IncludeTest implements DataClass {
 {
 	public var id : Int;
 	public var name(default, null) : String;
+}
+
+class CircularReferenceTest implements DataClass
+{
+	public var id : Int;
+	public var children(default, null) : Array<CircularReferenceTest> = [];
+	public var parent : Null<CircularReferenceTest>;
 }
 
 interface ExtendingInterface extends DataClass
@@ -424,7 +431,7 @@ class ConverterTests extends BuddySuite
 		});
 		
 		describe("Converter", {
-			describe("From JSON", {
+			describe("JSON", {
 				var conv1 : DeepTest;
 				var json = {
 					id: "id",
@@ -494,9 +501,25 @@ class ConverterTests extends BuddySuite
 					var innerCsv = csv[0];
 					innerCsv[0].should.be("123");
 				});
+				it("should throw on circular references and set to null if configured like that", {
+					var parent = new CircularReferenceTest({id: 1, children: [], parent: null});
+					var child = new CircularReferenceTest( { id: 2, children: [], parent: parent } );
+					parent.children.push(child);
+					
+					(function() parent.toJson()).should.throwType(String);
+					
+					var oldConverter = JsonConverter.current;
+					JsonConverter.current = new JsonConverter({nullifyCircularReferences: true});
+					
+					var nonCirc = parent.toJson();
+					var children : Array<DynamicAccess<Dynamic>> = nonCirc.get('children'); 
+					children[0].get('parent').should.be(null);
+					
+					JsonConverter.current = oldConverter;
+				});
 			});
 			
-			describe("From CSV", {
+			describe("CSV", {
 				var csvDataArray = [
 					new TestConverter(
 						{bool: true, integ: 123, date: Date.fromString("2017-01-18 05:14:00"), float: 123.456 }
@@ -512,10 +535,10 @@ class ConverterTests extends BuddySuite
 					['0', '-123', "2000-01-01 00:00:00", '-123,456']
 				];
 				
-				CsvConverter.current = new CsvConverter({floatDelimiter: ","});
+				var converter = new CsvConverter({floatDelimiter: ","});
 				
 				it("should convert CSV to DataClass", {
-					var csvC = csvData.fromCsvArray(TestConverter);
+					var csvC = converter.fromCsvArray(csvData, TestConverter);
 					csvC.length.should.be(2);
 					
 					csvC[0].bool.should.be(true);
@@ -529,7 +552,7 @@ class ConverterTests extends BuddySuite
 					csvC[1].float.should.beCloseTo(-123.456, 3);
 				});
 				it("should convert DataClass to CSV", {
-					var csvO = csvDataArray.toCsvArray();
+					var csvO = converter.toCsvArray(csvDataArray);
 					csvO.length.should.be(3);
 					for (i in 0...3) csvO[i].length.should.be(4);
 					csvO[0].should.containAll(csvData[0]);
