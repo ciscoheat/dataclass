@@ -8,13 +8,8 @@ os:
   - osx
   
 haxe:
-  - "3.2.1"
   - development
   
-matrix:
-  allow_failures:
-    - haxe: development
-    
 install:
   - haxelib install travix
   - haxelib run travix install
