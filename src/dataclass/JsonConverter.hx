@@ -8,7 +8,7 @@ using StringTools;
 using DateTools;
 
 typedef JsonConverterOptions = {
-	?nullifyCircularReferences : Bool,
+	?nullifyCircular : Bool,
 	?dateFormat : String
 }
 
@@ -42,8 +42,8 @@ class JsonConverter implements Converter
 			Reflect.hasField(options, 'dateFormat') ? options.dateFormat : null
 		));
 		
-		nullifyCircularReferences = Reflect.hasField(options, 'nullifyCircularReferences') 
-			? options.nullifyCircularReferences : false;
+		nullifyCircularReferences = Reflect.hasField(options, 'nullifyCircular') 
+			? options.nullifyCircular : false;
 	}	
 	
 	public function toDataClass<T : DataClass>(cls : Class<T>, json : Dynamic) : T {

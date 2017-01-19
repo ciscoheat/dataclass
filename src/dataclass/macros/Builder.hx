@@ -219,7 +219,7 @@ class Builder
 	///////////////////////////////////////////////////////////////////////////
 
 	function failedValidationThrowExpr(message : String, arg : Expr) {
-		return if (Context.defined("dataclass-throw-custom")) {
+		return if (Context.defined("dataclass-throw")) {
 			var throwClass = Context.definedValue("dataclass-throw").split(".");
 			var newCustomClass = { expr: 
 				ENew({

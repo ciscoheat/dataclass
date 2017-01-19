@@ -510,7 +510,7 @@ class ConverterTests extends BuddySuite
 					(function() parent.toJson()).should.throwType(String);
 					
 					var oldConverter = JsonConverter.current;
-					JsonConverter.current = new JsonConverter({nullifyCircularReferences: true});
+					JsonConverter.current = new JsonConverter({nullifyCircular: true});
 					
 					var nonCirc = parent.toJson();
 					var children : Array<DynamicAccess<Dynamic>> = nonCirc.get('children'); 

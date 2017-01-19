@@ -2,4 +2,3 @@
 -lib buddy
 -cp ./tests/
 -main Tests
--D dataclass-throw=dataclass.SomeException
