@@ -275,7 +275,7 @@ class Main {
 
 When a validation fails, a `String` is thrown, but you can define `-D dataclass-throw=your.CustomException`, and all failed validation will be thrown as 
 
-```
+```haxe
 // errorMessage is a String
 throw new your.CustomException(errorMessage);
 ```
@@ -292,6 +292,6 @@ DataClass plays very nicely together with [HaxeContracts](https://github.com/cis
 
 ## Connection to DCI
 
-Simple domain objects are the foundation of the [DCI architecture](https://en.wikipedia.org/wiki/Data,_context_and_interaction). They represent what the system *is*, and have no connections to other objects. They play Roles in DCI Contexts, where they become parts of Interactions between other objects, describing what the system *does* based on a user mental model. The [haxedci-example](https://github.com/ciscoheat/haxedci-example) repository has a thorough tutorial of the DCI paradigm in Haxe if you're interested.
+Simple domain objects are used in the Data part of the [DCI architecture](https://en.wikipedia.org/wiki/Data,_context_and_interaction). They represent what the system *is*, and have no connections to other objects. They play Roles in DCI Contexts, where they become parts of Interactions between other objects, describing what the system *does* based on a user mental model. The [haxedci-example](https://github.com/ciscoheat/haxedci-example) repository has a thorough tutorial of the DCI paradigm in Haxe if you're interested.
 
 [![Build Status](https://travis-ci.org/ciscoheat/dataclass.svg?branch=master)](https://travis-ci.org/ciscoheat/dataclass)
