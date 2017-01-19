@@ -17,7 +17,7 @@ using StringTools;
 using buddy.Should;
 
 using dataclass.JsonConverter;
-using dataclass.CsvConverter;
+import dataclass.CsvConverter;
 
 @:enum abstract HttpStatus(Int) {
 	var NotFound = 404;
@@ -137,6 +137,7 @@ class NullValidateTest implements DataClass
 	public var integ : Int;
 	public var date : Date;
 	public var float : Float;
+	public var color : Color = Red;
 }
 
 @:keep class TestFloatConverter implements DataClass
@@ -179,6 +180,13 @@ class IncludeTest implements DataClass {
 {
 	public var id : Int;
 	public var name(default, null) : String;
+}
+
+class CircularReferenceTest implements DataClass
+{
+	public var id : Int;
+	public var children(default, null) : Array<CircularReferenceTest> = [];
+	public var parent : Null<CircularReferenceTest>;
 }
 
 interface ExtendingInterface extends DataClass
@@ -424,7 +432,7 @@ class ConverterTests extends BuddySuite
 		});
 		
 		describe("Converter", {
-			describe("From JSON", {
+			describe("JSON", {
 				var conv1 : DeepTest;
 				var json = {
 					id: "id",
@@ -494,44 +502,62 @@ class ConverterTests extends BuddySuite
 					var innerCsv = csv[0];
 					innerCsv[0].should.be("123");
 				});
+				it("should throw on circular references and set to null if configured like that", {
+					var parent = new CircularReferenceTest({id: 1, children: [], parent: null});
+					var child = new CircularReferenceTest( { id: 2, children: [], parent: parent } );
+					parent.children.push(child);
+					
+					(function() parent.toJson()).should.throwType(String);
+					
+					var oldConverter = JsonConverter.current;
+					JsonConverter.current = new JsonConverter({nullifyCircularReferences: true});
+					
+					var nonCirc = parent.toJson();
+					var children : Array<DynamicAccess<Dynamic>> = nonCirc.get('children'); 
+					children[0].get('parent').should.be(null);
+					
+					JsonConverter.current = oldConverter;
+				});
 			});
 			
-			describe("From CSV", {
+			describe("CSV", {
 				var csvDataArray = [
 					new TestConverter(
 						{bool: true, integ: 123, date: Date.fromString("2017-01-18 05:14:00"), float: 123.456 }
 					),
 					new TestConverter(
-						{bool: false, integ: -123, date: Date.fromString("2000-01-01 00:00:00"), float: -123.456 }
+						{bool: false, integ: -123, date: Date.fromString("2000-01-01 00:00:00"), float: -123.456, color: Color.Blue }
 					)
 				];
 				
 				var csvData = [
-					['bool', 'integ', 'date', 'float'],
-					['1', '123', "2017-01-18 05:14:00", '123,456'],
-					['0', '-123', "2000-01-01 00:00:00", '-123,456']
+					['bool', 'integ', 'date', 'float', 'color'],
+					['1', '123', "2017-01-18 05:14:00", '123,456', 'Red'],
+					['0', '-123', "2000-01-01 00:00:00", '-123,456', 'Blue']
 				];
 				
-				CsvConverter.current = new CsvConverter({floatDelimiter: ","});
+				var converter = new CsvConverter({floatDelimiter: ","});
 				
 				it("should convert CSV to DataClass", {
-					var csvC = csvData.fromCsvArray(TestConverter);
+					var csvC = converter.fromCsvArray(csvData, TestConverter);
 					csvC.length.should.be(2);
 					
 					csvC[0].bool.should.be(true);
 					csvC[0].integ.should.be(123);
 					csvC[0].date.getFullYear().should.be(2017);
 					csvC[0].float.should.beCloseTo(123.456, 3);
+					csvC[0].color.should.equal(Color.Red);
 
 					csvC[1].bool.should.be(false);
 					csvC[1].integ.should.be(-123);
 					csvC[1].date.getFullYear().should.be(2000);
-					csvC[1].float.should.beCloseTo(-123.456, 3);
+					csvC[1].float.should.beCloseTo( -123.456, 3);
+					csvC[1].color.should.equal(Color.Blue);
 				});
 				it("should convert DataClass to CSV", {
-					var csvO = csvDataArray.toCsvArray();
+					var csvO = converter.toCsvArray(csvDataArray);
 					csvO.length.should.be(3);
-					for (i in 0...3) csvO[i].length.should.be(4);
+					for (i in 0...3) csvO[i].length.should.be(5);
 					csvO[0].should.containAll(csvData[0]);
 					csvO[1].should.containAll(csvData[1]);
 					csvO[2].should.containAll(csvData[2]);

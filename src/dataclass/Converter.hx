@@ -1,6 +1,5 @@
 package dataclass;
 
-import DataClass;
 import haxe.DynamicAccess;
 import haxe.rtti.Meta;
 
@@ -13,9 +12,6 @@ typedef ValueConverter<From, To> = {
 
 interface Converter
 {
-	function toDataClass<T : DataClass>(cls : Class<T>, input : Dynamic) : T;
-	function fromDataClass(cls : DataClass) : DynamicAccess<Dynamic>;
-	
 	var valueConverters(default, null) : Map<String, ValueConverter<Dynamic, Dynamic>>;
 }
 
