@@ -1,7 +1,6 @@
 package dataclass;
 
 import haxe.DynamicAccess;
-import haxe.ds.ObjectMap;
 import dataclass.Converter;
 
 using Lambda;

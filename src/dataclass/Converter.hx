@@ -36,11 +36,11 @@ class Converter
 {
 	static var directConversions = ['Int', 'Bool', 'Float', 'String'];
 	
-	public var valueConverters(default, null) : Map<String, Converter.ValueConverter<Dynamic, Dynamic>>;
+	public var valueConverters(default, null) : Map<String, ValueConverter<Dynamic, Dynamic>>;
 	
 	var nullifyCircular : Bool;
 	
-	macro static function config(optionField : Expr, defaultValue : Expr) {
+	public macro static function config(optionField : Expr, defaultValue : Expr) {
 		return switch optionField.expr {
 			case EField(e, field): macro Reflect.hasField($e, $v{field}) ? $optionField : $defaultValue;
 			case _: Context.error("Invalid config call.", Context.currentPos());
@@ -50,13 +50,13 @@ class Converter
 	public function new(?options : ConverterOptions) {
 		if (options == null) options = {};
 
-		valueConverters = new Map<String, Converter.ValueConverter<Dynamic, Dynamic>>();
+		valueConverters = new Map<String, ValueConverter<Dynamic, Dynamic>>();
 
 		valueConverters.set('Date', new DateValueConverter(
 			config(options.dateFormat, "%Y-%m-%dT%H:%M:%SZ")
 		));
 		
-		nullifyCircular = Reflect.hasField(options, 'nullifyCircular') ? options.nullifyCircular : false;
+		nullifyCircular = config(options.nullifyCircular, false);
 	}	
 	
 	public function toDataClass<T : DataClass>(cls : Class<T>, json : Dynamic) : T {

@@ -3,6 +3,7 @@ package dataclass;
 import dataclass.Converter.ValueConverter;
 import haxe.DynamicAccess;
 import dataclass.Converter;
+import dataclass.Converter.config;
 
 using Lambda;
 using StringTools;
@@ -14,7 +15,7 @@ typedef CsvConverterOptions = {
 	?boolValues : { tru: String, fals: String },
 }
 
-class CsvConverter extends Converter
+class CsvConverter extends dataclass.Converter
 {
 	public static function fromCsv<T : DataClass>(cls : Class<T>, csv : Array<Array<String>>) : Array<T> {
 		return current.fromCsvArray(cls, csv);
@@ -29,16 +30,17 @@ class CsvConverter extends Converter
 	///////////////////////////////////////////////////////////////////////////
 	
 	public function new(?options : CsvConverterOptions) {
+		if(options == null) options = {};
 		super(options);
 
 		valueConverters.set('Int', new IntValueConverter());
 
 		valueConverters.set('Date', new DateValueConverter(
-			Reflect.hasField(options, 'dateFormat') ? options.dateFormat : "%Y-%m-%d %H:%M:%S"
+			config(options.dateFormat, "%Y-%m-%d %H:%M:%S")
 		));
 
 		valueConverters.set('Float', new FloatValueConverter(
-			Reflect.hasField(options, 'floatDelimiter') ? options.floatDelimiter : "."
+			config(options.floatDelimiter, ".")
 		));
 
 		valueConverters.set('Bool', new BoolValueConverter(
