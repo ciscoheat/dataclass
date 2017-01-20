@@ -72,7 +72,7 @@ A constructor will be automatically generated, but if you want to add your own i
 
 ```haxe
 class Custom implements DataClass {
-	public function new(data) {
+	public function new(data) { // One parameter is required
 		// Your code here...
 	}
 }
@@ -206,18 +206,12 @@ And of course, you can instantiate your own `dataclass.JsonConverter` if you don
 
 Another widely used format is CSV. DataClass doesn't parse it, there are many CSV parsers out there, but it gladly converts the resulting CSV structure into DataClass objects.
 
-First, make sure your data is in the type `Array<Array<String>>`, where the first row of the inner array is header names, corresponding to the DataClass object, and the rest is the actual row data.
+First, make sure your data is in the type `Array<Array<String>>`, where the header row of the inner array contains field names corresponding to the DataClass object, and the rest is the actual row data.
 
-Then create an object from `dataclass.CsvConverter` (no extension methods on this one). Here are the settings available:
-	
-- `delimiter` allows you to specify the delimiter for `Float` conversion. The default is `.` (period).
-- `boolValues` sets the converted string values for `true` and `false`.
-- `dateFormat` sets the converted format for `Date` values. **NOTE:** Unlike JSON, the default format for CSV is `yyyy-mm-dd hh:mm:ss`.
-
-For example:
+Then add `using dataclass.CsvConverter`. For example:
 
 ```haxe
-import dataclass.CsvConverter;
+using dataclass.CsvConverter;
 
 class Test implements DataClass {
 	public var first : Int;
@@ -234,13 +228,21 @@ class Main {
 			["456", "2017-01-19", "0"]
 		];
 		
-		var data = new CsvConverter().fromCsvArray(csv, Test);
+		var data = Test.fromCsv(csv);
 		
 		trace(data[0].third); // true
 		trace(data[1].second.getFullYear()); // 2017
+		
+		var newCsv = data.toCsv();
 	}
 }
 ```
+
+Here are the settings available, if you want to set your own CsvConverter:
+	
+- `delimiter` allows you to specify the delimiter for `Float` conversion. The default is `.` (period).
+- `boolValues` sets the converted string values for `true` and `false`.
+- `dateFormat` sets the converted format for `Date` values. **NOTE:** Unlike JSON, the default format for CSV is `yyyy-mm-dd hh:mm:ss`.
 
 ## Custom value converters
 
@@ -277,10 +279,10 @@ When a validation fails, a `String` is thrown, but you can define `-D dataclass-
 
 ```haxe
 // errorMessage is a String
-throw new your.CustomException(errorMessage);
+throw new your.CustomException(errorMessage : String, thisRef : Dynamic, failedValue : Dynamic);
 ```
 
-As a convenience, you can also define `-D dataclass-throw-js-error` to throw `js.Error`.
+As a convenience, you can also define `-D dataclass-throw-js-error` to throw `js.Error(errorMessage : String)`.
 
 ### Specific library support
 

@@ -17,7 +17,7 @@ using StringTools;
 using buddy.Should;
 
 using dataclass.JsonConverter;
-import dataclass.CsvConverter;
+using dataclass.CsvConverter;
 
 @:enum abstract HttpStatus(Int) {
 	var NotFound = 404;
@@ -536,10 +536,12 @@ class ConverterTests extends BuddySuite
 					['0', '-123', "2000-01-01 00:00:00", '-123,456', 'Blue']
 				];
 				
-				var converter = new CsvConverter({floatDelimiter: ","});
+				beforeEach({
+					CsvConverter.current = new CsvConverter({floatDelimiter: "," });
+				});
 				
 				it("should convert CSV to DataClass", {
-					var csvC = converter.fromCsvArray(csvData, TestConverter);
+					var csvC = TestConverter.fromCsv(csvData);
 					csvC.length.should.be(2);
 					
 					csvC[0].bool.should.be(true);
@@ -551,16 +553,20 @@ class ConverterTests extends BuddySuite
 					csvC[1].bool.should.be(false);
 					csvC[1].integ.should.be(-123);
 					csvC[1].date.getFullYear().should.be(2000);
-					csvC[1].float.should.beCloseTo( -123.456, 3);
+					csvC[1].float.should.beCloseTo(-123.456, 3);
 					csvC[1].color.should.equal(Color.Blue);
 				});
 				it("should convert DataClass to CSV", {
-					var csvO = converter.toCsvArray(csvDataArray);
+					var csvO = csvDataArray.toCsv();
 					csvO.length.should.be(3);
 					for (i in 0...3) csvO[i].length.should.be(5);
 					csvO[0].should.containAll(csvData[0]);
 					csvO[1].should.containAll(csvData[1]);
 					csvO[2].should.containAll(csvData[2]);
+				});
+				
+				afterEach({
+					CsvConverter.current = new CsvConverter();
 				});
 			});
 		});
