@@ -93,7 +93,7 @@ class Custom implements DataClass {
 
 ## Immutability
 
-A class can be made immutable from the outside by marking it with `@immutable`, which will simply change all `var` to `var(default, null)`.
+A class can be made immutable from the outside by marking it with `@immutable`, which will simply change all `var` to `var(default, null)`. Quite useful when doing event sourcing and using event stores, for example.
 
 ## Inheritance
 
@@ -119,7 +119,7 @@ The superclass should not implement `DataClass`, rather it should be considered 
 
 ## Manual validation
 
-All classes implementing `DataClass` will get a static `validate` method that can be used to test if some input date will pass validation:
+All classes implementing `DataClass` will get a static `validate` method that can be used to test if some input will pass validation:
 
 ```haxe
 class Main {
@@ -149,7 +149,7 @@ class Main {
 }
 ```
 
-The `validate` method will never throw an exception, and can be used with anonymous objects. If you don't want the method on a specific class, you can skip it by adding a `@noValidator` metadata.
+The `validate` method won't throw an exception, and can be used with anonymous objects. If you don't want the method on a specific class, you can skip it by adding a `@noValidator` metadata.
 
 ## Conversion utilities
 
@@ -278,7 +278,6 @@ class Main {
 When a validation fails, a `String` is thrown, but you can define `-D dataclass-throw=your.CustomException`, and all failed validation will be thrown as 
 
 ```haxe
-// errorMessage is a String
 throw new your.CustomException(errorMessage : String, thisRef : Dynamic, failedValue : Dynamic);
 ```
 
