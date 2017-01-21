@@ -195,12 +195,12 @@ class Main {
 }
 ```
 
-The extension methods are handled by `dataclass.JsonConverter.current`, which you can reassign if you want different settings. When instantiating, you have a few options:
+The extension methods are handled by `dataclass.JsonConverter.current`, which you can reassign if you want different settings. When instantiating, you have a two options:
 	
 - `dateFormat`: Sets the converted string format for `Date`. Default is ISO 8601 for UTC: `yyyy-mm-ddThh:mm:ssZ` **NOTE:** only Zulu time is supported for this format, because of platform differences.
-- `nullifyCircular`: If `true`, sets circular references to `null` when using `toJson()`, the default is that an exception is thrown.
+- `circularReferences`: An Enum with three values. The default, `ThrowException`, throws an exception when it detects a circular reference. `SetToNull`, sets those circular references to `null` instead. `TrackReferences` keeps track of the references, stores them in JSON and restores them when converted back, at a small storage and time penalty.
 
-And of course, you can instantiate your own `dataclass.JsonConverter` if you don't want to use the extension methods.
+Of course, you can instantiate your own `dataclass.JsonConverter` if you don't want to use the extension methods.
 
 ### CSV
 

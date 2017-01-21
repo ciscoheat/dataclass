@@ -14,8 +14,14 @@ using Lambda;
 using StringTools;
 using DateTools;
 
+enum CircularReferenceHandling {
+	ThrowException;
+	SetToNull;
+	TrackReferences;
+}
+
 typedef ConverterOptions = {
-	?nullifyCircular : Bool,
+	?circularReferences : CircularReferenceHandling,
 	?dateFormat : String
 }
 
@@ -23,6 +29,9 @@ typedef ValueConverter<From, To> = {
 	function input(value : From) : To;
 	function output(value : To) : From;
 }
+
+private typedef RefCountMap = Map<Int, Dynamic>;
+private typedef RefAssignMap = Map<Int, Array<{obj: Int, field: String}>>;
 
 class Rtti
 {
@@ -38,12 +47,12 @@ class Converter
 	
 	public var valueConverters(default, null) : Map<String, ValueConverter<Dynamic, Dynamic>>;
 	
-	var nullifyCircular : Bool;
+	var circularReferences : CircularReferenceHandling;
 	
 	public macro static function config(optionField : Expr, defaultValue : Expr) {
 		return switch optionField.expr {
 			case EField(e, field): macro Reflect.hasField($e, $v{field}) ? $optionField : $defaultValue;
-			case _: Context.error("Invalid config call.", Context.currentPos());
+			case _: Context.error("Invalid config call, options object required.", Context.currentPos());
 		}
 	}
 	
@@ -56,26 +65,71 @@ class Converter
 			config(options.dateFormat, "%Y-%m-%dT%H:%M:%SZ")
 		));
 		
-		nullifyCircular = config(options.nullifyCircular, false);
+		this.circularReferences = config(options.circularReferences, ThrowException);
 	}	
 	
 	public function toDataClass<T : DataClass>(cls : Class<T>, json : Dynamic) : T {
-		var rtti = Converter.Rtti.rttiData(cls);
-		var inputData : DynamicAccess<Dynamic> = json;
-		var outputData : DynamicAccess<Dynamic> = {};
+		var refCount = new RefCountMap();
+		var refAssign = new RefAssignMap();
+		var output = _toDataClass(cls, json, refCount, refAssign);
 		
-		for (field in rtti.keys()) {
-			var input = inputData.get(field);
-			var output = convertFromJsonField(rtti[field], input);
-			
-			//trace(field + ': ' + input + ' -[' + rtti[field] + ']-> ' + output);
-			outputData.set(field, output);
+		for (refId in refAssign.keys()) {
+			for (data in refAssign.get(refId)) {
+				//trace('ref $refId: assigning field ${data.field} to object ' + data.obj);
+				Reflect.setProperty(refCount.get(refId), data.field, refCount.get(data.obj));
+			}
 		}
-
-		return Type.createInstance(cls, [outputData]);
+		
+		return output;
 	}
 	
-	function convertFromJsonField(data : String, value : Dynamic) : Dynamic {
+	function _toDataClass<T : DataClass>(cls : Class<T>, json : Dynamic, refCount : RefCountMap, refAssign : RefAssignMap) : T {
+		var rtti = Converter.Rtti.rttiData(cls);
+		var inputData : DynamicAccess<Dynamic> = json;
+		var outputData : DynamicAccess<Dynamic> = { };
+		var currentId = 0;
+
+		if (circularReferences == TrackReferences && inputData.exists("$id")) {
+			currentId = cast inputData.get("$id");
+			//trace('=== Converting ref $currentId');
+		}
+
+		for (field in rtti.keys()) {
+			var input = inputData.get(field);
+			var data = rtti[field];
+			
+			if (circularReferences == TrackReferences && 				
+				input != null && 
+				data.startsWith("DataClass<") 
+				&& Reflect.hasField(input, "$ref")
+			) {
+				// Store reference for later assignment
+				var refId : Int = cast Reflect.field(input, "$ref");
+				var refData = { obj: refId, field: field };
+				
+				//trace('Found ref $refId in field $field');
+				
+				if (!refAssign.exists(currentId))
+					refAssign.set(currentId, [refData]);
+				else 
+					refAssign.get(currentId).push(refData);
+			} else {
+				var output = toDataClassField(rtti[field], input, refCount, refAssign);				
+				//trace(field + ': ' + input + ' -[' + rtti[field] + ']-> ' + output);
+				outputData.set(field, output);
+			}
+		}
+
+		var output = Type.createInstance(cls, [outputData]);
+		
+		if (circularReferences == TrackReferences && currentId > 0) {
+			refCount.set(currentId, output);
+		}
+
+		return output;
+	}
+	
+	function toDataClassField(data : String, value : Dynamic, refCount : RefCountMap, refAssign : RefAssignMap) : Dynamic {
 		if (value == null) return value;
 
 		if (valueConverters.exists(data)) {
@@ -87,15 +141,15 @@ class Converter
 		}
 		else if (data.startsWith("Array<")) {
 			var arrayType = data.substring(6, data.length - 1);
-			return [for (v in cast(value, Array<Dynamic>)) convertFromJsonField(arrayType, v)];
+			return [for (v in cast(value, Array<Dynamic>)) toDataClassField(arrayType, v, refCount, refAssign)];
 		}
 		else if (data.startsWith("Enum<")) {
 			var enumT = enumType(data.substring(5, data.length - 1));
 			return Type.createEnum(enumT, value);
 		}
-		else if (data.startsWith("DataClass<")) {
+		else if (data.startsWith("DataClass<")) {			
 			var classT = classType(data.substring(10, data.length - 1));
-			return toDataClass(cast classT, value);
+			return _toDataClass(cast classT, value, refCount, refAssign);
 		}
 		else 
 			throw "Unsupported DataClass converter: " + data;
@@ -104,32 +158,39 @@ class Converter
 	///////////////////////////////////////////////////////////////////////////
 	
 	public function fromDataClass(cls : DataClass) : DynamicAccess<Dynamic> {
-		return _fromDataClass(cls, []);
+		return _fromDataClass(cls, new ObjectMap<Dynamic, Int>(), 0);
 	}
 		
-	function _fromDataClass(cls : DataClass, refs : Array<Dynamic>) : DynamicAccess<Dynamic> {
-		if (refs.has(cls)) {
-			if (nullifyCircular) return null 
-			else throw "Converting circular structure.";
+	function _fromDataClass(dataClass : DataClass, refs : ObjectMap<Dynamic, Int>, refcounter : Int) : DynamicAccess<Dynamic> {
+		if (refs.exists(dataClass)) return switch circularReferences {
+			case ThrowException: throw "Converting circular DataClass structure.";
+			case SetToNull: null;
+			case TrackReferences: { "$ref": refs.get(dataClass) };
 		}
+		else 
+			refs.set(dataClass, ++refcounter);
 		
-		var rtti = Converter.Rtti.rttiData(Type.getClass(cls));
-		var outputData : DynamicAccess<Dynamic> = {};
-		var newRefs = refs.concat([cls]);
+		var outputData : DynamicAccess<Dynamic> = circularReferences == TrackReferences
+			? { "$id": refcounter }
+			: {};
+			
+		var rtti = Converter.Rtti.rttiData(Type.getClass(dataClass));
 		
 		for (field in rtti.keys()) {
-			var input = Reflect.getProperty(cls, field);
-			// TODO: Move refs array above loop?
-			var output = convertToJsonField(rtti[field], input, newRefs);
+			var input = Reflect.getProperty(dataClass, field);
+			var output = convertToJsonField(rtti[field], input, refs, refcounter);
 			
 			//trace(field + ': ' + input + ' -[' + rtti[field] + ']-> ' + output);
 			outputData.set(field, output);
 		}
+		
+		if (circularReferences == SetToNull)
+			refs.remove(dataClass);
 
 		return outputData;
 	}
 	
-	function convertToJsonField(data : String, value : Dynamic, refs : Array<Dynamic>) : Dynamic {
+	function convertToJsonField(data : String, value : Dynamic, refs : ObjectMap<Dynamic, Int>, refcounter : Int) : Dynamic {
 		if (value == null) return value;
 
 		if (valueConverters.exists(data)) {
@@ -140,13 +201,13 @@ class Converter
 		}
 		else if (data.startsWith("Array<")) {
 			var arrayType = data.substring(6, data.length - 1);
-			return [for (v in cast(value, Array<Dynamic>)) convertToJsonField(arrayType, v, refs)];
+			return [for (v in cast(value, Array<Dynamic>)) convertToJsonField(arrayType, v, refs, refcounter)];
 		}
 		else if (data.startsWith("Enum<")) {
 			return Std.string(value);
 		}
 		else if (data.startsWith("DataClass<")) {
-			return _fromDataClass(cast value, refs);
+			return _fromDataClass(cast value, refs, refcounter);
 		}
 		else 
 			throw "Unsupported DataClass converter: " + data;

@@ -502,21 +502,58 @@ class ConverterTests extends BuddySuite
 					var innerCsv = csv[0];
 					innerCsv[0].should.be("123");
 				});
-				it("should throw on circular references and set to null if configured like that", {
-					var parent = new CircularReferenceTest({id: 1, children: [], parent: null});
-					var child = new CircularReferenceTest( { id: 2, children: [], parent: parent } );
-					parent.children.push(child);
+				
+				describe("Converter circular references", {
+					var oldConverter : JsonConverter;
+					var parent : CircularReferenceTest;
+					var child : CircularReferenceTest;
 					
-					(function() parent.toJson()).should.throwType(String);
+					beforeEach({
+						oldConverter = JsonConverter.current;
+						parent = new CircularReferenceTest( { id: 1, children: [], parent: null } );
+						child = new CircularReferenceTest( { id: 2, children: [], parent: parent } );
+						parent.children.push(child);
+					});
+
+					afterEach({
+						JsonConverter.current = oldConverter;
+					});
+
+					it("should throw on circular references and set to null if configured like that", {
+						(function() parent.toJson()).should.throwType(String);
+							
+						JsonConverter.current = new JsonConverter({
+							circularReferences: dataclass.Converter.CircularReferenceHandling.SetToNull
+						});
+						
+						var nonCirc = parent.toJson();
+						var children : Array<DynamicAccess<Dynamic>> = nonCirc.get('children'); 
+						children[0].get('parent').should.be(null);
+						
+						JsonConverter.current = new JsonConverter({
+							circularReferences: dataclass.Converter.CircularReferenceHandling.TrackReferences
+						});
+						
+						var setRef = parent.toJson();
+						var children : Array<DynamicAccess<Dynamic>> = setRef.get('children');
+						var parent : DynamicAccess<Dynamic> = children[0].get('parent');
+						
+						parent.exists("$ref").should.be(true);
+						parent.get("$ref").should.not.be(0);
+						parent.get("$ref").should.be(setRef.get("$id"));
+						
+						JsonConverter.current = oldConverter;
+					});
 					
-					var oldConverter = JsonConverter.current;
-					JsonConverter.current = new JsonConverter({nullifyCircular: true});
-					
-					var nonCirc = parent.toJson();
-					var children : Array<DynamicAccess<Dynamic>> = nonCirc.get('children'); 
-					children[0].get('parent').should.be(null);
-					
-					JsonConverter.current = oldConverter;
+					it("should restore circular references properly when configured for that", {
+						JsonConverter.current = new JsonConverter({
+							circularReferences: dataclass.Converter.CircularReferenceHandling.TrackReferences
+						});
+						
+						var useRef = CircularReferenceTest.fromJson(parent.toJson());
+						// Testing should with useRef directly doesn't work on neko
+						(useRef.children[0].parent == useRef).should.be(true);
+					});
 				});
 			});
 			
