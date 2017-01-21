@@ -1,11 +1,10 @@
 {
     "name": "dataclass",
     "url": "https://github.com/ciscoheat/dataclass",
-    "description": "A more convenient way to instantiate data classes.",
+    "description": "A convenient way to create domain objects, DTO's, web forms, and other data structures.",
     "license": "MIT",
     "contributors": ["ciscoheat"],
-    "version": "0.22.1",
-    "releasenote": "Fixed ISO 8601 support for dates (UTC only).",
-    "tags": ["data", "validation", "converter"],
-	"dependencies": { "immutable": "" }
+    "version": "1.0.0",
+    "releasenote": "Full rewrite!",
+    "tags": ["data", "dto", "validation", "converter", "json", "csv", "contracts"]
 }
