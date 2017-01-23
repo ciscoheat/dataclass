@@ -1,6 +1,8 @@
 package dataclass;
 
 import haxe.DynamicAccess;
+import haxe.ds.IntMap;
+import haxe.ds.StringMap;
 import haxe.macro.Context;
 import haxe.macro.Expr;
 import haxe.rtti.Meta;
@@ -151,6 +153,26 @@ class Converter
 			var classT = classType(data.substring(10, data.length - 1));
 			return _toDataClass(cast classT, value, refCount, refAssign);
 		}
+		else if (data.startsWith("StringMap<")) {
+			var mapType = data.substring(10, data.length - 1);
+			var output = new StringMap<Dynamic>();
+			var object : DynamicAccess<Dynamic> = cast value;
+			
+			for (key in object.keys())
+				output.set(key, toDataClassField(mapType, object.get(key), refCount, refAssign));
+				
+			return output;
+		}		
+		else if (data.startsWith("IntMap<")) {
+			var mapType = data.substring(7, data.length - 1);
+			var output = new IntMap<Dynamic>();
+			var object : DynamicAccess<Dynamic> = cast value;
+			
+			for (key in object.keys())
+				output.set(Std.parseInt(key), toDataClassField(mapType, object.get(key), refCount, refAssign));
+				
+			return output;
+		}		
 		else 
 			throw "Unsupported DataClass converter: " + data;
 	}
@@ -208,6 +230,26 @@ class Converter
 		}
 		else if (data.startsWith("DataClass<")) {
 			return _fromDataClass(cast value, refs, refcounter);
+		}
+		else if (data.startsWith("StringMap<")) {
+			var mapType = data.substring(10, data.length - 1);
+			var map = cast(value, StringMap<Dynamic>);
+			var output : DynamicAccess<Dynamic> = {};
+			
+			for (key in map.keys())
+				output.set(key, convertToJsonField(mapType, map.get(key), refs, refcounter));
+				
+			return output;
+		}		
+		else if (data.startsWith("IntMap<")) {
+			var mapType = data.substring(7, data.length - 1);
+			var map = cast(value, IntMap<Dynamic>);
+			var output : DynamicAccess<Dynamic> = { };
+			
+			for (key in map.keys())
+				output.set(Std.string(key), convertToJsonField(mapType, map.get(key), refs, refcounter));
+				
+			return output;
 		}
 		else 
 			throw "Unsupported DataClass converter: " + data;

@@ -4,7 +4,7 @@
     "description": "A convenient way to create domain objects, DTO's, web forms, and other data structures.",
     "license": "MIT",
     "contributors": ["ciscoheat"],
-    "version": "1.0.0",
-    "releasenote": "Full rewrite!",
+    "version": "1.1.0",
+    "releasenote": "Added support for IntMap and StringMap.",
     "tags": ["data", "dto", "validation", "converter", "json", "csv", "contracts"]
 }

@@ -548,7 +548,7 @@ class Builder
 private class RttiBuilder
 {
 	public static function createMetadata(dataClassFields : Array<DataField>) : Array<{field: String, expr: Expr}> {
-		function ormFieldType(t : Type, field : DataField) : String {
+		function fieldTypeToName(t : Type, field : DataField) : String {
 			function error(msg) {
 				Context.error(msg, field.pos);
 				return null;
@@ -577,12 +577,15 @@ private class RttiBuilder
 						// String and Date can always be converted
 						case 'String', 'Date': type.name;
 						// Arrays too
-						case 'Array': "Array<" + ormFieldType(params[0], field) + ">";
+						case 'Array': "Array<" + fieldTypeToName(params[0], field) + ">";
+						case 'IntMap', 'StringMap': type.name + "<" + fieldTypeToName(params[0], field) + ">";
 						case _:
 							// But all other classes must implement DataClass
 							var name = type.pack.toDotPath(type.name);
-							if (!type.interfaces.exists(function(i) return i.t.get().name == "DataClass"))
+							if (!type.interfaces.exists(function(i) return i.t.get().name == "DataClass")) {
+								trace(type);
 								error('Class $name does not implement DataClass.');
+							}
 							"DataClass<" + name + ">";
 					}
 				case _:
@@ -594,7 +597,7 @@ private class RttiBuilder
 			var type = Context.followWithAbstracts(ComplexTypeTools.toType(field.type()));
 			{
 				field: field.name, 
-				expr: macro $v{ormFieldType(type, field)}
+				expr: macro $v{fieldTypeToName(type, field)}
 			}
 		}];
 	}

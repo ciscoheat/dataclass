@@ -3,6 +3,8 @@ import buddy.*;
 import dataclass.*;
 import haxe.DynamicAccess;
 import haxe.Json;
+import haxe.ds.IntMap;
+import haxe.ds.StringMap;
 import haxe.rtti.Meta;
 import haxecontracts.ContractException;
 import haxecontracts.HaxeContracts;
@@ -187,6 +189,12 @@ class CircularReferenceTest implements DataClass
 	public var id : Int;
 	public var children(default, null) : Array<CircularReferenceTest> = [];
 	public var parent : Null<CircularReferenceTest>;
+}
+
+class IntStringMapTest implements DataClass
+{
+	public var intMap : IntMap<TestFloatConverter>;
+	public var stringMap : StringMap<Array<Bool>>;
 }
 
 interface ExtendingInterface extends DataClass
@@ -503,6 +511,41 @@ class ConverterTests extends BuddySuite
 					innerCsv[0].should.be("123");
 				});
 				
+				describe("Converting IntMap and StringMap", {
+					var intMap : IntMap<TestFloatConverter>;
+					var stringMap : StringMap<Array<Bool>>;
+					
+					beforeEach({						
+						intMap = new IntMap<TestFloatConverter>();						
+						intMap.set(1, new TestFloatConverter( { float: -12.345 } ));
+						intMap.set(2, new TestFloatConverter( { float: 1/3 } ));
+						
+						stringMap = new StringMap<Array<Bool>>();
+						stringMap.set("a", [true, false, true]);
+						stringMap.set("b", [false, true, false]);
+					});
+					
+					it("should convert them to proper JSON and back", {
+						var mapper = new IntStringMapTest( { intMap: intMap, stringMap: stringMap } );
+						var mapJson = mapper.toJson();
+						
+						var intM : DynamicAccess<Dynamic> = mapJson.get('intMap');
+						cast(intM.get('1').float, Float).should.beCloseTo( -12.345, 3);
+						cast(intM.get('2').float, Float).should.beCloseTo( 1 / 3, 5);
+						
+						var stringM : DynamicAccess<Dynamic> = mapJson.get('stringMap');
+						cast(stringM.get('a'), Array<Dynamic>).should.containExactly([true, false, true]);
+						cast(stringM.get('b'), Array<Dynamic>).should.containExactly([false, true, false]);
+						
+						var backToMapper = IntStringMapTest.fromJson(mapJson);
+						backToMapper.intMap.get(1).float.should.beCloseTo( -12.345, 3);
+						backToMapper.intMap.get(2).float.should.beCloseTo( 1 / 3, 5);
+						
+						backToMapper.stringMap.get('a').should.containExactly([true, false, true]);
+						backToMapper.stringMap.get('b').should.containExactly([false, true, false]);
+					});
+				});
+				
 				describe("Converter circular references", {
 					var oldConverter : JsonConverter;
 					var parent : CircularReferenceTest;
@@ -535,12 +578,12 @@ class ConverterTests extends BuddySuite
 						});
 						
 						var setRef = parent.toJson();
-						var children : Array<DynamicAccess<Dynamic>> = setRef.get('children');
-						var parent : DynamicAccess<Dynamic> = children[0].get('parent');
+						children = setRef.get('children');
+						var parent2 : DynamicAccess<Dynamic> = children[0].get('parent');
 						
-						parent.exists("$ref").should.be(true);
-						parent.get("$ref").should.not.be(0);
-						parent.get("$ref").should.be(setRef.get("$id"));
+						parent2.exists("$ref").should.be(true);
+						parent2.get("$ref").should.not.be(0);
+						parent2.get("$ref").should.be(setRef.get("$id"));
 						
 						JsonConverter.current = oldConverter;
 					});
