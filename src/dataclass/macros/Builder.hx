@@ -607,7 +607,7 @@ private class Validator
 	static var illegalNullTypes = ['Int', 'Float', 'Bool'];
 	
 	static var isStaticPlatform = Context.defined("cpp") || Context.defined("java") || 
-		Context.defined("flash") || Context.defined("cs");
+		Context.defined("flash") || Context.defined("cs") || Context.defined("hl");
 	
 	// Testing for null is only allowed if on a non-static platform or the type is not a basic type.
 	public static function nullTestAllowed(type : ComplexType) : Bool {
