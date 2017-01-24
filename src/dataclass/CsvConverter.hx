@@ -85,7 +85,7 @@ private class IntValueConverter
 	public function new() { }
 
 	public function input(input : String) : Int {
-		return Std.parseInt(input);
+		return Std.parseInt(input.replace(" ", ""));
 	}
 	
 	public function output(input : Int) : String {
@@ -102,7 +102,7 @@ private class BoolValueConverter
 	}
 
 	public function input(input : String) : Bool {
-		return boolValues.tru.has(input);
+		return boolValues.tru.has(input.trim());
 	}
 	
 	public function output(input : Bool) : String {
@@ -119,7 +119,7 @@ private class FloatValueConverter
 	}
 
 	public function input(input : String) : Float {
-		return Std.parseFloat(input.replace(separator, "."));
+		return Std.parseFloat(input.replace(" ", "").replace(separator, "."));
 	}
 	
 	public function output(input : Float) : String {
