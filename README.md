@@ -195,7 +195,7 @@ class Main {
 }
 ```
 
-The extension methods are handled by `dataclass.JsonConverter.current`, which you can reassign if you want different settings. When instantiating, you have a two options:
+The extension methods are handled by `dataclass.JsonConverter.current`, which you can reassign if you want different settings. When instantiating, you have two options:
 	
 - `dateFormat`: Sets the converted string format for `Date`. Default is ISO 8601 for UTC: `yyyy-mm-ddThh:mm:ssZ` **NOTE:** only Zulu time is supported for this format, because of platform differences.
 - `circularReferences`: An Enum with three values. The default, `ThrowException`, throws an exception when it detects a circular reference. `SetToNull`, sets those circular references to `null` instead. `TrackReferences` keeps track of the references, stores them in JSON and restores them when converted back, at a small storage and time penalty.
@@ -241,7 +241,7 @@ class Main {
 Here are the settings available, if you want to set your own CsvConverter:
 	
 - `delimiter` allows you to specify the delimiter for `Float` conversion. The default is `.` (period).
-- `boolValues` sets the converted string values for `true` and `false`.
+- `boolValues` sets the converted string values for `true` and `false`. Default is "1" and "0". Any value not equal to the string value of true is considered false.
 - `dateFormat` sets the converted format for `Date` values. **NOTE:** Unlike JSON, the default format for CSV is `yyyy-mm-dd hh:mm:ss`.
 
 ### Html
@@ -265,13 +265,13 @@ class Test implements DataClass
 		<option>100</option>
 		<option selected>1001</option>
 	</select>
-	<input type="hidden" name="ok" value="">
+	<input type="hidden" name="ok" value="0">
 	<input type="checkbox" name="ok" value="1" checked>
 	<input type="submit" name="submit" value="Submit"/>
 </form>
 ```
 
-You can then convert the form to a `Test` object using a `HtmlFormConverter`:
+You can then convert the form to a `Test` object using a `HtmlFormConverter`, which takes the same options as the `CsvConverter`.
 
 ```haxe
 import js.Browser;
@@ -281,20 +281,31 @@ class Main {
 	static function main() {
 		var form = new HtmlFormConverter(Browser.document.querySelector('form'));
 		
-		// Basic conversions
-		
 		// String values of the form, except select-multiple which is Array<String>
 		form.toAnonymousStructure();
+		
 		// Serializes the form to a querystring
 		form.toQueryString();
 		
-		// Validation and DataClass conversion
-		
+		// Validation and DataClass conversion		
 		var errors = form.validate(Test);
-		var test = form.toDataClass(Test);
+		
+		if(errors.length == 0)
+			var test = form.toDataClass(Test);
 	}
 }
 ```
+
+## Built-in converters
+
+To keep the conversion efficient, not every type can be converted to and from the above formats. There is built-in support for the following:
+	
+- Primitive types: `Int`, `Bool`, `Float`, `String`, `Enum` (with no constructors)
+- Composite types: `Array<T>`, `StringMap<T>`, `IntMap<T>`
+
+Where `T` is one of the primitive types, or a class implementing `DataClass`.
+
+All other DataClass fields must be one of the above types. If you need more, you can create your own value converters:
 
 ## Custom value converters
 
@@ -325,6 +336,8 @@ class Main {
 	}
 }
 ```
+
+For the moment, type parameters cannot be used in custom value converters.
 
 ## Custom exceptions
 

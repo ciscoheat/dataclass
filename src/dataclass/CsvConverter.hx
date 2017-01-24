@@ -12,7 +12,7 @@ using DateTools;
 typedef CsvConverterOptions = {
 	> ConverterOptions,
 	?floatDelimiter : String,
-	?boolValues : { tru: Array<String>, fals: Array<String> },
+	?boolValues : { tru: String, fals: String },
 }
 
 class CsvConverter extends dataclass.Converter
@@ -47,7 +47,7 @@ class CsvConverter extends dataclass.Converter
 			if (Reflect.hasField(options, 'boolValues')) 
 				{ tru: options.boolValues.tru, fals: options.boolValues.fals }
 			else
-				{ tru: ["1"], fals: ["0", ""] }
+				{ tru: "1", fals: "0" }
 		));
 	}
 	
@@ -95,18 +95,18 @@ private class IntValueConverter
 
 private class BoolValueConverter
 {
-	var boolValues : { tru: Array<String>, fals: Array<String> };
+	var boolValues : { tru: String, fals: String };
 	
 	public function new(boolValues) {
 		this.boolValues = boolValues;
 	}
 
 	public function input(input : String) : Bool {
-		return boolValues.tru.has(input.trim());
+		return boolValues.tru == input.trim();
 	}
 	
 	public function output(input : Bool) : String {
-		return input == true ? boolValues.tru[0] : boolValues.fals[0];
+		return input == true ? boolValues.tru : boolValues.fals;
 	}
 }
 

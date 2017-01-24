@@ -1,13 +1,14 @@
 package dataclass;
-import js.Lib;
-import js.html.OptionElement;
 
 #if js
+import js.Lib;
+
 import haxe.CallStack;
 import haxe.DynamicAccess;
 import haxe.Json;
 
 import js.Browser;
+import js.html.OptionElement;
 import js.html.Element;
 import js.html.ButtonElement;
 import js.html.FormElement;
@@ -58,7 +59,7 @@ class HtmlFormConverter
 							// map.set(formElement.name, formElement.value);
 						case 'reset':
 						case _:
-							trace("Unknown form element type: " + formElement.type);
+							trace("Unknown input element type: " + formElement.type);
 					}
 					
 				case 'textarea':
@@ -100,6 +101,7 @@ class HtmlFormConverter
 	public function toQueryString() : String {
 		var map = toAnonymousStructure();
 		var output : Array<String> = [];
+		
 		for (name in map.keys()) {
 			var value = map.get(name);
 			var values : Array<String> = Std.is(value, Array)
@@ -110,11 +112,14 @@ class HtmlFormConverter
 				output.push(name.urlEncode() + "=" + val.urlEncode());
 			}
 		}
+		
 		return output.join("&");
 	}
 
 	public function validate<T : DataClass>(cls : Class<T>) : Array<String> {
-		if (!Reflect.hasField(cls, "validate")) throw "No static validate method on class " + cls;
+		if (!Reflect.hasField(cls, "validate")) 
+			throw "No static validate method on class " + Type.getClassName(cls);
+			
 		var data = converter.toAnonymousStructure(cls, toAnonymousStructure());
 		return untyped __js__('cls.validate({0})', data);
 	}
