@@ -14,15 +14,13 @@ install:
   - haxelib install travix
   - haxelib run travix install
 
-before_script:
-  - phpenv config-rm xdebug.ini || true
-
 script:
   - haxelib run travix neko
   - haxelib run travix python
   - haxelib run travix node
+  - haxelib run travix php
+  - haxelib run travix js
   - haxelib run travix flash -D static
   - haxelib run travix java -D static
   - haxelib run travix cpp -D static -lib hxcpp
   - haxelib run travix cs -D static
-  - haxelib run travix php

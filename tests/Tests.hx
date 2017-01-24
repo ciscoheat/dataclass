@@ -537,12 +537,16 @@ class ConverterTests extends BuddySuite
 						var mapJson = mapper.toJson();
 						
 						var intM : DynamicAccess<Dynamic> = mapJson.get('intMap');
-						cast(intM.get('1').float, Float).should.beCloseTo( -12.345, 3);
-						cast(intM.get('2').float, Float).should.beCloseTo( 1 / 3, 5);
+						var f1 : Float = cast intM.get('1').float;
+						var f2 : Float = cast intM.get('2').float;
+						f1.should.beCloseTo( -12.345, 3);
+						f2.should.beCloseTo( 1 / 3, 5);
 						
 						var stringM : DynamicAccess<Dynamic> = mapJson.get('stringMap');
-						cast(stringM.get('a'), Array<Dynamic>).should.containExactly([true, false, true]);
-						cast(stringM.get('b'), Array<Dynamic>).should.containExactly([false, true, false]);
+						var a1 : Array<Bool> = cast stringM.get('a');
+						var b1 : Array<Bool> = cast stringM.get('b');
+						a1.should.containExactly([true, false, true]);
+						b1.should.containExactly([false, true, false]);
 						
 						var backToMapper = IntStringMapTest.fromJson(mapJson);
 						backToMapper.intMap.get(1).float.should.beCloseTo( -12.345, 3);

@@ -189,6 +189,10 @@ class Builder
 		var cls = Context.getLocalClass().get();
 		if (cls.isInterface) return null;
 		
+		#if (haxe_ver < 3.3)
+		Context.error("DataClass requires Haxe 3.3+", cls.pos);
+		#end
+		
 		return new Builder().createDataClassFields();
 	}
 	

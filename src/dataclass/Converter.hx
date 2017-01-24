@@ -190,21 +190,25 @@ class Converter
 		}
 		else if (data.startsWith("StringMap<")) {
 			var mapType = data.substring(10, data.length - 1);
+			
 			var output = new StringMap<Dynamic>();
 			var object : DynamicAccess<Dynamic> = cast value;
 			
-			for (key in object.keys())
+			for (key in object.keys()) {
 				output.set(key, toField(mapType, object.get(key), refCount, refAssign, toDataClass));
+			}
 				
 			return output;
 		}		
 		else if (data.startsWith("IntMap<")) {
 			var mapType = data.substring(7, data.length - 1);
+			
 			var output = new IntMap<Dynamic>();
 			var object : DynamicAccess<Dynamic> = cast value;
 			
-			for (key in object.keys())
+			for (key in object.keys()) {
 				output.set(Std.parseInt(key), toField(mapType, object.get(key), refCount, refAssign, toDataClass));
+			}
 				
 			return output;
 		}		
