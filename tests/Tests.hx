@@ -119,6 +119,7 @@ class Validator implements DataClass
 	@validate(~/\d{4}-\d\d-\d\d/) public var date : String;
 	@validate(_.length > 2 && _.length < 9) public var str : String;
 	@validate(_.length > 0 && _[0] >= 100) public var integ : Array<Int>;
+	public var ok : Bool = false;
 }
 
 class NullValidateTest implements DataClass
@@ -756,9 +757,10 @@ class HtmlFormConverterTests extends BuddySuite
 				cast(anon.integ[0], String).should.be("100");
 				cast(anon.integ[1], String).should.be("1001");
 				anon.date.should.be("2016-05-08");
-				anon.str.should.be("ab<cde");				
+				anon.str.should.be("ab<cde");
+				anon.ok.should.be("1");
 				
-				conv.toQueryString().should.be("date=2016-05-08&integ=100&integ=1001&str=ab%3Ccde&submit=Submit");
+				conv.toQueryString().should.be("date=2016-05-08&integ=100&integ=1001&ok=1&str=ab%3Ccde&submit=Submit");
 			});
 				
 			it("should validate and convert to DataClass objects", {
@@ -766,6 +768,7 @@ class HtmlFormConverterTests extends BuddySuite
 				conv.toDataClass(Validator).integ.should.containExactly([100,1001]);
 				conv.toDataClass(Validator).date.should.be("2016-05-08");
 				conv.toDataClass(Validator).str.should.be("ab<cde");
+				conv.toDataClass(Validator).ok.should.be(true);
 			});
 			
 			it("should validate properly with failed fields", {
@@ -785,6 +788,8 @@ class HtmlFormConverterTests extends BuddySuite
 		<option>100</option>
 		<option>1001</option>
 	</select>
+	<input type="hidden" name="ok" value="">
+	<input type="checkbox" name="ok" value="1" checked>
 	<input type="checkbox" name="str" value="ab&lt;cde">
 	<input type="submit" name="submit" value="Submit"/>
 </form>

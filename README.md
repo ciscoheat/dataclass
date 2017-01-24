@@ -244,6 +244,58 @@ Here are the settings available, if you want to set your own CsvConverter:
 - `boolValues` sets the converted string values for `true` and `false`.
 - `dateFormat` sets the converted format for `Date` values. **NOTE:** Unlike JSON, the default format for CSV is `yyyy-mm-dd hh:mm:ss`.
 
+### Html
+
+Assuming a simple data class and a form exists:
+	
+```haxe
+class Test implements DataClass
+{
+	@validate(~/\d{4}-\d\d-\d\d/) public var date : String;
+	@validate(_ > 1000) public var int : Array<Int>;
+	public var ok : Bool;
+}
+```
+
+```html
+<form>
+	<input type="text" name="date">
+	<select multiple name="int">
+		<option>10</option>
+		<option>100</option>
+		<option selected>1001</option>
+	</select>
+	<input type="hidden" name="ok" value="">
+	<input type="checkbox" name="ok" value="1" checked>
+	<input type="submit" name="submit" value="Submit"/>
+</form>
+```
+
+You can then convert the form to a `Test` object using a `HtmlFormConverter`:
+
+```haxe
+import js.Browser;
+import dataclass.HtmlFormConverter;
+
+class Main {
+	static function main() {
+		var form = new HtmlFormConverter(Browser.document.querySelector('form'));
+		
+		// Basic conversions
+		
+		// String values of the form, except select-multiple which is Array<String>
+		form.toAnonymousStructure();
+		// Serializes the form to a querystring
+		form.toQueryString();
+		
+		// Validation and DataClass conversion
+		
+		var errors = form.validate(Test);
+		var test = form.toDataClass(Test);
+	}
+}
+```
+
 ## Custom value converters
 
 You can add custom converters for any type, so your data can be conveniently converted. An `IntValueConverter` for the CSV parser is a simple example:
@@ -254,6 +306,7 @@ class IntValueConverter
 {
 	public function new() {}
 
+	// For CSV, the input is String.
 	public function input(input : String) : Int {
 		return -Std.parseInt(input);
 	}

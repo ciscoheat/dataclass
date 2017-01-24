@@ -335,12 +335,12 @@ class Builder
 			}
 		});
 		
-		// Create metadata for ORM
-		var ormMetadata = RttiBuilder.createMetadata(dataClassFieldsIncludingSuperFields());
+		// Create rtti metadata
+		var rttiMetadata = RttiBuilder.createMetadata(dataClassFieldsIncludingSuperFields());
 		
-		//trace('===== ' + CLASS.name); trace(ormMetadata.map(function(f) return f.field + ": " + f.expr.toString()));
+		//trace('===== ' + CLASS.name); trace(rttiMetadata.map(function(f) return f.field + ": " + f.expr.toString()));
 
-		CLASS.meta.add("dataClassRtti", [{expr: EObjectDecl(ormMetadata), pos: CLASS.pos}], CLASS.pos);
+		CLASS.meta.add("dataClassRtti", [{expr: EObjectDecl(rttiMetadata), pos: CLASS.pos}], CLASS.pos);
 		
 		// As a last step, need to remove @validate from superclass fields, otherwise their Expr won't compile.
 		for (superClassField in CLASS.superClasses().flatMap(function(f) return f.fields.get())) {

@@ -25,11 +25,11 @@ class HtmlFormConverter
 	var element : FormElement;
 	var converter : CsvConverter;
 	
-	public function new(element : FormElement, ?options : CsvConverterOptions) {
+	public function new(element : Element, ?options : CsvConverterOptions) {
 		if (element == null || element.nodeName == null || element.nodeName.toLowerCase() != 'form')
-			throw 'You must supply a form element';
+			throw 'You must supply a form element.';
 		
-		this.element = element;
+		this.element = cast element;
 		this.converter = new CsvConverter(options);		
 	}
 	
