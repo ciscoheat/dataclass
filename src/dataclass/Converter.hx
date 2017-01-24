@@ -75,23 +75,38 @@ class Converter
 		var refAssign = new RefAssignMap();
 		var output = _toDataClass(cls, json, refCount, refAssign);
 		
+		assignReferences(refCount, refAssign);
+		
+		return output;
+	}
+
+	public function toAnonymousStructure<T : DataClass>(cls : Class<T>, json : Dynamic) : DynamicAccess<Dynamic> {
+		var refCount = new RefCountMap();
+		var refAssign = new RefAssignMap();
+		var output = _toAnonymousStructure(cls, json, refCount, refAssign, 0, false);
+		
+		assignReferences(refCount, refAssign);
+		
+		return output;		
+	}
+	
+	function assignReferences(refCount : RefCountMap, refAssign : RefAssignMap) {
 		for (refId in refAssign.keys()) {
 			for (data in refAssign.get(refId)) {
 				//trace('ref $refId: assigning field ${data.field} to object ' + data.obj);
 				Reflect.setProperty(refCount.get(refId), data.field, refCount.get(data.obj));
 			}
 		}
-		
-		return output;
 	}
-	
-	function _toDataClass<T : DataClass>(cls : Class<T>, json : Dynamic, refCount : RefCountMap, refAssign : RefAssignMap) : T {
+		
+	// currentId is used because _toDataClass will also track references but DataClass objects instead.
+	function _toAnonymousStructure<T : DataClass>(cls : Class<T>, inputData : DynamicAccess<Dynamic>, 
+		refCount : RefCountMap, refAssign : RefAssignMap, currentId : Int, toDataClass : Bool
+	) : DynamicAccess<Dynamic> {
 		var rtti = Converter.Rtti.rttiData(cls);
-		var inputData : DynamicAccess<Dynamic> = json;
-		var outputData : DynamicAccess<Dynamic> = { };
-		var currentId = 0;
+		var outputData : DynamicAccess<Dynamic> = {};
 
-		if (circularReferences == TrackReferences && inputData.exists("$id")) {
+		if (circularReferences == TrackReferences && !toDataClass && inputData.exists("$id")) {
 			currentId = cast inputData.get("$id");
 			//trace('=== Converting ref $currentId');
 		}
@@ -116,22 +131,40 @@ class Converter
 				else 
 					refAssign.get(currentId).push(refData);
 			} else {
-				var output = toDataClassField(rtti[field], input, refCount, refAssign);				
+				var output = toField(rtti[field], input, refCount, refAssign, toDataClass);				
 				//trace(field + ': ' + input + ' -[' + rtti[field] + ']-> ' + output);
 				outputData.set(field, output);
 			}
 		}
+		
+		if (circularReferences == TrackReferences && !toDataClass && currentId > 0) {
+			refCount.set(currentId, outputData);
+		}
 
+		return outputData;
+	}
+	
+	function _toDataClass<T : DataClass>(cls : Class<T>, json : Dynamic, refCount : RefCountMap, refAssign : RefAssignMap) : T {
+		var inputData : DynamicAccess<Dynamic> = json;
+		var currentId = 0;
+
+		// Track references here instead of in _toAnonymousStructure, to assign the id afterwards
+		if (circularReferences == TrackReferences && inputData.exists("$id")) {
+			currentId = cast inputData.get("$id");
+			//trace('=== Converting ref $currentId');
+		}
+		
+		var outputData = _toAnonymousStructure(cls, inputData, refCount, refAssign, currentId, true);
 		var output = Type.createInstance(cls, [outputData]);
 		
-		if (circularReferences == TrackReferences && currentId > 0) {
+		if (currentId > 0 && circularReferences == TrackReferences) {
 			refCount.set(currentId, output);
 		}
 
 		return output;
 	}
 	
-	function toDataClassField(data : String, value : Dynamic, refCount : RefCountMap, refAssign : RefAssignMap) : Dynamic {
+	function toField(data : String, value : Dynamic, refCount : RefCountMap, refAssign : RefAssignMap, toDataClass : Bool) : Dynamic {
 		if (value == null) return value;
 
 		if (valueConverters.exists(data)) {
@@ -143,7 +176,7 @@ class Converter
 		}
 		else if (data.startsWith("Array<")) {
 			var arrayType = data.substring(6, data.length - 1);
-			return [for (v in cast(value, Array<Dynamic>)) toDataClassField(arrayType, v, refCount, refAssign)];
+			return [for (v in cast(value, Array<Dynamic>)) toField(arrayType, v, refCount, refAssign, toDataClass)];
 		}
 		else if (data.startsWith("Enum<")) {
 			var enumT = enumType(data.substring(5, data.length - 1));
@@ -151,7 +184,9 @@ class Converter
 		}
 		else if (data.startsWith("DataClass<")) {			
 			var classT = classType(data.substring(10, data.length - 1));
-			return _toDataClass(cast classT, value, refCount, refAssign);
+			return toDataClass 
+				? _toDataClass(cast classT, value, refCount, refAssign)
+				: _toAnonymousStructure(cast classT, value, refCount, refAssign, 0, toDataClass);
 		}
 		else if (data.startsWith("StringMap<")) {
 			var mapType = data.substring(10, data.length - 1);
@@ -159,7 +194,7 @@ class Converter
 			var object : DynamicAccess<Dynamic> = cast value;
 			
 			for (key in object.keys())
-				output.set(key, toDataClassField(mapType, object.get(key), refCount, refAssign));
+				output.set(key, toField(mapType, object.get(key), refCount, refAssign, toDataClass));
 				
 			return output;
 		}		
@@ -169,7 +204,7 @@ class Converter
 			var object : DynamicAccess<Dynamic> = cast value;
 			
 			for (key in object.keys())
-				output.set(Std.parseInt(key), toDataClassField(mapType, object.get(key), refCount, refAssign));
+				output.set(Std.parseInt(key), toField(mapType, object.get(key), refCount, refAssign, toDataClass));
 				
 			return output;
 		}		

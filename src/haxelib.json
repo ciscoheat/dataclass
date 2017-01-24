@@ -5,6 +5,6 @@
     "license": "MIT",
     "contributors": ["ciscoheat"],
     "version": "1.1.0",
-    "releasenote": "Added support for IntMap and StringMap.",
+    "releasenote": "Added support for IntMap and StringMap. Added HtmlFormConverter.",
     "tags": ["data", "dto", "validation", "converter", "json", "csv", "contracts"]
 }

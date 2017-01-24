@@ -1,4 +1,3 @@
-import DataClass;
 import buddy.*;
 import dataclass.*;
 import haxe.DynamicAccess;
@@ -9,6 +8,11 @@ import haxe.rtti.Meta;
 import haxecontracts.ContractException;
 import haxecontracts.HaxeContracts;
 import subpack.AnotherConverter;
+
+#if js
+import js.html.OptionElement;
+import js.Browser;
+#end
 
 #if cpp
 import hxcpp.StaticStd;
@@ -114,7 +118,7 @@ class Validator implements DataClass
 {
 	@validate(~/\d{4}-\d\d-\d\d/) public var date : String;
 	@validate(_.length > 2 && _.length < 9) public var str : String;
-	@validate(_ > 1000) public var integ : Int;
+	@validate(_.length > 0 && _[0] >= 100) public var integ : Array<Int>;
 }
 
 class NullValidateTest implements DataClass
@@ -206,7 +210,10 @@ interface ExtendingInterface extends DataClass
 class Tests extends BuddySuite implements Buddy<[
 	Tests, 
 	ConverterTests, 
-	InheritanceTests
+	InheritanceTests,
+	#if (js && !nodejs)
+	HtmlFormConverterTests
+	#end
 ]>
 {	
 	public function new() {
@@ -327,16 +334,16 @@ class Tests extends BuddySuite implements Buddy<[
 
 			describe("Validators", {
 				it("should validate with @validate(...) expressions", {
-					(function() new Validator({ date: "2015-12-12", str: "AAA", integ: 1001 })).should.not.throwAnything();
+					(function() new Validator({ date: "2015-12-12", str: "AAA", integ: [1001] })).should.not.throwAnything();
 				});
 
 				it("should validate regexps as a ^...$ regexp.", {
-					(function() new Validator({	date: "*2015-12-12*", str: "AAA", integ: 1001 })).should.throwType(String);
+					(function() new Validator({	date: "*2015-12-12*", str: "AAA", integ: [1001] })).should.throwType(String);
 				});
 
 				it("should replace _ with the value and validate", {
-					(function() new Validator({	date: "2015-12-12", str: "A", integ: 1001 })).should.throwType(String);
-					(function() new Validator({	date: "2015-12-12", str: "AAA", integ: 1 })).should.throwType(String);
+					(function() new Validator({	date: "2015-12-12", str: "A", integ: [1001] })).should.throwType(String);
+					(function() new Validator({	date: "2015-12-12", str: "AAA", integ: [1] })).should.throwType(String);
 				});
 				
 #if !static
@@ -372,7 +379,7 @@ class Tests extends BuddySuite implements Buddy<[
 					
 					//var a = new Validator(
 					
-					var input = { integ: 1001, date: "2016-05-06", str: "AAA" };
+					var input = { integ: [1001], date: "2016-05-06", str: "AAA" };
 					Validator.validate(input).length.should.be(0);
 					
 					RequireId.validate({}).should.contain("id");
@@ -714,3 +721,83 @@ class InheritanceTests extends BuddySuite
 		});
 	}
 }
+
+#if (js && !nodejs)
+class HtmlFormConverterTests extends BuddySuite
+{
+	var date : js.html.InputElement;
+	var str : js.html.InputElement;
+	var integ : js.html.SelectElement;
+	
+	var conv : HtmlFormConverter;
+	
+	public function new() {
+		beforeEach({			
+			Browser.document.body.innerHTML = formHtml;
+			date = cast Browser.document.querySelector("input[name=date]");
+			str = cast Browser.document.querySelector("input[name=str]");
+			integ = cast Browser.document.querySelector("select[name=integ]");
+			
+			cast(integ.options.item(1), OptionElement).selected = true;
+			cast(integ.options.item(2), OptionElement).selected = true;
+			date.value = "2016-05-08";
+			str.checked = true;
+			
+			conv = new HtmlFormConverter(cast Browser.document.querySelector("form"));
+		});
+		
+		describe("HtmlFormConverter", {
+			it("should convert form fields into useful data structures", {
+				var anon : Dynamic = conv.toAnonymousStructure();
+				cast(anon.integ[0], String).should.be("100");
+				cast(anon.integ[1], String).should.be("1001");
+				anon.date.should.be("2016-05-08");
+				anon.str.should.be("ab<cde");				
+				
+				conv.toQueryString().should.be("date=2016-05-08&integ=100&integ=1001&str=ab%3Ccde&submit=Submit");
+			});
+				
+			it("should validate and convert to DataClass objects", {
+				conv.validate(Validator).length.should.be(0);
+				conv.toDataClass(Validator).integ.should.containExactly([100,1001]);
+				conv.toDataClass(Validator).date.should.be("2016-05-08");
+				conv.toDataClass(Validator).str.should.be("ab<cde");
+			});
+			
+			it("should validate properly with failed fields", {
+				cast(integ.options.item(1), OptionElement).selected = false;
+				cast(integ.options.item(2), OptionElement).selected = false;
+				conv.validate(Validator).length.should.be(1);
+				conv.validate(Validator)[0].should.be("integ");
+			});
+		});
+	}
+	
+	static var formHtml = '
+<form>
+	<input type="text" name="date">
+	<select multiple name="integ">
+		<option>10</option>
+		<option>100</option>
+		<option>1001</option>
+	</select>
+	<input type="checkbox" name="str" value="ab&lt;cde">
+	<input type="submit" name="submit" value="Submit"/>
+</form>
+';
+
+	// Copy to index.html to test in browser
+	static var testHtml = '
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8"/>
+	<title>dataclass tests</title>
+</head>
+<body>
+	<script src="js-browser.js"></script>
+</body>
+</html>	
+';	
+}
+#end
