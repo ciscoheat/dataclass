@@ -551,7 +551,8 @@ class Builder
 
 private class RttiBuilder
 {
-	public static function createMetadata(dataClassFields : Array<DataField>) : Array<{field: String, expr: Expr}> {
+	public static function createMetadata(dataClassFields : Array<DataField>) 
+	{
 		function fieldTypeToName(t : Type, field : DataField) : String {
 			function error(msg) {
 				Context.error(msg, field.pos);
@@ -600,6 +601,9 @@ private class RttiBuilder
 		return [for (field in dataClassFields) {
 			var type = Context.followWithAbstracts(ComplexTypeTools.toType(field.type()));
 			{
+				#if (haxe_ver >= 4)
+				quotes: null,
+				#end
 				field: field.name, 
 				expr: macro $v{fieldTypeToName(type, field)}
 			}

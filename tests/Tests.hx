@@ -429,7 +429,7 @@ class ConverterTests extends BuddySuite
 		describe("Enum conversion", {
 			it("should be possible to convert strings to simple Enums and back", {
 				var input = "Red";
-				var type = Type.resolveEnum("Color");
+				var type : Enum<Color> = cast Type.resolveEnum("Color");
 				
 				var obj = new DefaultValue({
 					color: Type.createEnum(type, input)

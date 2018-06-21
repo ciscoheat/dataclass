@@ -1,4 +1,3 @@
--lib immutable
 -lib buddy
 -lib HaxeContracts
 -cp src 
