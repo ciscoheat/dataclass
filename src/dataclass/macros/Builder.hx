@@ -160,11 +160,13 @@ private abstract DataClassType(ClassType)
 								case AccNormal: 'default';
 								case AccNo: 'null';
 								case AccNever: 'never';
+								#if (haxe_ver >= 4)
 								case AccCtor: 
 									// Field is final, add it to access.
 									//for(m in f.meta.get()) Context.warning(m.name + ": " + ExprTools.toString(m.params[0]), Context.currentPos());
 									fieldAccess.push(AFinal);
 									'never';
+								#end
 								case AccCall: (read ? 'get_' : 'set_') + f.name; // Need to append accessor method
 								case _: Context.error("Unsupported field for DataClass inheritance.", f.pos);
 							}
@@ -469,15 +471,6 @@ class Builder
 					var errorMsg = "DataClass validation failed for " + CLASS.name + "." + f.name + ".";
 					var identifier = macro $p{[varName, f.name]};
 					var validationTestExpr = createValidationTestExpr(f, identifier, failedValidationThrowExpr(errorMsg, identifier));
-
-					/*
-					if(f.isFinal()) {
-						Context.warning(CLASS.name, Context.currentPos());
-						Context.warning(f.name + " is final and will validate in constructor.", Context.currentPos());
-						for(e in f.validation) Context.warning(ExprTools.toString(e), Context.currentPos());
-						Context.warning(ExprTools.toString(validationTestExpr), Context.currentPos());
-					}
-					*/
 
 					assignment = switch(validationTestExpr.expr) {
 						case EIf(econd, eif, eelse):
