@@ -23,12 +23,19 @@ private typedef DataClassField = {
 
 // ============================================================================
 
-@:forward(name, access, doc, meta, pos, validation)
+@:forward(name, access, doc, meta, pos, validation, kind)
 private abstract DataField(DataClassField) to Field
 {
 	inline function new(f : DataClassField) this = f;
 	
 	@:from static public function fromField(f : Field) {
+		var val = f.meta.filter(function(m) return m.name == 'validate');
+		/*
+		if(val.length > 0) {
+			Context.warning("Field " + f.name + ' has validation.', Context.currentPos());
+			Context.warning(ExprTools.toString(val[0].params[0]), Context.currentPos());
+		}
+		*/
 		return new DataField({
 			access: f.access,
 			doc: f.doc,
@@ -42,6 +49,13 @@ private abstract DataField(DataClassField) to Field
 			})
 		});
 	}
+
+	public function isFinal() 
+		#if (haxe_ver >= 4) 
+		return this.access.has(AFinal);
+		#else
+		return false;
+		#end
 	
 	public function isDataClassField() return
 		isVarOrProp() &&
@@ -99,7 +113,7 @@ private abstract DataClassType(ClassType)
 {
 	public function new(cls : ClassType) {
 		this = cls;
-		
+
 		// Assert that no parent class implements DataClass
 		for (superClass in superClasses()) {
 			if (superClass.interfaces.exists(function(i) return i.t.get().name == 'DataClass'))
@@ -132,32 +146,41 @@ private abstract DataClassType(ClassType)
 			return superClass.fields.get().filter(isClassFieldDataClassField)
 		);
 		
-		return classFields.map(function(f) return {
-			pos: f.pos,
-			name: f.name,
-			meta: f.meta.get(),
-			kind: switch f.kind {
-				case FVar(read, write):
-					function toPropType(access : VarAccess, read : Bool) {
-						return switch access {
-							case AccNormal: 'default';
-							case AccNo: 'null';
-							case AccNever: 'never';
-							case AccCall: (read ? 'get_' : 'set_') + f.name; // Need to append accessor method
-							case _: Context.error("Unsupported field for DataClass inheritance.", f.pos);
+		return classFields.map(function(f) { 
+			var fieldAccess = f.isPublic ? [APublic] : [];
+			return {
+				pos: f.pos,
+				name: f.name,
+				meta: f.meta.get(),
+				kind: switch f.kind {
+					case FVar(read, write):
+						function toPropType(access : VarAccess, read : Bool) {
+							//Context.warning(f.name + " " + Std.string(access), f.pos);
+							return switch access {
+								case AccNormal: 'default';
+								case AccNo: 'null';
+								case AccNever: 'never';
+								case AccCtor: 
+									// Field is final, add it to access.
+									//for(m in f.meta.get()) Context.warning(m.name + ": " + ExprTools.toString(m.params[0]), Context.currentPos());
+									fieldAccess.push(AFinal);
+									'never';
+								case AccCall: (read ? 'get_' : 'set_') + f.name; // Need to append accessor method
+								case _: Context.error("Unsupported field for DataClass inheritance.", f.pos);
+							}
 						}
-					}
-					var get = toPropType(read, true);
-					var set = toPropType(write, false);
+						var get = toPropType(read, true);
+						var set = toPropType(write, false);
+						
+						var expr = f.expr() == null ? null : Context.getTypedExpr(f.expr());
+						
+						FProp(get, set, Context.toComplexType(f.type), expr);
 					
-					var expr = f.expr() == null ? null : Context.getTypedExpr(f.expr());
-					
-					FProp(get, set, Context.toComplexType(f.type), expr);
-				
-				case _: null;
-			},
-			doc: f.doc,
-			access: f.isPublic ? [APublic] : []
+					case _: null;
+				},
+				doc: f.doc,
+				access: fieldAccess
+			};
 		}).map(function(f) return DataField.fromField(f)).array();
 	}	
 	
@@ -192,20 +215,24 @@ class Builder
 		#if (haxe_ver < 3.3)
 		Context.error("DataClass requires Haxe 3.3+", cls.pos);
 		#end
-		
+
 		return new Builder().createDataClassFields();
 	}
 	
 	///////////////////////////////////////////////////////////////////////////
 	
+	var dataClassFieldsIncludingSuperFields : Array<DataField>;
+
 	function new() {		
 		var allFields = Context.getBuildFields();
-		
+
 		CLASS = new DataClassType(Context.getLocalClass().get());		
 		OTHERFIELDS = allFields.filter(function(f) return !DataField.fromField(f).isDataClassField());
 		DATACLASSFIELDS = allFields
 			.map(function(f) return DataField.fromField(f))
 			.filter(function(f) return f.isDataClassField());
+
+		dataClassFieldsIncludingSuperFields = CLASS.superclassFields().concat(DATACLASSFIELDS);
 			
 		//trace('Other: ' + OTHERFIELDS.map(function(f) return f.name));
 		//trace('DataClassFields: ' + DATACLASSFIELDS.map(function(f) return f.name));
@@ -217,7 +244,7 @@ class Builder
 					"DataClass without @noValidator metadata cannot have a method called 'validate'"
 				, validateField.pos);
 			}
-		}		
+		}
 	}
 	
 	///////////////////////////////////////////////////////////////////////////
@@ -249,11 +276,8 @@ class Builder
 	
 	///////////////////////////////////////////////////////////////////////////
 			
-	function dataClassFieldsIncludingSuperFields()
-		return CLASS.superclassFields().concat(DATACLASSFIELDS);
-
 	function areAllDataClassFieldsOptional() 
-		return !dataClassFieldsIncludingSuperFields().exists(function(f) return !f.isOptional());
+		return !dataClassFieldsIncludingSuperFields.exists(function(f) return !f.isOptional());
 		
 	///////////////////////////////////////////////////////////////////////////
 			
@@ -295,9 +319,11 @@ class Builder
 		
 		var newDataClassFields = DATACLASSFIELDS.map(function(field) {
 			var setAccess = field.setAccess(CLASS.isImmutable());
+
+			//Context.warning(Std.string(CLASS.isFieldFinal(field.name)), field.pos);
 			
 			// Setters are used for validation, so create a setter if access is default
-			if (setAccess == 'default') {
+			if (setAccess == 'default' && !field.isFinal()) {
 				newSetters.push(createNewSetter(field));
 				setAccess = 'set';
 			} else if (setAccess == 'set') {
@@ -328,7 +354,9 @@ class Builder
 			return {
 				access: field.access,
 				doc: field.doc,
-				kind: FProp(field.getAccess(), setAccess, field.type(), field.defaultValue()),
+				kind: 
+					if(field.isFinal()) field.kind
+					else FProp(field.getAccess(), setAccess, field.type(), field.defaultValue()),
 				meta: field.meta.filter(function(m) return m.name != 'validate'),
 				name: field.name,
 				pos: field.pos
@@ -336,7 +364,7 @@ class Builder
 		});
 		
 		// Create rtti metadata
-		var rttiMetadata = RttiBuilder.createMetadata(dataClassFieldsIncludingSuperFields());
+		var rttiMetadata = RttiBuilder.createMetadata(dataClassFieldsIncludingSuperFields);
 		
 		//trace('===== ' + CLASS.name); trace(rttiMetadata.map(function(f) return f.field + ": " + f.expr.toString()));
 
@@ -378,7 +406,7 @@ class Builder
 			return null;
 		
 		var argName = 'data';
-		var validationTests = dataClassFieldsIncludingSuperFields().map(function(f) {
+		var validationTests = dataClassFieldsIncludingSuperFields.map(function(f) {
 			var testFieldAccessor = macro $p{[argName, f.name]};
 			var fieldExists = macro Reflect.hasField($i{argName}, $v{f.name});
 			var addToOutput = macro output.push($v { f.name } );
@@ -428,13 +456,37 @@ class Builder
 		// Returns all field assignments based on the first constructor parameter.
 		// "this.name = data.name"
 		function constructorAssignments(varName : String) : Expr {
-			var assignments = dataClassFieldsIncludingSuperFields().filter(function(f) {
+			var assignments = dataClassFieldsIncludingSuperFields.filter(function(f) {
 				var access = f.setAccess(CLASS.isImmutable());
-				return access != 'never';
+				// Allow constructor assignment if the field is final.
+				return f.isFinal() || access != 'never';
 			})
 			.map(function(f : DataField) {
 				var assignment = macro $p{['this', f.name]} = $p{[varName, f.name]};
-				
+
+				// If immutable or final, validate data in constructor since no setter exists.
+				if(CLASS.isImmutable() || f.isFinal()) {					
+					var errorMsg = "DataClass validation failed for " + CLASS.name + "." + f.name + ".";
+					var identifier = macro $p{[varName, f.name]};
+					var validationTestExpr = createValidationTestExpr(f, identifier, failedValidationThrowExpr(errorMsg, identifier));
+
+					/*
+					if(f.isFinal()) {
+						Context.warning(CLASS.name, Context.currentPos());
+						Context.warning(f.name + " is final and will validate in constructor.", Context.currentPos());
+						for(e in f.validation) Context.warning(ExprTools.toString(e), Context.currentPos());
+						Context.warning(ExprTools.toString(validationTestExpr), Context.currentPos());
+					}
+					*/
+
+					assignment = switch(validationTestExpr.expr) {
+						case EIf(econd, eif, eelse):
+							{expr: EIf(econd, eif, assignment), pos: assignment.pos};
+						default:
+							throw "Invalid test expr, must be EIf.";
+					};
+				}
+
 				return f.isOptional()
 					? (macro if(Reflect.hasField($i{varName}, $v{f.name})) $assignment)
 					: assignment;
@@ -529,7 +581,7 @@ class Builder
 	// Returns a type used for the parameter to the constructor.
 	// the allOptional parameter is used for the static "validate" method, so any object can be used.
 	function assignmentAnonymousType(extraFields : Array<DataField>, allOptional = false) : ComplexType {
-		var fields = dataClassFieldsIncludingSuperFields().concat(extraFields)
+		var fields = dataClassFieldsIncludingSuperFields.concat(extraFields)
 		.map(function(f) return {
 			pos: f.pos,
 			name: f.name,

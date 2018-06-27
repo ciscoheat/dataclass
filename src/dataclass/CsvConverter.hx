@@ -9,12 +9,6 @@ using Lambda;
 using StringTools;
 using DateTools;
 
-typedef CsvConverterOptions = {
-	> ConverterOptions,
-	?floatDelimiter : String,
-	?boolValues : { tru: String, fals: String },
-}
-
 class CsvConverter extends dataclass.Converter
 {
 	public static function fromCsv<T : DataClass>(cls : Class<T>, csv : Array<Array<String>>) : Array<T> {
@@ -29,21 +23,21 @@ class CsvConverter extends dataclass.Converter
 	
 	///////////////////////////////////////////////////////////////////////////
 	
-	public function new(?options : CsvConverterOptions) {
+	public function new(?options : StringConverterOptions) {
 		if(options == null) options = {};
 		super(options);
 
-		valueConverters.set('Int', new IntValueConverter());
+		valueConverters.set('Int', new StringIntValueConverter());
 
-		valueConverters.set('Date', new DateValueConverter(
+		valueConverters.set('Date', new StringDateValueConverter(
 			config(options.dateFormat, "%Y-%m-%d %H:%M:%S")
 		));
 
-		valueConverters.set('Float', new FloatValueConverter(
+		valueConverters.set('Float', new StringFloatValueConverter(
 			config(options.floatDelimiter, ".")
 		));
 
-		valueConverters.set('Bool', new BoolValueConverter(
+		valueConverters.set('Bool', new StringBoolValueConverter(
 			if (Reflect.hasField(options, 'boolValues')) 
 				{ tru: options.boolValues.tru, fals: options.boolValues.fals }
 			else
@@ -77,69 +71,5 @@ class CsvConverter extends dataclass.Converter
 		});
 		
 		return [header].concat(rows);
-	}
-}
-
-private class IntValueConverter
-{
-	public function new() { }
-
-	public function input(input : String) : Int {
-		return Std.parseInt(input.replace(" ", ""));
-	}
-	
-	public function output(input : Int) : String {
-		return Std.string(input);
-	}
-}
-
-private class BoolValueConverter
-{
-	var boolValues : { tru: String, fals: String };
-	
-	public function new(boolValues) {
-		this.boolValues = boolValues;
-	}
-
-	public function input(input : String) : Bool {
-		return boolValues.tru == input.trim();
-	}
-	
-	public function output(input : Bool) : String {
-		return input == true ? boolValues.tru : boolValues.fals;
-	}
-}
-
-private class FloatValueConverter
-{
-	var separator : String;
-	
-	public function new(separator) {
-		this.separator = separator;
-	}
-
-	public function input(input : String) : Float {
-		return Std.parseFloat(input.replace(" ", "").replace(separator, "."));
-	}
-	
-	public function output(input : Float) : String {
-		return Std.string(input).replace(".", separator);
-	}
-}
-
-private class DateValueConverter
-{
-	var format : String;
-	
-	public function new(format) {
-		this.format = format;
-	}
-
-	public function input(input : String) : Date {
-		return Date.fromString(input);
-	}
-	
-	public function output(input : Date) : String {
-		return DateTools.format(input, format);
 	}
 }

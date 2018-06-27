@@ -185,9 +185,17 @@ class IncludeTest implements DataClass {
 
 @immutable class ImmutableClass implements DataClass
 {
-	public var id : Int;
+	@validate(_ == 123) public var id : Int;
 	public var name(default, null) : String;
 }
+
+#if (haxe_ver >= 4)
+class FinalClass implements DataClass
+{
+	@validate(_ == 123) public final id : Int;
+	public final name : String;
+}
+#end
 
 class CircularReferenceTest implements DataClass
 {
@@ -405,11 +413,24 @@ class Tests extends BuddySuite implements Buddy<[
 			});
 			
 			describe("Using the @immutable metadata", {
+				it("should fail validation in constructor.", {
+					(function() new ImmutableClass( { id: 456, name: "Test" } )).should.throwType(String);
+				});
+
 				it("should convert all var fields into (default, null) properties.", {
 					var immutable = new ImmutableClass( { id: 123, name: "Test" } );
 					CompilationShould.failFor(immutable.id = 456);
 					CompilationShould.failFor(immutable.name = "Not a test");
 				});
+
+				#if (haxe_ver >= 4)
+				it("should not be used with final keyword", {
+					var immutable = new FinalClass({id: 123, name: "Test"});
+					immutable.id.should.be(123);
+					immutable.name.should.be("Test");
+					(function() new FinalClass( { id: 456, name: "Test" } )).should.throwType(String);
+				});
+				#end
 			});
 		});
 	}	
@@ -462,8 +483,8 @@ class ConverterTests extends BuddySuite
 						}
 					},
 					array: [
-						{ id: 1, name: "1" },
-						{ id: 2, name: "2" }
+						{ id: 123, name: "1" },
+						{ id: 123, name: "2" }
 					],
 					csv: [
 						['123', '456', '789'],
@@ -487,14 +508,20 @@ class ConverterTests extends BuddySuite
 					conv1.single.another.float.should.beCloseTo(3.1416, 4);
 					
 					conv1.array.length.should.be(2);
-					conv1.array[0].id.should.be(1);
+					conv1.array[0].id.should.be(123);
 					conv1.array[0].name.should.be("1");
-					conv1.array[1].id.should.be(2);
+					conv1.array[1].id.should.be(123);
 					conv1.array[1].name.should.be("2");
 					
 					conv1.csv.length.should.be(2);
 					conv1.csv[0].length.should.be(3);
 					conv1.csv[1].length.should.be(3);
+				});
+
+				it("should fail validation on a deep level", {
+					json.array[0].id = -1;
+					(function() DeepTest.fromJson(json)).should.throwType(String);
+					json.array[0].id = 123;
 				});
 				
 				it("should convert a DataClass to json", {
@@ -684,6 +711,26 @@ class Document
 	}
 }
 
+#if (haxe_ver >= 4)
+class FinalDocument
+{
+	@validate(_ > -1) public final id : Int;
+
+	public function new(data) {
+		id = data.id;
+	}
+}
+
+class FinalPerson extends FinalDocument implements DataClass
+{
+	@validate(_.length > 0) public final name : String;
+
+	public function new(data) {
+		super(data);
+	}
+}
+#end
+
 // SomePerson should now include the _key attribute.
 class SomePerson extends Document implements DataClass
 {
@@ -694,6 +741,18 @@ class SomePerson extends Document implements DataClass
 class InheritanceTests extends BuddySuite
 {
 	public function new() {
+		#if (haxe_ver >= 4)
+		describe("When inheriting from a class with final fields", {
+			it("should work as usual", {
+				var p = new FinalPerson({id: 123, name: "Test"});
+				p.id.should.be(123);
+				p.name.should.be("Test");
+
+				(function() new FinalPerson({id: -2, name: "Test"})).should.throwType(String);
+			});
+		});
+		#end
+
 		describe("When inheriting from another class", {
 			it("should required the public and @included fields in the constructor", {
 				var p = new SomePerson({

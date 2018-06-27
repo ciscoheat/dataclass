@@ -2,6 +2,7 @@ package dataclass;
 
 import haxe.DynamicAccess;
 import dataclass.Converter;
+import dataclass.Converter.config;
 
 using Lambda;
 using StringTools;
@@ -24,4 +25,31 @@ class JsonConverter extends Converter
 	public function new(?options : ConverterOptions) {
 		super(options);
 	}	
+}
+
+class StringJsonConverter extends JsonConverter
+{
+	public static var current(default, default) : StringJsonConverter = new StringJsonConverter();
+	
+	public function new(?options : StringConverterOptions) {
+		if(options == null) options = {};
+		super(options);
+
+		valueConverters.set('Int', new StringIntValueConverter());
+
+		valueConverters.set('Date', new StringDateValueConverter(
+			config(options.dateFormat, "%Y-%m-%d %H:%M:%S")
+		));
+
+		valueConverters.set('Float', new StringFloatValueConverter(
+			config(options.floatDelimiter, ".")
+		));
+
+		valueConverters.set('Bool', new StringBoolValueConverter(
+			if (Reflect.hasField(options, 'boolValues')) 
+				{ tru: options.boolValues.tru, fals: options.boolValues.fals }
+			else
+				{ tru: "1", fals: "0" }
+		));
+	}
 }

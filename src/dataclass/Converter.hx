@@ -27,6 +27,12 @@ typedef ConverterOptions = {
 	?dateFormat : String
 }
 
+typedef StringConverterOptions = {
+	> ConverterOptions,
+	?floatDelimiter : String,
+	?boolValues : { tru: String, fals: String },
+}
+
 typedef ValueConverter<From, To> = {
 	function input(value : From) : To;
 	function output(value : To) : From;
@@ -317,6 +323,97 @@ class Converter
 
 		classCache.set(name, output);
 		return output;
+	}
+}
+
+class StringIntValueConverter
+{
+	public function new() { }
+
+	public function input(input : String) : Int {
+		return Std.parseInt(input.replace(" ", ""));
+	}
+	
+	public function output(input : Int) : String {
+		return Std.string(input);
+	}
+}
+
+class StringBoolValueConverter
+{
+	var boolValues : { tru: String, fals: String };
+	
+	public function new(boolValues) {
+		this.boolValues = boolValues;
+	}
+
+	public function input(input : String) : Bool {
+		return boolValues.tru == input.trim();
+	}
+	
+	public function output(input : Bool) : String {
+		return input == true ? boolValues.tru : boolValues.fals;
+	}
+}
+
+class StringFloatValueConverter
+{
+	var separator : String;
+	var other : String;
+	
+	public function new(separator) {
+		this.separator = separator;
+		this.other = separator == "," ? "." : ",";
+	}
+
+	public function input(input : String) : Float {
+		//trace('$input -> ' + input.replace(" ", "").replace(other, "").replace(separator, "."));
+		return Std.parseFloat(input.replace(" ", "").replace(other, "").replace(separator, "."));
+	}
+	
+	public function output(input : Float) : String {
+		return Std.string(input).replace(".", separator);
+	}
+}
+
+class StringCurrencyValueConverter
+{
+	var floatConverter : StringFloatValueConverter;
+	var cents : Int;
+	var separator : String;
+	
+	public function new(separator, cents : Int = 100) {
+		this.floatConverter = new StringFloatValueConverter(separator);
+		this.separator = separator;
+		this.cents = cents;
+	}
+
+	public function input(input : String) : Int {
+		return Std.int(floatConverter.input(input) * cents);
+	}
+	
+	public function output(input : Int) : String {
+		var maxlen = Std.string(input).length;
+		var output = floatConverter.output(input / cents);
+		var hasSeparator = output.indexOf(separator) >= 0;
+		return output.substr(0, maxlen + (hasSeparator ? 1 : 0));
+	}
+}
+
+class StringDateValueConverter
+{
+	var format : String;
+	
+	public function new(format) {
+		this.format = format;
+	}
+
+	public function input(input : String) : Date {
+		return Date.fromString(input);
+	}
+	
+	public function output(input : Date) : String {
+		return DateTools.format(input, format);
 	}
 }
 
