@@ -8,6 +8,7 @@ import haxe.rtti.Meta;
 import haxecontracts.ContractException;
 import haxecontracts.HaxeContracts;
 import subpack.AnotherConverter;
+import subpack.Currency;
 
 #if js
 import js.html.OptionElement;
@@ -436,6 +437,14 @@ class Tests extends BuddySuite implements Buddy<[
 	}	
 }
 
+///////////////////////////////////////////////////////////////////////
+
+class CurrencyData implements DataClass
+{
+	public var amount : Currency;
+	public var amounts : Array<Currency>;
+}
+
 class DeepTest implements DataClass {
 	public var id : String;
 	public var single : DeepConverter;
@@ -447,6 +456,24 @@ class DeepTest implements DataClass {
 class ConverterTests extends BuddySuite
 {	
 	public function new() {
+		describe("Typedef conversion for simple typedefs", {
+			it("should use the typedef name, not the underlying type when converting", {
+				var converter = new JsonConverter();
+				converter.valueConverters.set('subpack.Currency', new Converter.StringCurrencyValueConverter("."));
+
+				var json = [{amount: '123.12', amounts: ['10', '20']}, {amount: '1000', amounts: []}];
+				var data = [for(j in json) converter.toDataClass(CurrencyData, j)];
+
+				data[0].amount.should.be(12312);
+				data[0].amounts.length.should.be(2);
+				data[0].amounts[0].should.be(1000);
+				data[0].amounts[1].should.be(2000);
+
+				data[1].amount.should.be(100000);
+				data[1].amounts.length.should.be(0);
+			});
+		});
+
 		describe("Enum conversion", {
 			it("should be possible to convert strings to simple Enums and back", {
 				var input = "Red";

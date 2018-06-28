@@ -598,7 +598,18 @@ private class RttiBuilder
 {
 	public static function createMetadata(dataClassFields : Array<DataField>) 
 	{
-		function fieldTypeToName(t : Type, field : DataField) : String {
+		// If type is a typedef with no parameters, it can be used as an alias for a converter.
+		function typeAlias(t : Type) {
+			return switch t {
+				case TType(t, params) if(params.length == 0): 
+					var t2 = t.get();
+					t2.pack.toDotPath(t2.name);
+				case _:
+					null;
+			}			
+		}
+
+		function fieldTypeToName(t : Type, field : DataField, alias : Null<String>) : String {
 			function error(msg) {
 				Context.error(msg, field.pos);
 				return null;
@@ -618,17 +629,27 @@ private class RttiBuilder
 					var type = t.get();
 					switch type.name {
 						// Value types can always be converted
-						case 'Int', 'Bool', 'Float': type.name;
-						case _: error("Unsupported DataClass type.");
+						case 'Int', 'Bool', 'Float': 
+							if(alias == null) type.name else alias;
+						case _: 
+							error("Unsupported DataClass type: " + type.name);
 					}
+				case TType(t, params) if(params.length == 0):
+					var t2 = t.get();
+					var alias = t2.pack.toDotPath(t2.name);
+					var type = Context.followWithAbstracts(t2.type);
+					fieldTypeToName(type, field, alias);
 				case TInst(t, params):
 					var type = t.get();
 					switch type.name {
 						// String and Date can always be converted
-						case 'String', 'Date': type.name;
+						case 'String', 'Date': 
+							if(alias == null) type.name else alias;
 						// Arrays too
-						case 'Array': "Array<" + fieldTypeToName(params[0], field) + ">";
-						case 'IntMap', 'StringMap': type.name + "<" + fieldTypeToName(params[0], field) + ">";
+						case 'Array': 
+							"Array<" + fieldTypeToName(params[0], field, null) + ">";
+						case 'IntMap', 'StringMap': 
+							type.name + "<" + fieldTypeToName(params[0], field, null) + ">";
 						case _:
 							// But all other classes must implement DataClass
 							var name = type.pack.toDotPath(type.name);
@@ -639,18 +660,21 @@ private class RttiBuilder
 							"DataClass<" + name + ">";
 					}
 				case _:
-					error("Unsupported DataClass type.");
+					error("Unsupported DataClass type: " + t.getName());
 			}
 		}
 			
 		return [for (field in dataClassFields) {
-			var type = Context.followWithAbstracts(ComplexTypeTools.toType(field.type()));
+			var originalType = ComplexTypeTools.toType(field.type());
+			var type = Context.followWithAbstracts(originalType);
+			var alias = typeAlias(originalType);
+
 			{
 				#if (haxe_ver >= 4)
 				quotes: null,
 				#end
 				field: field.name, 
-				expr: macro $v{fieldTypeToName(type, field)}
+				expr: macro $v{fieldTypeToName(type, field, alias)}
 			}
 		}];
 	}
