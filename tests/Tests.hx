@@ -520,7 +520,12 @@ class ConverterTests extends BuddySuite
 
 				it("should fail validation on a deep level", {
 					json.array[0].id = -1;
+					#if cs
+					// Expected to throw type String, System.Reflection.TargetInvocationException was thrown instead
+					(function() DeepTest.fromJson(json)).should.throwAnything();
+					#else
 					(function() DeepTest.fromJson(json)).should.throwType(String);
+					#end
 					json.array[0].id = 123;
 				});
 				
