@@ -235,7 +235,7 @@ class Tests extends BuddySuite implements Buddy<[
 					new RequireId( { id: 123 } ).id.should.be(123);
 				});
 
-#if !static
+#if !static_target
 				it("should throw if null value is supplied", {
 					(function() new RequireId({id: null})).should.throwType(String);
 				});
@@ -356,7 +356,7 @@ class Tests extends BuddySuite implements Buddy<[
 					(function() new Validator({	date: "2015-12-12", str: "AAA", integ: [1] })).should.throwType(String);
 				});
 				
-#if !static
+#if !static_target
 				it("should accept null values if field can be null", {
 					new NullValidateTest({ integ: null }).integ.should.be(null);
 					new NullValidateTest().integ.should.be(null);
@@ -368,7 +368,7 @@ class Tests extends BuddySuite implements Buddy<[
 				it("should throw an exception when setting a var to an invalid value after instantiation", {
 					var test = new NullValidateTest( { integ: 2000 } );
 					test.integ.should.be(2000);
-#if !static
+#if !static_target
 					test.integ = null;
 					test.integ.should.be(null);
 #end
