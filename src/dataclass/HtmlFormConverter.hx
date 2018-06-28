@@ -16,7 +16,8 @@ import js.html.InputElement;
 import js.html.SelectElement;
 import js.html.TextAreaElement;
 
-import dataclass.CsvConverter.CsvConverterOptions;
+import dataclass.CsvConverter;
+import dataclass.Converter;
 
 using StringTools;
 
@@ -26,7 +27,7 @@ class HtmlFormConverter
 	var element : FormElement;
 	var converter : CsvConverter;
 	
-	public function new(element : Element, ?options : CsvConverterOptions) {
+	public function new(element : Element, ?options : StringConverterOptions) {
 		if (element == null || element.nodeName == null || element.nodeName.toLowerCase() != 'form')
 			throw 'You must supply a form element.';
 		
