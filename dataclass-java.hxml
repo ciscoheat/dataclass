@@ -1,8 +1,8 @@
 -lib HaxeContracts
 -lib buddy
--cp src 
 -cp tests
+-cp src 
 -main Tests
 -D static_target
--swf bin/flash.swf
+-java bin/java
 -debug

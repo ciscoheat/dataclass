@@ -1,0 +1,45 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "identifier": "dataclass-java-debug",
+            "label": "java: Run Dataclass in a debug process",
+            "type": "process",
+            "command": "java",
+            "isBackground": true,
+            "args": [
+                "-Xdebug", 
+                "-Xrunjdwp:transport=dt_socket,address=8000,server=y,suspend=y",
+                "-cp", "bin/java/obj",
+                "haxe.root.Tests"
+            ],
+            "presentation": {
+                "echo": true,
+                "reveal": "silent",
+                "focus": false,
+                "panel": "shared"
+            }
+        },
+        {
+            "identifier": "dataclass-java-run",
+            "label": "java: Run Dataclass tests",
+            "type": "process",
+            "command": "java",
+            "isBackground": true,
+            "args": [
+                "-cp",
+                "bin/java/obj",
+                "haxe.root.Tests"
+            ],
+            "group": "test",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": true,
+                "panel": "shared"
+            }
+        }
+    ]
+}
