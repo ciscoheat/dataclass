@@ -6,6 +6,7 @@
     "configurations": [
         {
             "type": "java",
+            "projectName": "dataclass",
             "name": "Debug (Attaching)",
             "request": "attach",
             "hostName": "localhost",

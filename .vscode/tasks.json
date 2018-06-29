@@ -15,6 +15,7 @@
                 "-cp", "bin/java/obj",
                 "haxe.root.Tests"
             ],
+            "group": "test",
             "presentation": {
                 "echo": true,
                 "reveal": "silent",

@@ -4,7 +4,6 @@ import haxe.DynamicAccess;
 import haxe.Json;
 import haxe.ds.IntMap;
 import haxe.ds.StringMap;
-import haxe.rtti.Meta;
 import haxecontracts.ContractException;
 import haxecontracts.HaxeContracts;
 import subpack.AnotherConverter;
@@ -20,7 +19,6 @@ import hxcpp.StaticStd;
 import hxcpp.StaticRegexp;
 #end
 
-using StringTools;
 using buddy.Should;
 
 using dataclass.JsonConverter;
@@ -548,7 +546,7 @@ class ConverterTests extends BuddySuite
 				it("should fail validation on a deep level", {
 					json.array[0].id = -1;
 					#if cs
-					// Expected to throw type String, System.Reflection.TargetInvocationException was thrown instead
+					// System.Reflection.TargetInvocationException was thrown instead
 					(function() DeepTest.fromJson(json)).should.throwAnything();
 					#else
 					(function() DeepTest.fromJson(json)).should.throwType(String);

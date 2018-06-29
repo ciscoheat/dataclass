@@ -1,13 +1,10 @@
 package dataclass;
 
-import haxe.DynamicAccess;
 import haxe.ds.IntMap;
 import haxe.ds.StringMap;
 import haxe.macro.Context;
 import haxe.macro.Expr;
 import haxe.rtti.Meta;
-
-using StringTools;
 
 import haxe.DynamicAccess;
 import haxe.ds.ObjectMap;
