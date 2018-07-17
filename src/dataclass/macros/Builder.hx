@@ -616,14 +616,22 @@ private class RttiBuilder
 			}
 			
 			return switch t {
-				case TEnum(enumType, _):
+				case TEnum(enumType, params):
 					// Enums without constructors can be converted
 					var e = enumType.get();
-					for (c in e.constructs) switch c.type { 
-						case TEnum(_, _):
-						case _: error("Only Enums without constructors can be a DataClass field.");
+					var name = e.pack.toDotPath(e.name);
+
+					// Special support for the Option<T> type
+					if(name == 'haxe.ds.Option') {
+						//if(field.canBeNull()) error("Option fields cannot be nullable in a DataClass.");
+						haxe.macro.TypeTools.toString(t).substr(8);
+					} else {
+						for (c in e.constructs) switch c.type { 
+							case TEnum(_, _):
+							case _: error("Only Enums without constructors can be a DataClass field.");
+						}
+						'Enum<$name>';
 					}
-					"Enum<" + e.pack.toDotPath(e.name) + ">";
 				case TAbstract(t, params):
 					// Since Context.followWithAbstracts is used, only built-in types will be sent here
 					var type = t.get();
@@ -711,18 +719,36 @@ private class Validator
 		
 		var cannotBeNull = !canBeNull && nullTestAllowed(type);
 		
+		/*
+		If the type is an Option, return an expression that tests the unwrapped value,
+		otherwise just the original expression.
+		*/ 
 		var validatorTests = validators.map(function(validator) {
-			function replaceParam(e : Expr) return switch e.expr { 
+			function replaceParam(field : Expr, e : Expr) return switch e.expr { 
 				case EConst(CIdent("_")): macro $field;
-				case _: e.map(replaceParam);
+				case _: e.map(replaceParam.bind(field));
 			}
-			
+
+			var isOption = switch type {
+				case TPath(p) if(p.name == "Option"): true;
+				case _: false;
+			}
+
 			return switch validator.expr {
 				case EConst(CRegexp(r, opt)):
 					if (!r.startsWith('^') && !r.endsWith('$')) r = '^' + r + "$";
-					macro new EReg($v{r}, $v{opt}).match($field);
-				case _: 
-					replaceParam(validator);
+					if(isOption)
+						macro switch ($field) { case None: false; case Some(v): new EReg($v{r}, $v{opt}).match(v); }
+					else
+						macro new EReg($v{r}, $v{opt}).match($field);
+				case _:
+					if(isOption)
+						replaceParam(
+							macro v,
+							macro switch ($field) { case None: null; case Some(v): $validator; }
+						)
+					else
+						replaceParam(field, validator);
 			}
 		});
 

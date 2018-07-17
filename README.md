@@ -93,7 +93,7 @@ class Custom implements DataClass {
 
 ## Immutability
 
-A class can be made immutable from the outside by marking it with `@immutable`, which will simply change all `var` to `var(default, null)`. Quite useful when doing event sourcing and using event stores, for example.
+A class can be made immutable from the outside by marking it with `@immutable`, which will simply change all `var` to `var(default, null)`. Quite useful when doing event sourcing and using event stores, for example. For Haxe 4 however, it's recommended that you use the `final` keyword.
 
 ## Inheritance
 
@@ -302,6 +302,7 @@ To keep the conversion efficient, not every type can be converted to and from th
 	
 - Primitive types: `Int`, `Bool`, `Float`, `String`, `Enum` (with no constructors)
 - Composite types: `Array<T>`, `StringMap<T>`, `IntMap<T>`
+- Special types: `Option<T>` which will convert `null` to `Option.None` and not null to `Option.Some(value)`
 
 Where `T` is one of the primitive types, or a class implementing `DataClass`.
 

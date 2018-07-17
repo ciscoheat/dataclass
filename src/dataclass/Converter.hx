@@ -8,6 +8,7 @@ import haxe.rtti.Meta;
 
 import haxe.DynamicAccess;
 import haxe.ds.ObjectMap;
+import haxe.ds.Option;
 
 using Lambda;
 using StringTools;
@@ -168,7 +169,9 @@ class Converter
 	}
 	
 	function toField(data : String, value : Dynamic, refCount : RefCountMap, refAssign : RefAssignMap, toDataClass : Bool) : Dynamic {
-		if (value == null) return value;
+		if (value == null) {
+			return data.startsWith("Option<") ? Option.None : value;
+		}
 
 		if (valueConverters.exists(data)) {
 			return valueConverters.get(data).input(value);
@@ -190,6 +193,11 @@ class Converter
 			return toDataClass 
 				? _toDataClass(cast classT, value, refCount, refAssign)
 				: _toAnonymousStructure(cast classT, value, refCount, refAssign, 0, toDataClass);
+		}
+		else if (data.startsWith("Option<")) {
+			var optionType = data.substring(7, data.length - 1);
+			// Option.None is already tested.
+			return Option.Some(toField(optionType, value, refCount, refAssign, toDataClass));
 		}
 		else if (data.startsWith("StringMap<")) {
 			var mapType = data.substring(10, data.length - 1);
@@ -272,6 +280,13 @@ class Converter
 		}
 		else if (data.startsWith("DataClass<")) {
 			return _fromDataClass(cast value, refs, refcounter);
+		}
+		else if(data.startsWith("Option<")) {
+			var option : Option<Dynamic> = cast value;
+			return switch option {
+				case None: null;
+				case Some(v): v;
+			}
 		}
 		else if (data.startsWith("StringMap<")) {
 			var mapType = data.substring(10, data.length - 1);

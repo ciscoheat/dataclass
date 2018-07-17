@@ -8,6 +8,7 @@ import haxecontracts.ContractException;
 import haxecontracts.HaxeContracts;
 import subpack.AnotherConverter;
 import subpack.Currency;
+import haxe.ds.Option;
 
 #if js
 import js.html.OptionElement;
@@ -209,6 +210,16 @@ class IntStringMapTest implements DataClass
 	public var stringMap : StringMap<Array<Bool>>;
 }
 
+class OptionTest implements DataClass
+{
+	@validate(_ == "valid") public var str : Option<String>;
+}
+
+class OptionObjTest implements DataClass
+{
+	public var obj : Option<RequireId>;
+}
+
 interface ExtendingInterface extends DataClass
 {
 }
@@ -275,6 +286,38 @@ class Tests extends BuddySuite implements Buddy<[
 					var o = new DefaultValue();
 					(function() o.city = "").should.throwType(String);
 					(function() o.date = null).should.throwType(String);
+				});
+			});
+
+			describe("With the Option type", {
+				it("should validate the underlying value, not the Option object itself", {
+					(function() new OptionTest({
+						str: None
+					})).should.throwType(String);
+
+					(function() new OptionTest({
+						str: null
+					})).should.throwType(String);
+
+					(function() new OptionTest({
+						str: Some("invalid")
+					})).should.throwType(String);
+
+					var t = new OptionTest({str: Some("valid")});
+					t.str.should.equal(Some("valid"));
+				});
+
+				it("should work for nested structures", {
+					var id = new RequireId({id: 123});
+					var o = new OptionObjTest({
+						obj: Some(id)
+					});
+					var o2 = new OptionObjTest({
+						obj: None
+					});
+
+					o.obj.should.equal(Some(id));
+					o2.obj.should.equal(None);
 				});
 			});
 
@@ -451,6 +494,11 @@ class DeepTest implements DataClass {
 	@exclude public var unconvertable : Array<String -> Int>;
 }
 
+class OptionNoneTest implements DataClass
+{
+	public var str : Option<String>;
+}
+
 class ConverterTests extends BuddySuite
 {	
 	public function new() {
@@ -490,6 +538,20 @@ class ConverterTests extends BuddySuite
 				cast(json.get("date"), String).should.match(~/^.*T.*Z$/);
 				
 				Json.stringify(json).should.be(Json.stringify(reconverted.toJson()));
+			});
+
+			it("should convert Option.None to null and Option.Some(value) to the value", {
+				var none = new OptionNoneTest({str: None});
+				none.str.should.equal(Option.None);
+
+				var some = new OptionNoneTest({str: Some("valid")});
+				some.str.should.equal(Option.Some("valid"));
+
+				var json = none.toJson();
+				json.get("str").should.be(null);
+
+				var json = some.toJson();
+				json.get("str").should.be("valid");
 			});
 		});
 		
@@ -575,6 +637,16 @@ class ConverterTests extends BuddySuite
 					var innerCsv = csv[0];
 					innerCsv[0].should.be("123");
 				});
+
+				describe("Converting Option<T>", {
+					it("Should convert null to None", {
+						var none = { str: null };
+						var some = { str: "some" };
+
+						OptionNoneTest.fromJson(none).str.should.equal(Option.None);
+						OptionNoneTest.fromJson(some).str.should.equal(Option.Some("some"));
+					});
+				});
 				
 				describe("Converting IntMap and StringMap", {
 					var intMap : IntMap<TestFloatConverter>;
@@ -614,8 +686,8 @@ class ConverterTests extends BuddySuite
 						backToMapper.stringMap.get('b').should.containExactly([false, true, false]);
 					});
 				});
-				
-				describe("Converter circular references", {
+
+				describe("Converting circular references", {
 					var oldConverter : JsonConverter;
 					var parent : CircularReferenceTest;
 					var child : CircularReferenceTest;
