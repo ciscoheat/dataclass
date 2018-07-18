@@ -101,7 +101,19 @@ private abstract DataField(DataClassField) to Field
 	}
 	
 	public function defaultValue() : Null<Expr> return switch this.kind {
-		case FVar(_, e), FProp(_, _, _, e): e;
+		case FVar(_, e), FProp(_, _, _, e): switch type() {
+			case TPath(p) if(p.name == "Option"): 
+				if(e == null) macro haxe.ds.Option.None
+				else switch e.expr {
+					case EConst(CIdent("null")):
+						Context.error(
+							"An Option field in a Dataclass cannot be set to null, it will be set to None automatically.", 
+							e.pos
+						);
+					case _: macro haxe.ds.Option.Some($e);
+				}
+			case _: e;
+		}
 		case _: null;
 	}	
 }
@@ -623,7 +635,7 @@ private class RttiBuilder
 
 					// Special support for the Option<T> type
 					if(name == 'haxe.ds.Option') {
-						//if(field.canBeNull()) error("Option fields cannot be nullable in a DataClass.");
+						if(field.canBeNull()) error("Option fields cannot be nullable, they will be automatically set to None if no value is set.");
 						haxe.macro.TypeTools.toString(t).substr(8);
 					} else {
 						for (c in e.constructs) switch c.type { 

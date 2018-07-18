@@ -9,18 +9,33 @@ enum Color { Red; Blue; }
 
 class Person implements DataClass 
 {
+	///// Basic usage /////
+
 	public var id : Int;             // Required field (cannot be null)
 	public var name : Null<String>;  // Null<T> allows null
 
-	@validate(~/[\w-.]+@[\w-.]+/)    // Regexp validation (testing whole string unless ^ or $ exists in regexp)
-	public var email(default, null) : String;  // Works with properties
+	///// Validation /////
 
-	@validate(_.length > 2)   // Expression validation, "_" is replaced with the field
+	@validate(_.length >= 2)   // Expression validation, "_" is replaced with the field
 	public var city : String;
+
+	@validate(~/[\w-.]+@[\w-.]+/)    // Regexp validation (testing whole string unless ^ or $ exists in regexp)
+	public var email(default, null) : String;  // Works also with properties
+
+	///// Default values /////
 
 	public var active : Bool = true;         // Default value
 	public var color = Blue;                 // Works for Enums without constructors
 	public var created : Date = Date.now();  // And statements
+
+	///// Null safety /////
+
+	public var avoidNull : haxe.ds.Option<String>; // Option is automatically set to None instead of null.
+
+	@validate(_ == "ok")	// Validation for Option is tested for the wrapped value
+	public var defaultOption : haxe.ds.Option<String> = "ok"; // Will become Some("ok")
+
+	///// Include/exclude fields /////
 	
 	var internal : String;            // non-public fields aren't included
 	@exclude public var test : Bool;  // neither are fields marked with @exclude
