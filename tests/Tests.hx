@@ -531,6 +531,7 @@ class OptionNoneTest implements DataClass
 {
 	public var str : Option<String>;
 	public var assigned : Option<Int> = 9;
+	public var abstr : Option<Array<AInt>> = [7];
 }
 
 class ConverterTests extends BuddySuite
@@ -578,14 +579,20 @@ class ConverterTests extends BuddySuite
 				var emptyNone = new OptionNoneTest();
 				emptyNone.str.should.equal(Option.None);
 				emptyNone.assigned.should.equal(Option.Some(9));
+				var ab = switch emptyNone.abstr { case None: null; case Some(v): v; };
+				ab.should.containExactly([7]);
 
 				var none = new OptionNoneTest({str: None, assigned: Some(10)});
 				none.str.should.equal(Option.None);
 				none.assigned.should.equal(Option.Some(10));
+				var ab = switch none.abstr { case None: null; case Some(v): v; };
+				ab.should.containExactly([7]);
 
 				var some = new OptionNoneTest({str: Some("valid")});
 				some.str.should.equal(Option.Some("valid"));
 				some.assigned.should.equal(Option.Some(9));
+				var ab = switch some.abstr { case None: null; case Some(v): v; };
+				ab.should.containExactly([7]);
 
 				var json = none.toJson();
 				json.get("str").should.be(null);
