@@ -610,7 +610,8 @@ private class RttiBuilder
 {
 	public static function createMetadata(dataClassFields : Array<DataField>) 
 	{
-		// If type is a typedef with no parameters, it can be used as an alias for a converter.
+		// Only if type is a typedef with no parameters, 
+		// it can be used as an alias for a converter.
 		function typeAlias(t : Type) {
 			return switch t {
 				case TType(t, params) if(params.length == 0): 
@@ -646,13 +647,16 @@ private class RttiBuilder
 					}
 				case TAbstract(t, params):
 					// Since Context.followWithAbstracts is used, only built-in types will be sent here
-					var type = t.get();
-					switch type.name {
+					var abstractType = t.get();
+					switch abstractType.name {
 						// Value types can always be converted
 						case 'Int', 'Bool', 'Float': 
-							if(alias == null) type.name else alias;
-						case _: 
-							error("Unsupported DataClass type: " + type.name);
+							if(alias == null) abstractType.name else alias;
+						case _:
+							var underlyingType = Context.followWithAbstracts(abstractType.type);
+							var alias = typeAlias(abstractType.type);
+							//trace(t + " -> " + underlyingType + ": " + alias);
+							fieldTypeToName(underlyingType, field, alias);
 					}
 				case TType(t, params) if(params.length == 0):
 					var t2 = t.get();
@@ -666,9 +670,7 @@ private class RttiBuilder
 						case 'String', 'Date': 
 							if(alias == null) type.name else alias;
 						// Arrays too
-						case 'Array': 
-							"Array<" + fieldTypeToName(params[0], field, null) + ">";
-						case 'IntMap', 'StringMap': 
+						case 'Array', 'IntMap', 'StringMap': 
 							type.name + "<" + fieldTypeToName(params[0], field, null) + ">";
 						case _:
 							// But all other classes must implement DataClass

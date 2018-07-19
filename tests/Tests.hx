@@ -30,6 +30,18 @@ using dataclass.CsvConverter;
 	var MethodNotAllowed = 405;
 }
 
+abstract AInt(Int) to Int from Int {}
+
+abstract AIntArray(Array<AInt>) to Array<Int> from Array<Int> {}
+
+class AbstractTest implements DataClass 
+{
+    public var aint : AInt;
+    public var aints : Array<AInt>;
+	public var aaints : Array<Array<AInt>>;
+	public var aintarray : AIntArray;
+}
+
 enum Color { Red; Blue; } //Rgb(r: Int, g: Int, b: Int); }
 
 class RequireId implements DataClass
@@ -365,6 +377,27 @@ class Tests extends BuddySuite implements Buddy<[
 					prop2.defaultParameter.should.be("ok");
 					prop2.nullParameter.should.be(null);
 					prop2.extra.should.be("extraField");
+				});
+			});
+
+			describe("Abstract classes", {
+				it("should resolve to the underlying type", {
+					var abstr = new AbstractTest({
+						aint: 123,
+						aints: [123,456],
+						aaints: [[123],[456]],
+						aintarray: [1,2,3]
+					});
+
+					abstr.aint.should.be(123);
+					
+					abstr.aints.should.containExactly([123,456]);
+
+					abstr.aaints.length.should.be(2);
+					abstr.aaints[0].should.containExactly([123]);
+					abstr.aaints[1].should.containExactly([456]);
+
+					abstr.aintarray.should.containExactly([1,2,3]);
 				});
 			});
 
