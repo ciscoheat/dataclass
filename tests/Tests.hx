@@ -540,9 +540,49 @@ class OptionNoneTest implements DataClass
 	public var abstr : Option<Array<AInt>> = [7];
 }
 
+class WrapUser implements DataClass {
+    public var age : Int = 20;
+    public var name : String;
+}
+
+class WrapWrapper implements DataClass {
+    public var user : WrapUser;
+    public var otherstuff : Array<String>;
+}
+
 class ConverterTests extends BuddySuite
 {	
 	public function new() {
+		describe("Nested JSON", {
+			it("will not parse deep when instantiated directly", {
+				var user = new WrapUser(Json.parse('{ "name": "Jonas" }'));
+				user.name.should.be("Jonas");
+				user.age.should.be(20);
+
+				var wrapper = new WrapWrapper(Json.parse('{
+					"user": { "name": "Jonas" },
+					"otherstuff": [ "UserEmail1" ]
+				}'));
+
+				wrapper.user.name.should.be("Jonas");
+				Reflect.hasField(wrapper.user, 'age').should.be(false);
+			});
+
+			it("should parse deep when using the JsonConverter", {
+				var user = WrapUser.fromJson(Json.parse('{ "name": "Jonas" }'));
+				user.name.should.be("Jonas");
+				user.age.should.be(20);
+
+				var wrapper = WrapWrapper.fromJson(Json.parse('{
+					"user": { "name": "Jonas" },
+					"otherstuff": [ "UserEmail1" ]
+				}'));
+
+				wrapper.user.name.should.be("Jonas");
+				wrapper.user.age.should.be(20);
+			});
+		});
+
 		describe("Typedef conversion for simple typedefs", {
 			it("should use the typedef name, not the underlying type when converting", {
 				var converter = new JsonConverter();

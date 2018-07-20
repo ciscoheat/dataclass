@@ -115,7 +115,7 @@ class Converter
 			//trace('=== Converting ref $currentId');
 		}
 
-		for (field in rtti.keys()) {
+		for (field in rtti.keys()) if(inputData.exists(field)) {
 			var input = inputData.get(field);
 			var data = rtti[field];
 			
