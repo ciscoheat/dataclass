@@ -101,8 +101,8 @@ private abstract DataField(DataClassField) to Field
 	}
 	
 	public function defaultValue() : Null<Expr> return switch this.kind {
-		case FVar(_, e), FProp(_, _, _, e): switch type() {
-			case TPath(p) if(p.name == "Option"): 
+		case FVar(_, e), FProp(_, _, _, e): 
+			if(isOptionField()) {
 				if(e == null) macro haxe.ds.Option.None
 				else switch e.expr {
 					case EConst(CIdent("null")):
@@ -112,10 +112,14 @@ private abstract DataField(DataClassField) to Field
 						);
 					case _: macro haxe.ds.Option.Some($e);
 				}
-			case _: e;
-		}
+			} else e;
 		case _: null;
-	}	
+	}
+
+	public function isOptionField() return switch type() {
+		case TPath(p) if(p.name == "Option"): true;
+		case _: false;
+	}
 }
 
 // ============================================================================
@@ -678,7 +682,6 @@ private class RttiBuilder
 							// But all other classes must implement DataClass
 							var name = type.pack.toDotPath(type.name);
 							if (!type.interfaces.exists(function(i) return i.t.get().name == "DataClass")) {
-								trace(type);
 								error('Class $name does not implement DataClass.');
 							}
 							"DataClass<" + name + ">";

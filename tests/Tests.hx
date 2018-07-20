@@ -360,7 +360,14 @@ class Tests extends BuddySuite implements Buddy<[
 				});	
 				
 				it("should not be possible to assign to def_null", {
-					CompilationShould.failFor(prop.def_null = "assigned");
+					CompilationShould.failFor(
+						new HasProperty({
+							def_def: "A",
+							def_null: "B",
+							get_set: "C",
+							get_null: "D"
+						}).def_null = "assigned"
+					);
 				});
 			});
 
@@ -493,9 +500,8 @@ class Tests extends BuddySuite implements Buddy<[
 				});
 
 				it("should convert all var fields into (default, null) properties.", {
-					var immutable = new ImmutableClass( { id: 123, name: "Test" } );
-					CompilationShould.failFor(immutable.id = 456);
-					CompilationShould.failFor(immutable.name = "Not a test");
+					CompilationShould.failFor(new ImmutableClass( { id: 123, name: "Test" } ).id = 456);
+					CompilationShould.failFor(new ImmutableClass( { id: 123, name: "Test" } ).name = "Not a test");
 				});
 
 				#if (haxe_ver >= 4)
