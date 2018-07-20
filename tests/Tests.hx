@@ -687,11 +687,17 @@ class ConverterTests extends BuddySuite
 
 				describe("Converting Option<T>", {
 					it("Should convert null to None", {
-						var none = { str: null };
-						var some = { str: "some" };
+						var none = { str: null, abstr: [1] };
+						var some = { str: "some", abstr: null };
 
 						OptionNoneTest.fromJson(none).str.should.equal(Option.None);
+						var ab = switch OptionNoneTest.fromJson(none).abstr { 
+							case None: null; case Some(v): v; 
+						};
+						ab.should.containExactly([1]);
+
 						OptionNoneTest.fromJson(some).str.should.equal(Option.Some("some"));
+						OptionNoneTest.fromJson(some).abstr.should.equal(Option.None);
 					});
 				});
 				

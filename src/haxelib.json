@@ -4,7 +4,7 @@
     "description": "A convenient way to create domain objects, DTO's, web forms, and other data structures.",
     "license": "MIT",
     "contributors": ["ciscoheat"],
-    "version": "1.3.2",
-    "releasenote": "Fixed arrays containing abstracts.",
+    "version": "1.3.3",
+    "releasenote": "Field type fix for Option.",
     "tags": ["data", "dto", "validation", "converter", "json", "csv", "contracts"]
 }

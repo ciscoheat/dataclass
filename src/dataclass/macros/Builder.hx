@@ -637,7 +637,9 @@ private class RttiBuilder
 					// Special support for the Option<T> type
 					if(name == 'haxe.ds.Option') {
 						if(field.canBeNull()) error("Option fields cannot be nullable, they will be automatically set to None if no value is set.");
-						haxe.macro.TypeTools.toString(t).substr(8);
+						var t = params[0];
+						var alias = typeAlias(t);
+						'Option<' + fieldTypeToName(t, field, alias) + '>';
 					} else {
 						for (c in e.constructs) switch c.type { 
 							case TEnum(_, _):
@@ -661,8 +663,8 @@ private class RttiBuilder
 				case TType(t, params) if(params.length == 0):
 					var t2 = t.get();
 					var alias = t2.pack.toDotPath(t2.name);
-					var type = Context.followWithAbstracts(t2.type);
-					fieldTypeToName(type, field, alias);
+					//var type = Context.followWithAbstracts(t2.type);
+					fieldTypeToName(t2.type, field, alias);
 				case TInst(t, params):
 					var type = t.get();
 					switch type.name {
