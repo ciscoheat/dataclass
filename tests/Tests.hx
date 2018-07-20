@@ -554,6 +554,7 @@ class ConverterTests extends BuddySuite
 {	
 	public function new() {
 		describe("Nested JSON", {
+			#if !static_target
 			it("will not parse deep when instantiated directly", {
 				var user = new WrapUser(Json.parse('{ "name": "Jonas" }'));
 				user.name.should.be("Jonas");
@@ -567,6 +568,7 @@ class ConverterTests extends BuddySuite
 				wrapper.user.name.should.be("Jonas");
 				Reflect.hasField(wrapper.user, 'age').should.be(false);
 			});
+			#end
 
 			it("should parse deep when using the JsonConverter", {
 				var user = WrapUser.fromJson(Json.parse('{ "name": "Jonas" }'));

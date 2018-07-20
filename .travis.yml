@@ -6,10 +6,14 @@ language: haxe
 os:
   - linux
   - osx
-  
+
 haxe:
   - "3.4.7"
   - development
+
+matrix:
+  allow_failures:
+    - haxe: development
   
 install:
   - haxelib install travix
@@ -17,7 +21,7 @@ install:
 
 script:
   - haxelib run travix neko
-  - haxelib run travix python
+  - if [ "$TRAVIS_OS_NAME" != "osx" ]; then haxelib run travix python; fi
   - haxelib run travix node
   - haxelib run travix php
   - haxelib run travix js
