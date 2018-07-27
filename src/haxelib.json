@@ -4,7 +4,7 @@
     "description": "A convenient way to create domain objects, DTO's, web forms, and other data structures.",
     "license": "MIT",
     "contributors": ["ciscoheat"],
-    "version": "1.3.4",
-    "releasenote": "Fixed problem when converted nested JSON.",
+    "version": "1.4.0",
+    "releasenote": "TypedJsonConverter can now handle conversions with interfaces.",
     "tags": ["data", "dto", "validation", "converter", "json", "csv", "contracts"]
 }

@@ -108,7 +108,7 @@ class Custom implements DataClass {
 
 ## Immutability
 
-A class can be made immutable from the outside by marking it with `@immutable`, which will simply change all `var` to `var(default, null)`. Quite useful when doing event sourcing and using event stores, for example. For Haxe 4 however, it's recommended that you use the `final` keyword.
+A class can be made immutable from the outside by marking it with `@immutable`, which will simply change all `var` to `var(default, null)`. For Haxe 4 however, it's recommended that you use the `final` keyword instead.
 
 ## Inheritance
 
@@ -131,6 +131,38 @@ var p = new Person({id: 1, name: "Test"}); // Ok
 ```
 
 The superclass should not implement `DataClass`, rather it should be considered an abstract class for data like primary keys in a database.
+
+## Interfaces
+
+By letting an interface extend `DataClass`, you can use it normally:
+
+```haxe
+interface IChapter extends DataClass
+{
+	// Note that a setter is created automatically by DataClass
+	// for validation purposes, so it must be defined in the interface.
+	public var info(default, set) : String;
+}
+
+class SimpleChapter implements IChapter
+{
+	public var info : String = 'simple info';
+	public var text : String;
+}
+
+class ComplexChapter implements IChapter
+{
+	public var info : String = 'complex info';
+	public var markdown : String;
+}
+
+class Book implements DataClass {
+	public var chapters : Array<IChapter>;
+	public var name : String;
+}
+```
+
+This loses some type information though because of the interface, so if you plan on converting this data to JSON, read the section about converting JSON further down.
 
 ## Manual validation
 
@@ -216,6 +248,12 @@ The extension methods are handled by `dataclass.JsonConverter.current`, which yo
 - `circularReferences`: An Enum with three values. The default, `ThrowException`, throws an exception when it detects a circular reference. `SetToNull`, sets those circular references to `null` instead. `TrackReferences` keeps track of the references, stores them in JSON and restores them when converted back, at a small storage and time penalty.
 
 Of course, you can instantiate your own `dataclass.JsonConverter` if you don't want to use the extension methods.
+
+#### When using interfaces
+
+Since DataClass needs to instantiate a class to handle validation, using interfaces is problematic when converting to JSON. Therefore another JSON converter is available, `dataclass.TypedJsonConverter`, which should be used instead of `JsonConverter` when a DataClass contains an interface. It will add a `"$class"` field to the JSON structure, which must be available as a type when converting back to a DataClass.
+
+An exception will be thrown if a dataclass contains an interface and `JsonConverter` is used.
 
 ### CSV
 

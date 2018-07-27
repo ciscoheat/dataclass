@@ -4,10 +4,6 @@ import haxe.DynamicAccess;
 import dataclass.Converter;
 import dataclass.Converter.config;
 
-using Lambda;
-using StringTools;
-using DateTools;
-
 class JsonConverter extends Converter
 {
 	public static function fromJson<T : DataClass>(cls : Class<T>, json : Dynamic) : T {

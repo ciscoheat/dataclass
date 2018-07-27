@@ -23,6 +23,7 @@ import hxcpp.StaticRegexp;
 using buddy.Should;
 
 using dataclass.JsonConverter;
+using dataclass.TypedJsonConverter;
 using dataclass.CsvConverter;
 
 @:enum abstract HttpStatus(Int) {
@@ -232,8 +233,46 @@ class OptionObjTest implements DataClass
 	public var obj : Option<RequireId>;
 }
 
-interface ExtendingInterface extends DataClass
+interface IChapter extends DataClass
 {
+	public var info(default, set) : String;
+}
+
+class SimpleChapter implements IChapter
+{
+	public var info : String = 'simple info';
+}
+
+class ComplexChapter implements IChapter
+{
+	public var info : String = 'complex info';
+	public var markdown : String;
+}
+
+interface Placeable {
+	public var x : Float;
+	public var y : Float;
+}
+
+class Place implements Placeable {
+	public var x : Float;
+	public var y : Float;
+	public var name : String;
+
+	public function new(x, y, name) {
+		this.x = x; this.y = y;
+		this.name = name;
+	}
+}
+
+class Book implements DataClass {
+	public var chapters : Array<IChapter>;
+	public var name : String;
+	@exclude public var location : Placeable;
+
+	public function new(data, ?location) {
+		this.location = location;
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -413,6 +452,22 @@ class Tests extends BuddySuite implements Buddy<[
 					var o2 = new ExcludeTest({ id: 123 });
 					o2.input.should.be(null);
 				});
+
+				it("could still be assigned in a custom constructor", {
+					var chapters : Array<IChapter> = [
+						new SimpleChapter(), new ComplexChapter({markdown: '# Test'})
+					];
+					var book = new Book({
+						name: 'The book',
+						chapters: chapters,						
+					}, new Place(10,20,"Test"));
+
+					book.chapters.length.should.be(2);
+					book.chapters[0].info.should.be("simple info");
+					book.chapters[1].info.should.be("complex info");
+
+					book.location.x.should.be(10);
+				});
 			});
 
 			describe("With @include on a private field", {
@@ -549,6 +604,29 @@ class WrapWrapper implements DataClass {
     public var user : WrapUser;
     public var otherstuff : Array<String>;
 }
+
+///// Typed JSON tests /////
+
+interface ITreeNode extends DataClass {
+    public var id(default, set):String;
+    public var children(default, set):Array<ITreeNode>;
+}
+
+class TreeBook implements ITreeNode {
+    public var id : String = 'Book id';
+    public var children : Array<ITreeNode> = [];
+
+    public var bookSpecific: String = 'just for books';
+}
+
+class TreeChapter implements ITreeNode {
+    public var id : String = 'Chapter id';
+    public var children : Array<ITreeNode> = [];
+    
+    public var chapterSpecific: Int = 1;
+}
+
+//////////////////////////////
 
 class ConverterTests extends BuddySuite
 {	
@@ -839,6 +917,33 @@ class ConverterTests extends BuddySuite
 						// Testing should with useRef directly doesn't work on neko
 						(useRef.children[0].parent == useRef).should.be(true);
 					});
+				});
+			});
+
+			describe("TypedJsonConverter", {
+				var book = new TreeBook({
+					id:'BookA', 
+					children: [
+						new TreeChapter({id:'ChapterA'})
+					]
+				});
+
+				it("should handle interfaces by using the type information in the JSON", {
+					book.children.length.should.be(1);
+					book.children[0].id.should.be('ChapterA');
+
+					var json = book.toTypedJson();
+					var book2 = TreeBook.fromTypedJson(json);
+
+					book2.children.length.should.be(1);
+					book2.children[0].id.should.be('ChapterA');
+					Type.getClassName(Type.getClass(book2.children[0])).should.be("TreeChapter");
+				});
+
+				it("should not be able to pass json containing an interface to JsonConverter", {
+					var json = book.toTypedJson();
+					(function() TreeBook.fromJson(json)).should.throwType(String);
+					(function() book.toJson()).should.throwType(String);
 				});
 			});
 			

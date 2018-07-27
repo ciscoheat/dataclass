@@ -684,7 +684,7 @@ private class RttiBuilder
 							if (!type.interfaces.exists(function(i) return i.t.get().name == "DataClass")) {
 								error('Class $name does not implement DataClass.');
 							}
-							"DataClass<" + name + ">";
+							type.isInterface ? 'Interface<$name>' : 'DataClass<$name>';
 					}
 				case _:
 					error("Unsupported DataClass type: " + t.getName());

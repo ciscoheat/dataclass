@@ -54,6 +54,12 @@ class Converter
 	public var valueConverters(default, null) : Map<String, ValueConverter<Dynamic, Dynamic>>;
 	
 	var circularReferences : CircularReferenceHandling;
+
+	/**
+	 * If true, set a "$class" field with the current object class.
+	 * Used when having a DataClass with an interface, for example.
+	 */
+	var useClassInfo : Bool = false;
 	
 	public macro static function config(optionField : Expr, defaultValue : Expr) {
 		return switch optionField.expr {
@@ -121,8 +127,8 @@ class Converter
 			
 			if (circularReferences == TrackReferences && 				
 				input != null && 
-				data.startsWith("DataClass<") 
-				&& Reflect.hasField(input, "$ref")
+				Reflect.hasField(input, "$ref") &&
+				(data.startsWith("DataClass<") || data.startsWith("Interface<"))
 			) {
 				// Store reference for later assignment
 				var refId : Int = cast Reflect.field(input, "$ref");
@@ -136,7 +142,7 @@ class Converter
 					refAssign.get(currentId).push(refData);
 			} else {
 				var output = toField(rtti[field], input, refCount, refAssign, toDataClass);				
-				//trace(field + ': ' + input + ' -[' + rtti[field] + ']-> ' + output);
+				//trace(Std.string(field) + ': ' + Std.string(input) + ' -[' + Std.string(rtti[field]) + ']-> ' + Std.string(output));
 				outputData.set(field, output);
 			}
 		}
@@ -188,8 +194,16 @@ class Converter
 			var enumT = enumType(data.substring(5, data.length - 1));
 			return Type.createEnum(enumT, value);
 		}
-		else if (data.startsWith("DataClass<")) {			
-			var classT = classType(data.substring(10, data.length - 1));
+		else if (data.startsWith("DataClass<") || data.startsWith("Interface<")) {
+			if(data.startsWith("Interface<") && !useClassInfo) {
+				var interfaceName = data.substring(10, data.length - 1);
+				throw 'Cannot instantiate interface $interfaceName, please use TypedJsonConverter instead.';
+			}
+			//trace('--- $data'); trace(value);
+			var classT = useClassInfo 
+				? classType(Reflect.field(value, "$class"))
+				: classType(data.substring(10, data.length - 1));
+
 			return toDataClass 
 				? _toDataClass(cast classT, value, refCount, refAssign)
 				: _toAnonymousStructure(cast classT, value, refCount, refAssign, 0, toDataClass);
@@ -259,6 +273,9 @@ class Converter
 		if (circularReferences == SetToNull)
 			refs.remove(dataClass);
 
+		if(useClassInfo)
+			outputData.set("$class", Type.getClassName(Type.getClass(dataClass)));
+
 		return outputData;
 	}
 	
@@ -278,7 +295,12 @@ class Converter
 		else if (data.startsWith("Enum<")) {
 			return Std.string(value);
 		}
-		else if (data.startsWith("DataClass<")) {
+		else if (data.startsWith("DataClass<") || data.startsWith("Interface<")) {
+			if(data.startsWith("Interface<") && !useClassInfo) {
+				var interfaceName = data.substring(6, data.length - 1);
+				throw 'Cannot convert interface $interfaceName to JSON, use TypedJsonConverter instead.';
+			}
+
 			return _fromDataClass(cast value, refs, refcounter);
 		}
 		else if(data.startsWith("Option<")) {
