@@ -619,12 +619,7 @@ class TreeBook implements ITreeNode {
     public var bookSpecific: String = 'just for books';
 }
 
-class TreeChapter implements ITreeNode {
-    public var id : String = 'Chapter id';
-    public var children : Array<ITreeNode> = [];
-    
-    public var chapterSpecific: Int = 1;
-}
+// class TreeChapter is in subpack for testing purposes.
 
 //////////////////////////////
 
@@ -924,7 +919,7 @@ class ConverterTests extends BuddySuite
 				var book = new TreeBook({
 					id:'BookA', 
 					children: [
-						new TreeChapter({id:'ChapterA'})
+						new subpack.TreeChapter({id:'ChapterA'})
 					]
 				});
 
@@ -937,7 +932,7 @@ class ConverterTests extends BuddySuite
 
 					book2.children.length.should.be(1);
 					book2.children[0].id.should.be('ChapterA');
-					Type.getClassName(Type.getClass(book2.children[0])).should.be("TreeChapter");
+					Type.getClassName(Type.getClass(book2.children[0])).should.be("subpack.TreeChapter");
 				});
 
 				it("should not be able to pass json containing an interface to JsonConverter", {
