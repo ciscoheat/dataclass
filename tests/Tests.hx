@@ -896,9 +896,9 @@ class ConverterTests extends BuddySuite
 						children = setRef.get('children');
 						var parent2 : DynamicAccess<Dynamic> = children[0].get('parent');
 						
-						parent2.exists("$ref").should.be(true);
-						parent2.get("$ref").should.not.be(0);
-						parent2.get("$ref").should.be(setRef.get("$id"));
+						parent2.exists("__DCref").should.be(true);
+						parent2.get("__DCref").should.not.be(0);
+						parent2.get("__DCref").should.be(setRef.get("__DCid"));
 						
 						JsonConverter.current = oldConverter;
 					});
@@ -928,6 +928,8 @@ class ConverterTests extends BuddySuite
 					book.children[0].id.should.be('ChapterA');
 
 					var json = book.toTypedJson();
+					json.exists("__DCclass").should.be(true);
+
 					var book2 = TreeBook.fromTypedJson(json);
 
 					book2.children.length.should.be(1);

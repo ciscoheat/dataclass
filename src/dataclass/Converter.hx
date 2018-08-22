@@ -56,7 +56,7 @@ class Converter
 	var circularReferences : CircularReferenceHandling;
 
 	/**
-	 * If true, set a "$class" field with the current object class.
+	 * If true, set a "__DCclass" field with the current object class.
 	 * Used when having a DataClass with an interface, for example.
 	 */
 	var useClassInfo : Bool = false;
@@ -116,8 +116,8 @@ class Converter
 		var rtti = Converter.Rtti.rttiData(cls);
 		var outputData : DynamicAccess<Dynamic> = {};
 
-		if (circularReferences == TrackReferences && !toDataClass && inputData.exists("$id")) {
-			currentId = cast inputData.get("$id");
+		if (circularReferences == TrackReferences && !toDataClass && (inputData.exists("__DCid") || inputData.exists("$id"))) {
+			currentId = cast (inputData.exists("__DCid") ? inputData.get("__DCid") : inputData.get("$id"));
 			//trace('=== Converting ref $currentId');
 		}
 
@@ -127,11 +127,11 @@ class Converter
 			
 			if (circularReferences == TrackReferences && 				
 				input != null && 
-				Reflect.hasField(input, "$ref") &&
+				(Reflect.hasField(input, "__DCref") || Reflect.hasField(input, "$ref")) &&
 				(data.startsWith("DataClass<") || data.startsWith("Interface<"))
 			) {
 				// Store reference for later assignment
-				var refId : Int = cast Reflect.field(input, "$ref");
+				var refId : Int = cast (Reflect.hasField(input, "__DCref") ? Reflect.field(input, "__DCref") : Reflect.field(input, "$ref"));
 				var refData = { obj: refId, field: field };
 				
 				//trace('Found ref $refId in field $field');
@@ -159,8 +159,8 @@ class Converter
 		var currentId = 0;
 
 		// Track references here instead of in _toAnonymousStructure, to assign the id afterwards
-		if (circularReferences == TrackReferences && inputData.exists("$id")) {
-			currentId = cast inputData.get("$id");
+		if (circularReferences == TrackReferences && (inputData.exists("__DCid") || inputData.exists("$id"))) {
+			currentId = cast (inputData.exists("__DCid") ? inputData.get("__DCid") : inputData.get("$id"));
 			//trace('=== Converting ref $currentId');
 		}
 		
@@ -201,7 +201,7 @@ class Converter
 			}
 			//trace('--- $data'); trace(value);
 			var classT = useClassInfo 
-				? classType(Reflect.field(value, "$class"))
+				? classType(Reflect.hasField(value, "__DCclass") ? Reflect.field(value, "__DCclass") : Reflect.field(value, "$class"))
 				: classType(data.substring(10, data.length - 1));
 
 			return toDataClass 
@@ -251,14 +251,15 @@ class Converter
 		if (refs.exists(dataClass)) return switch circularReferences {
 			case ThrowException: throw "Converting circular DataClass structure.";
 			case SetToNull: null;
-			case TrackReferences: { "$ref": refs.get(dataClass) };
+			case TrackReferences: 
+				var o = { "__DCref": refs.get(dataClass) };
+				cast o;
 		}
 		else 
 			refs.set(dataClass, ++refcounter);
 		
-		var outputData : DynamicAccess<Dynamic> = circularReferences == TrackReferences
-			? { "$id": refcounter }
-			: {};
+		var outputData : Dynamic = circularReferences == TrackReferences ? { "__DCid": refcounter } : {};
+		var outputData : DynamicAccess<Dynamic> = cast outputData;
 			
 		var rtti = Converter.Rtti.rttiData(Type.getClass(dataClass));
 		
@@ -274,7 +275,7 @@ class Converter
 			refs.remove(dataClass);
 
 		if(useClassInfo)
-			outputData.set("$class", Type.getClassName(Type.getClass(dataClass)));
+			outputData.set("__DCclass", Type.getClassName(Type.getClass(dataClass)));
 
 		return outputData;
 	}
