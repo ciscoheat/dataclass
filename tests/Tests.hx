@@ -275,6 +275,15 @@ class Book implements DataClass {
 	}
 }
 
+class DynamicAccessTest implements DataClass {
+	public var email : String;
+
+	@validate(_.get('test') != 0)
+	public var info : DynamicAccess<Dynamic> = {"test": 456};
+	public var nullInfo : Null<DynamicAccess<Dynamic>>;
+	//public var any : Any;
+}
+
 //////////////////////////////////////////////////////////////////////////////////////////////////////
 
 class Tests extends BuddySuite implements Buddy<[
@@ -369,6 +378,36 @@ class Tests extends BuddySuite implements Buddy<[
 
 					o.obj.should.equal(Some(id));
 					o2.obj.should.equal(None);
+				});
+			});
+
+			describe("With DynamicAccess", {
+				it("should pass the data along untouched", {
+					var test = new DynamicAccessTest({
+						email: "test@example.com",
+						info: cast {test: 123},
+						//any: "ANY"
+					});
+					test.info.get('test').should.be(123);
+					test.nullInfo.should.be(null);
+					//(test.any : String).should.be("ANY");
+
+					var test = new DynamicAccessTest({
+						email: "test@example.com",
+						nullInfo: cast {test: 789}
+						//any: "ANY"
+					});
+					test.info.get('test').should.be(456);
+					test.nullInfo.get('test').should.be(789);
+
+					// Validation will fail for info.test
+					(function() {
+						new DynamicAccessTest({
+							email: "test@example.com",
+							info: cast {test: 0},
+							//any: "ANY"
+						});
+					}).should.throwType(String);
 				});
 			});
 
@@ -911,6 +950,22 @@ class ConverterTests extends BuddySuite
 						var useRef = CircularReferenceTest.fromJson(parent.toJson());
 						// Testing should with useRef directly doesn't work on neko
 						(useRef.children[0].parent == useRef).should.be(true);
+					});
+				});
+
+				@include describe("Converting DynamicAccess", {
+					it("should pass any data along unconverted", {
+						var test = new DynamicAccessTest({
+							email: "test@example.com",
+							info: cast {test: 123},
+							//any: "ANY"
+						});
+						var json = test.toJson();
+						var info : DynamicAccess<Dynamic> = json.get('info');
+						info.get('test').should.be(123);
+
+						var test = DynamicAccessTest.fromJson(json);
+						test.info.get('test').should.be(123);
 					});
 				});
 			});

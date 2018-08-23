@@ -49,7 +49,7 @@ class Rtti
 
 class Converter
 {
-	static var directConversions = ['Int', 'Bool', 'Float', 'String'];
+	static var directConversions = ['Int', 'Bool', 'Float', 'String', 'Dynamic'];
 	
 	public var valueConverters(default, null) : Map<String, ValueConverter<Dynamic, Dynamic>>;
 	

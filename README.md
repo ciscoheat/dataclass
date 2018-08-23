@@ -35,6 +35,10 @@ class Person implements DataClass
 	@validate(_ == "ok")	// Validation for Option is tested for the wrapped value
 	public var defaultOption : haxe.ds.Option<String> = "ok"; // Will become Some("ok")
 
+	///// JSON options /////
+
+	public var jsonData : haxe.DynamicAccess<Dynamic> = {"test": 123}; 	// JSON object data or anonymous structure
+
 	///// Include/exclude fields /////
 	
 	var internal : String;            // non-public fields aren't included

@@ -112,12 +112,25 @@ private abstract DataField(DataClassField) to Field
 						);
 					case _: macro haxe.ds.Option.Some($e);
 				}
-			} else e;
+			} 
+			else if(isDynamicAccessField()) switch e.expr {
+				case EObjectDecl(fields):
+					macro ($e : Dynamic);
+				case _:
+					Context.error("A DynamicAccess field must have an anonymous structure as a default value.", e.pos);
+			}
+			else e;
+
 		case _: null;
 	}
 
 	public function isOptionField() return switch type() {
 		case TPath(p) if(p.name == "Option"): true;
+		case _: false;
+	}
+
+	public function isDynamicAccessField() return switch type() {
+		case TPath(p) if(p.name == "DynamicAccess"): true;
 		case _: false;
 	}
 }
@@ -614,13 +627,21 @@ private class RttiBuilder
 {
 	public static function createMetadata(dataClassFields : Array<DataField>) 
 	{
-		// Only if type is a typedef with no parameters, 
-		// it can be used as an alias for a converter.
 		function typeAlias(t : Type) {
 			return switch t {
+				// Only if type is a typedef with no parameters, 
+				// it can be used as an alias for a converter.
 				case TType(t, params) if(params.length == 0): 
 					var t2 = t.get();
 					t2.pack.toDotPath(t2.name);
+
+				// DynamicAccess and Any can be used as Dynamic
+				case TAbstract(t, params): switch t.get().name {
+					case "Null": typeAlias(params[0]);
+					case "DynamicAccess"/*, "Any"*/: "Dynamic";
+					case _: null;
+				}
+
 				case _:
 					null;
 			}			
@@ -686,7 +707,10 @@ private class RttiBuilder
 							}
 							type.isInterface ? 'Interface<$name>' : 'DataClass<$name>';
 					}
+				case TDynamic(t) if(alias == "Dynamic"):
+					'Dynamic';
 				case _:
+					trace(t);
 					error("Unsupported DataClass type: " + t.getName());
 			}
 		}
