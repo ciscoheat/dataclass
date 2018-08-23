@@ -953,7 +953,7 @@ class ConverterTests extends BuddySuite
 					});
 				});
 
-				@include describe("Converting DynamicAccess", {
+				describe("Converting DynamicAccess", {
 					it("should pass any data along unconverted", {
 						var test = new DynamicAccessTest({
 							email: "test@example.com",

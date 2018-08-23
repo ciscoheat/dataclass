@@ -635,9 +635,17 @@ private class RttiBuilder
 					var t2 = t.get();
 					t2.pack.toDotPath(t2.name);
 
-				// DynamicAccess and Any can be used as Dynamic
+				// Haxe 3
+				case TType(t, params): switch t.get().name {
+					case "Null": typeAlias(params[0]);
+					case "DynamicAccess"/*, "Any"*/: "Dynamic";
+					case _: null;
+				}
+
+				// Haxe 4
 				case TAbstract(t, params): switch t.get().name {
 					case "Null": typeAlias(params[0]);
+					// DynamicAccess and Any can be used as Dynamic
 					case "DynamicAccess"/*, "Any"*/: "Dynamic";
 					case _: null;
 				}
@@ -710,7 +718,6 @@ private class RttiBuilder
 				case TDynamic(t) if(alias == "Dynamic"):
 					'Dynamic';
 				case _:
-					trace(t);
 					error("Unsupported DataClass type: " + t.getName());
 			}
 		}
