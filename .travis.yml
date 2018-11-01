@@ -25,7 +25,6 @@ script:
   - haxelib run travix node
   - haxelib run travix php
   - haxelib run travix js
-  - haxelib run travix flash -D static_target
   - haxelib run travix java -D static_target
   - haxelib run travix cpp -D static_target -lib hxcpp
   - haxelib run travix cs -D static_target

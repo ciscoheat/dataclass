@@ -504,6 +504,8 @@ class Builder
 					assignment = switch(validationTestExpr.expr) {
 						case EIf(econd, eif, eelse):
 							{expr: EIf(econd, eif, assignment), pos: assignment.pos};
+						case EConst(CIdent("null")):
+							assignment;
 						default:
 							throw "Invalid test expr, must be EIf.";
 					};

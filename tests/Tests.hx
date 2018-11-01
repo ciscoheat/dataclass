@@ -9,6 +9,7 @@ import haxecontracts.HaxeContracts;
 import subpack.AnotherConverter;
 import subpack.Currency;
 import haxe.ds.Option;
+import haxe.DynamicAccess;
 
 #if js
 import js.html.OptionElement;
@@ -279,8 +280,8 @@ class DynamicAccessTest implements DataClass {
 	public var email : String;
 
 	@validate(_.get('test') != 0)
-	public var info : DynamicAccess<Dynamic> = {"test": 456};
-	public var nullInfo : Null<DynamicAccess<Dynamic>>;
+	public var info : DynamicAccess<Int> = {"test": 456};
+	public var nullInfo : Null<haxe.DynamicAccess<Dynamic>>;
 	//public var any : Any;
 }
 
