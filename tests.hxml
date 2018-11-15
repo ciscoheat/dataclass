@@ -1,5 +1,6 @@
 -lib HaxeContracts
 -lib buddy
+#-lib deepstate
 -cp ./tests/
 -cp ./src/
 -main Tests

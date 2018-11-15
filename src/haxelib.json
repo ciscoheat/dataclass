@@ -4,7 +4,7 @@
     "description": "A convenient way to create domain objects, DTO's, web forms, and other data structures.",
     "license": "MIT",
     "contributors": ["ciscoheat"],
-    "version": "1.5.0",
-    "releasenote": "DynamicAccess can now be used in fields for JSON data.",
+    "version": "1.5.1",
+    "releasenote": "Fixes non-default DynamicAccess fields and Abstract types that uses DynamicAccess.",
     "tags": ["data", "dto", "validation", "converter", "json", "csv", "contracts"]
 }

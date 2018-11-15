@@ -282,8 +282,19 @@ class DynamicAccessTest implements DataClass {
 	@validate(_.get('test') != 0)
 	public var info : DynamicAccess<Int> = {"test": 456};
 	public var nullInfo : Null<haxe.DynamicAccess<Dynamic>>;
+	public var moreInfo : DynamicAccess<Dynamic>;
 	//public var any : Any;
 }
+
+/*
+#if (haxe_ver >= 4)
+class DeepStateDSTest implements DataClass {
+	public var array : ds.ImmutableArray<String>;
+	public var map : ds.ImmutableMap<String, Int>;
+	public var json : ds.ImmutableJson;
+}
+#end
+*/
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -387,6 +398,7 @@ class Tests extends BuddySuite implements Buddy<[
 					var test = new DynamicAccessTest({
 						email: "test@example.com",
 						info: cast {test: 123},
+						moreInfo: cast {test: 234}
 						//any: "ANY"
 					});
 					test.info.get('test').should.be(123);
@@ -395,7 +407,8 @@ class Tests extends BuddySuite implements Buddy<[
 
 					var test = new DynamicAccessTest({
 						email: "test@example.com",
-						nullInfo: cast {test: 789}
+						nullInfo: cast {test: 789},
+						moreInfo: cast {test: 234}
 						//any: "ANY"
 					});
 					test.info.get('test').should.be(456);
@@ -406,11 +419,32 @@ class Tests extends BuddySuite implements Buddy<[
 						new DynamicAccessTest({
 							email: "test@example.com",
 							info: cast {test: 0},
+							moreInfo: cast {test: 234}
 							//any: "ANY"
 						});
 					}).should.throwType(String);
 				});
 			});
+
+			/*
+			#if (haxe_ver >= 4)
+			describe("With Immutable datastructures", {
+				it("should work as expected", {
+					var test = new DeepStateDSTest({
+						array: ["A", "B", "C"],
+						map: ["A" => 1],
+						json: cast {test2: {test3: "ABC"}}
+					});
+
+					test.array[0].should.be("A");
+					test.map["A"].should.be(1);
+					test.json["test2"].get("test3").should.be("ABC");
+
+					//trace(test.toJson());
+				});
+			});
+			#end
+			*/
 
 			describe("With property fields", {
 				var prop : HasProperty;
@@ -956,9 +990,12 @@ class ConverterTests extends BuddySuite
 
 				describe("Converting DynamicAccess", {
 					it("should pass any data along unconverted", {
+						var moreInfo = new DynamicAccess<Dynamic>();
+						moreInfo.set("test", 234);
 						var test = new DynamicAccessTest({
 							email: "test@example.com",
 							info: cast {test: 123},
+							moreInfo: moreInfo
 							//any: "ANY"
 						});
 						var json = test.toJson();

@@ -113,7 +113,7 @@ private abstract DataField(DataClassField) to Field
 					case _: macro haxe.ds.Option.Some($e);
 				}
 			} 
-			else if(isDynamicAccessField()) switch e.expr {
+			else if(isDynamicAccessField() && e != null) switch e.expr {
 				case EObjectDecl(fields):
 					macro ($e : Dynamic);
 				case _:
@@ -629,7 +629,7 @@ private class RttiBuilder
 {
 	public static function createMetadata(dataClassFields : Array<DataField>) 
 	{
-		function typeAlias(t : Type) {
+		function typeAlias(t : Type, once = false) {
 			return switch t {
 				// Only if type is a typedef with no parameters, 
 				// it can be used as an alias for a converter.
@@ -649,8 +649,16 @@ private class RttiBuilder
 					case "Null": typeAlias(params[0]);
 					// DynamicAccess and Any can be used as Dynamic
 					case "DynamicAccess"/*, "Any"*/: "Dynamic";
-					case _: null;
+					case _: 
+						// Follow abstract types, in case they hide
+						// another abstract type that is valid.
+						// use once to prevent recursing infinite loops.
+						if(once) null
+						else typeAlias(Context.follow(t.get().type), true);
 				}
+
+				case TDynamic(null):
+					"Dynamic";
 
 				case _:
 					null;
@@ -709,6 +717,8 @@ private class RttiBuilder
 						// Arrays too
 						case 'Array', 'IntMap', 'StringMap': 
 							type.name + "<" + fieldTypeToName(params[0], field, null) + ">";
+						case 'List':
+							error("Lists aren't supported by DataClass, only Arrays.");
 						case _:
 							// But all other classes must implement DataClass
 							var name = type.pack.toDotPath(type.name);
