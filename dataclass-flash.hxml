@@ -1,8 +1,0 @@
--lib HaxeContracts
--lib buddy
--cp src 
--cp tests
--main Tests
--D static_target
--swf bin/flash.swf
--debug

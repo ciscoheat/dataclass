@@ -1,2 +1,2 @@
 
-@:autoBuild(dataclass.macros.Builder.build()) interface DataClass {}
+@:autoBuild(dataclass.macros.Builder2.build()) interface DataClass {}

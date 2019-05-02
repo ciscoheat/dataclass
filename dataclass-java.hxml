@@ -1,8 +1,0 @@
--lib HaxeContracts
--lib buddy
--cp tests
--cp src 
--main Tests
--D static_target
--java bin/java
--debug

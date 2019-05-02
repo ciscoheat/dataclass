@@ -1,0 +1,10 @@
+-lib buddy
+-lib deepstate
+-lib hxnodejs 
+-lib travix 
+-lib dataclass
+-cp ./tests/
+-cp ./src/
+-main Tests2
+-js bin/node/tests.js 
+-D buddy-colors

@@ -1,6 +1,6 @@
--lib HaxeContracts
 -lib buddy
-#-lib deepstate
+-lib deepstate
 -cp ./tests/
 -cp ./src/
--main Tests
+-main Tests2
+#-D haxeJSON

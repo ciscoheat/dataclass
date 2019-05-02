@@ -1,7 +1,0 @@
--lib buddy
--lib HaxeContracts
--cp src 
--cp tests
--debug
--main Tests
--neko bin/dataclass.n
