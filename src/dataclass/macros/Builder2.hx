@@ -153,7 +153,7 @@ class Builder2
 			return {
 				field: f,
 				nullability: nullability,
-				isOption: false
+				isOption: isOption
 			}
 		}
 
@@ -232,20 +232,25 @@ class Builder2
 
 		function replaceValidators(vals : Array<Expr>, f : DataClassField) {
 			// TODO: Check if validators exist
+			//trace(vals.map(v -> v.toString()));
 			final newVals = vals.map(validatorExpr.bind(f));
 			final it = newVals.iterator();
 
+			// Chain together the validators in an OR expression.
 			function orOp(current : Expr) : Expr {
 				switch current.expr {
-					case EConst(CRegexp(r, opt)):
+					case EConst(CRegexp(_, _)):
 						current = macro ${current}.match(Std.string(v));
 					case _:
 				}
-				return if(!it.hasNext()) macro !$current;
-				else macro !$current || ${orOp(it.next())}
+
+				return if(!it.hasNext()) macro !($current);
+				else macro !($current) || ${orOp(it.next())}
 			}
 
-			return orOp(it.next());
+			var ret = orOp(it.next());
+			//trace(ret.toString());
+			return ret;
 		}
 
 		function actualValue(f : DataClassField) : Expr {
@@ -269,6 +274,7 @@ class Builder2
 
 		for(f in dataclassFields) {
 			var name = f.field.name;
+			//trace("*** " + name);
 			switch f.nullability {
 				/*(1)*/	case None(validators) if(validators.length == 0):
 					validateBoilerplate.push(macro 

@@ -122,7 +122,7 @@ class Dataclass2 implements Status extends Parent
 	//public final nullDef : Null<String> = "invalid"; // Compilation error, cannot have null with def. value
 	public final avoidNull : Option<String>; // = None is automatically added.
 
-	//@:validate(_ == "ok")	// Validation for Option is tested for the wrapped value
+	@:validate(_ == "ok")	// Validation for Option is tested for the wrapped value
 	public final defaultOption : haxe.ds.Option<String> = "ok"; // = "ok" Will become Some("ok")
 
 	///// JSON options /////
