@@ -390,7 +390,7 @@ class Builder2
 
 		///// - Generate copy method
 
-		final copyField = if(cls.superClass != null) {
+		final copyFunction = {
 			final copyFields = constructorFields.map(f -> {
 				access: [],
 				doc: f.field.doc,
@@ -414,282 +414,51 @@ class Builder2
 
 			for(f in copyFields) copyFunction.push(
 				//if(!Reflect.hasField(update, "id")) update.id = this.id		
-				macro if(!Reflect.hasField(update, $v{f.name})) $p{['update', f.name]} = $p{['this', f.name]}
+				macro if(!Reflect.hasField(update, $v{f.name})) $p{['update', f.name]} = $p{['dataClass', f.name]}
 			);
 
 			final clsType = {
 				name: cls.name,
 				pack: cls.pack
 			}
+
 			copyFunction.push(macro return new $clsType(cast update));
 
 			{
-				access: [APublic],
+				access: [APublic, AStatic],
 				kind: FFun({
-					args: [{
-						name: 'update',
-						opt: true,
-						type: TAnonymous(copyFields)
-					}],
+					args: [
+						{
+							name: 'dataClass',
+							opt: false,
+							type: TPath(clsType)
+						},
+						{
+							name: 'update',
+							opt: true,
+							type: TAnonymous(copyFields)
+						}
+					],
 					expr: macro $b{copyFunction},
-					ret: null
+					ret: TPath(clsType)
 				}),
 				name: 'copy',
 				pos: cls.pos
 			}
-		} else
-			null;
+		}
 
 		//////////////////////////////////////////////////////////////////
 
 		for(f in allFields) {
 			// Remove validation metadata for backwards compatibility
+			if(f.meta.exists(m -> m.name == "validate"))
+				Context.warning('@validate metadata is deprecated, use @:validate instead.', f.pos);
+
 			f.meta = f.meta.filter(f -> f.name != "validate");
 		}
 
-		return allFields.concat([constructor, validateFunction, copyField].filter(f -> f != null));
+		return allFields.concat([constructor, validateFunction, copyFunction]);
 	}
-	
-
-	///////////////////////////////////////////////////////////////////////////
-
-	function failedValidationThrowExpr(message : String, arg : Expr) {
-		return if (Context.defined("dataclass-throw")) {
-			var throwClass = Context.definedValue("dataclass-throw").split(".");
-			var newCustomClass = { expr: 
-				ENew({
-					name: throwClass[throwClass.length - 1],
-					pack: throwClass.slice(0, throwClass.length - 1),
-					params: null,
-					sub: null
-				}, [macro $v{message}, macro this, macro $arg])
-			, pos: Context.currentPos()
-			};
-			
-			macro throw $newCustomClass;
-		}
-		else {
-			macro throw $v{message};
-		}
-	}
-	
-	///////////////////////////////////////////////////////////////////////////
-			
-	/*
-	function createDataClassFields() : Array<Field> {
-		//trace("======= " + CLASS.name);
-		
-		// As a last step, need to remove @validate from superclass fields, otherwise their Expr won't compile.
-		for (superClassField in CLASS.superClasses().flatMap(function(f) return f.fields.get())) {
-			superClassField.meta.remove('validate');
-		}
-		
-		var normalFieldsWithoutConstructor = OTHERFIELDS.filter(function(f) return f.name != 'new');
-				
-		//for (f in newDataClassFields) trace(f.name + " -> " + f.kind);
-		
-		return normalFieldsWithoutConstructor
-			.concat([createStaticValidateMethod(), createConstructor()])
-			.concat(newDataClassFields)
-			.concat(newSetters)
-			.filter(function(f) return f != null);
-	}
-	*/
-	
-	///////////////////////////////////////////////////////////////////////////
-	
-	/*
-	function createStaticValidateMethod() : Null<Field> {
-		var argName = 'data';
-		var validationTests = dataClassFieldsIncludingSuperFields.map(function(f) {
-			var testFieldAccessor = macro $p{[argName, f.name]};
-			var fieldExists = macro Reflect.hasField($i{argName}, $v{f.name});
-			var addToOutput = macro output.push($v { f.name } );
-			
-			// Important distinction between validation in the setter:
-			// If input doesn't exist and field is optional, validation will still succeed.
-			// This means that the test should be if the field is optional, not if it can be null.
-			var canBeNull = macro $v{f.isOptional()};
-			
-			var testExpr = switch Validator.createValidatorTestExpr(f.type(), testFieldAccessor, 
-				f.isOptional(), f.validation) 
-			{
-				case None: macro false;
-				case Some(e): e;
-			}
-			
-			return macro {
-				if (!$canBeNull && !$fieldExists) $addToOutput
-				else if ($testExpr) $addToOutput;
-			}
-		});
-		
-		return {
-			access: [APublic, AStatic],
-			doc: null,
-			kind: FFun({
-				args: [{
-					meta: null,
-					name: 'data',
-					opt: false,
-					type: null, //assignmentAnonymousType([], true),
-					value: null
-				}],
-				expr: macro { var output = []; $b{validationTests}; return output; },
-				params: null,
-				ret: macro : Array<String>
-			}),
-			meta: null,
-			name: 'validate',
-			pos: CLASS.pos
-		}
-	}
-	*/
-	
-	///////////////////////////////////////////////////////////////////////////
-	
-	/*
-	function createConstructor() {
-		// Returns all field assignments based on the first constructor parameter.
-		// "this.name = data.name"
-		function constructorAssignments(varName : String) : Expr {
-			var assignments = dataClassFieldsIncludingSuperFields.filter(function(f) {
-				var access = f.setAccess(CLASS.isImmutable());
-				// Allow constructor assignment if the field is final.
-				return f.isFinal() || access != 'never';
-			})
-			.map(function(f : DataField) {
-				var assignment = macro $p{['this', f.name]} = $p{[varName, f.name]};
-
-				// If immutable or final, validate data in constructor since no setter exists.
-				if(CLASS.isImmutable() || f.isFinal()) {					
-					var errorMsg = "DataClass validation failed for " + CLASS.name + "." + f.name + ".";
-					var identifier = macro $p{[varName, f.name]};
-					var validationTestExpr = createValidationTestExpr(f, identifier, failedValidationThrowExpr(errorMsg, identifier));
-
-					assignment = switch(validationTestExpr.expr) {
-						case EIf(econd, eif, eelse):
-							{expr: EIf(econd, eif, assignment), pos: assignment.pos};
-						case EConst(CIdent("null")):
-							assignment;
-						default:
-							throw "Invalid test expr, must be EIf.";
-					};
-				}
-
-				return f.isOptional()
-					? (macro if(Reflect.hasField($i{varName}, $v{f.name})) $assignment)
-					: assignment;
-			});
-			
-			//trace(assignments.map(function(a) return a.toString()).join(";\n"));
-			
-			var block = areAllDataClassFieldsOptional()
-				? (macro if ($i{varName} != null) $b{assignments}) 
-				: macro $b{assignments};
-			
-				
-			return block;
-		}
-		
-		var existing : Field = OTHERFIELDS.find(function(f) return f.name == 'new');
-		
-		var arguments : Array<FunctionArg> = if (existing != null) {
-			switch existing.kind {
-				case FFun(f):
-					function error(str) Context.error(str, f.expr.pos);
-					
-					var parameterFields : Array<DataField> = [];
-					
-					// Testing for a correct constructor definition
-					if (f.args.length == 0) {
-						error("The DataClass constructor must have at least one parameter.");
-					}
-					else if (f.args[0].type != null) {
-						switch f.args[0].type {
-							case TAnonymous(fields):
-								parameterFields = fields.map(function(f) return DataField.fromField(f));
-							case _:
-								error("The first parameter in a DataClass constructor must be empty or an anonymous structure.");
-						}
-					} else if (areAllDataClassFieldsOptional() && (f.args[0].opt == null || !f.args[0].opt)) {
-						error("All DataClass fields are optional, so the first constructor parameter must also be optional.");
-					} else if (f.args[0].value != null) {
-						error("The first parameter in a DataClass constructor cannot have a default value.");
-					}
-					
-					for (arg in f.args.slice(1)) {
-						if ((arg.opt == null || arg.opt == false) && arg.value == null) {
-							error("All subsequent constructor parameters in a DataClass must be optional");
-						}
-					}
-					
-					// Set type for first argument, and return the args structure
-					// TODO: Code completion doesn't work for the constructor parameter
-					f.args[0].type = assignmentAnonymousType(parameterFields);
-					
-					var assignments = constructorAssignments(f.args[0].name);
-					switch(f.expr.expr) {
-						case EBlock(exprs): exprs.unshift(assignments);
-						case _: f.expr = {
-							pos: f.expr.pos,
-							expr: EBlock([assignments, f.expr])
-						}
-					}
-					
-					f.args;
-				case _:
-					Context.error("Invalid constructor", existing.pos);
-			}
-		} else [{
-			meta: null,
-			name: 'data',
-			opt: areAllDataClassFieldsOptional(),
-			type: assignmentAnonymousType([]),
-			value: null
-		}];
-		
-		var newConstructor = {
-			access: if (existing != null) existing.access else [APublic],
-			doc: if (existing != null) existing.doc else null,
-			kind: if(existing != null) existing.kind else FFun({
-				args: arguments,
-				expr: constructorAssignments(arguments[0].name),
-				params: [],
-				ret: macro : Void
-			}),
-			meta: if (existing != null) existing.meta else null,
-			name: 'new',
-			pos: CLASS.pos
-		};
-		
-		return newConstructor;
-	}
-	*/
-	
-	///////////////////////////////////////////////////////////////////////////
-	
-	// Returns a type used for the parameter to the constructor.
-	// the allOptional parameter is used for the static "validate" method, so any object can be used.
-	/*
-	function assignmentAnonymousType(extraFields : Array<DataField>, allOptional = false) : ComplexType {
-		var fields = dataClassFieldsIncludingSuperFields.concat(extraFields)
-		.map(function(f) return {
-			pos: f.pos,
-			name: f.name,
-			meta: if(allOptional || f.isOptional()) [{
-				pos: f.pos,
-				params: null,
-				name: ":optional"
-			}] else null,
-			kind: FieldType.FVar(f.type(), null),
-			doc: null,
-			access: []
-		});
-		
-		return TAnonymous(fields);
-	}
-	*/
 }
 
 // ============================================================================
@@ -711,72 +480,6 @@ private class Validator
 				return !illegalNullTypes.has(type);
 			case _: true;
 		}
-	}
-	
-	// Returns an Expr that, if true, should fail validation.
-	public static function createValidatorTestExpr(
-		type : ComplexType, field : Expr, canBeNull : Bool, validators : Array<Expr>) : Option<Expr> {
-
-		// TODO: Support more than one validator
-		if (validators.length > 1) 
-			Context.error("Currently only one @validate() is supported per field", validators[1].pos);
-		
-		var cannotBeNull = !canBeNull && nullTestAllowed(type);
-		
-		/*
-		If the type is an Option, return an expression that tests the unwrapped value,
-		otherwise just the original expression.
-		*/ 
-		var validatorTests = validators.map(function(validator) {
-			function replaceParam(field : Expr, e : Expr) return switch e.expr { 
-				case EConst(CIdent("_")): macro $field;
-				case _: e.map(replaceParam.bind(field));
-			}
-
-			var isOption = switch type {
-				case TPath(p) if(p.name == "Option"): true;
-				case _: false;
-			}
-
-			return switch validator.expr {
-				case EConst(CRegexp(r, opt)):
-					if (!r.startsWith('^') && !r.endsWith('$')) r = '^' + r + "$";
-					if(isOption)
-						macro switch ($field) { case None: false; case Some(v): new EReg($v{r}, $v{opt}).match(v); }
-					else
-						macro new EReg($v{r}, $v{opt}).match($field);
-				case _:
-					if(isOption)
-						replaceParam(
-							macro v,
-							macro switch ($field) { case None: null; case Some(v): $validator; }
-						)
-					else
-						replaceParam(field, validator);
-			}
-		});
-
-		var testExpr = if(nullTestAllowed(type)) {
-			if (validatorTests.length == 0 && !canBeNull) {
-				macro $field == null;
-			} else if (validatorTests.length > 0) {
-				var test = validatorTests[0];
-				if (!canBeNull) macro $field == null || !($test);
-				else macro $field != null && !($test);
-			} else {
-				null;
-			}
-		} else {
-			if (validatorTests.length > 0) {
-				var test = validatorTests[0];
-				macro !($test);
-			} else {
-				null;
-			}
-		}
-		
-		//trace(testExpr.toString());
-		return testExpr == null ? Option.None : Option.Some(testExpr);
 	}
 }
 #end

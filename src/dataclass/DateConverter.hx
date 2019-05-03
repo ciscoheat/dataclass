@@ -3,17 +3,16 @@ package dataclass;
 using StringTools;
 
 /**
- * Date from/to ISO GMT date.
+ * Date from/to ISO 8601 format.
  */
 class DateConverter
 {
 	public static function toDate(input : String) : Date {
+        #if js
+        return cast new js.Date(input);
+        #else
 		var s = input.trim();
-		
 		if (s.endsWith('Z')) {
-			#if js
-			return cast new js.Date(s);
-			#else
 			var isoZulu = ~/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d+)?Z$/;
 			inline function d(pos : Int) return Std.parseInt(isoZulu.matched(pos));
 			if (isoZulu.match(s)) {
@@ -21,15 +20,20 @@ class DateConverter
 				var minutes = hours * 60 - Std.int(Math.round(getTimeZone() / 1000 / 60));
 				return new Date(d(1), d(2) - 1, d(3), d(4) + hours, d(5) + minutes, d(6));
 			}
-			#end
 		}
 		
 		return Date.fromString(s);
+        #end
 	}
 	
-	public static function toISODateFormat(input : Date) : String {
+	public static function toISOString(input : Date) : String {
+        #if js
+        var d : js.Date = cast input;
+        return d.toISOString();
+        #else
 		var time = DateTools.delta(input, -getTimeZone());
 		return DateTools.format(time, "%Y-%m-%dT%H:%M:%SZ");
+        #end
 	}
 	
 	// Thanks to https://github.com/HaxeFoundation/haxe/issues/3268#issuecomment-52960338

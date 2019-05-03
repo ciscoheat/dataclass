@@ -10,6 +10,7 @@ import hxcpp.StaticRegexp;
 */
 
 using buddy.Should;
+using Dataclass2;
 
 class Tests2 extends BuddySuite implements Buddy<[
 	Tests2, 
@@ -30,7 +31,7 @@ class Tests2 extends BuddySuite implements Buddy<[
 				final test2 = test.copy();
 				test2.id.should.be(123);
 
-				final test3 = test2.copy({id: 234});
+				final test3 = Dataclass2.copy(test2, {id: 234});
 				test3.id.should.be(234);
 			});
 
@@ -55,9 +56,6 @@ class Tests2 extends BuddySuite implements Buddy<[
 
 				final test2 = new Dataclass2(data2);
 				Sys.println(test2); Sys.println(test2.creationYear());
-
-				final test3 = test2.copy({id: 456});
-				//Sys.println(test3);
 			});
 		});
 	}	
