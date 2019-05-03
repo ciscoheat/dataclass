@@ -46,13 +46,8 @@ private class DataClassType
 	public static function superclassFields(cls : ClassType) : Array<Field> {
 		if(cls.superClass == null) return [];
 
-		function isClassFieldDataClassField(classField : ClassField) : Bool { return
-			classField.kind != null &&
-			(!classField.meta.has('exclude') || classField.meta.has('include'));
-		}
-		
-		final classFields = superClasses(cls).flatMap(function(superClass) 
-			return superClass.fields.get().filter(isClassFieldDataClassField)
+		final classFields = superClasses(cls).flatMap(superClass ->
+			superClass.fields.get().filter(c -> c.kind != null && !c.meta.has(':exclude'))
 		);
 
 		return classFields.map(f -> {
@@ -75,14 +70,6 @@ private class DataClassType
 			pos: f.pos
 		}).filter(f -> f.kind != null);
 	}	
-
-	/*	
-	function implementsInterface(interfaceName : String) {
-		return this.interfaces.map(function(i) return i.t.get()).exists(function(ct) {
-			return ct.name == interfaceName;
-		});
-	}
-	*/
 }
 
 // ============================================================================
@@ -169,7 +156,7 @@ class Builder
 		final allFields = Context.getBuildFields();
 
 		final dataclassFields = allFields.filter(f -> switch f.kind {
-			case FVar(_, _): true;
+			case FVar(_, _): !f.meta.exists(m -> m.name == ":exclude");
 			case FFun(_): false;
 			case FProp(_, _, _, _):
 				Context.error("Variable fields and properties are not allowed in a DataClass. Use final instead.", f.pos);
@@ -354,7 +341,9 @@ class Builder
 		///// - Generate constructor
 
 		final constructor = {
-			final constructorFunction : Array<Expr> = [
+			final existingConstructor = allFields.find(f -> f.name == "new");
+
+			final constructorExprs : Array<Expr> = [
 				macro switch validate(data) { 
 					case Some(errors): throw new dataclass.DataClassException(this, errors); 
 					case None: 
@@ -365,12 +354,12 @@ class Builder
 				final dataField = macro $p{['data', f.field.name]};
 				final thisField = macro $p{['this', f.field.name]};
 
-				if(f.isDate && Context.defined('dataclass-date-auto-conversion')) constructorFunction.push(
+				if(f.isDate && Context.defined('dataclass-date-auto-conversion')) constructorExprs.push(
 					macro if($dataField != null && Std.is($dataField, String)) $thisField = dataclass.DateConverter.toDate(cast $dataField)
 					else if($dataField != null && Std.is($dataField, Float) || Std.is($dataField, Int)) $thisField = Date.fromTime(cast $dataField)
 					else if($dataField != null) $thisField = $dataField
 				)
-				else constructorFunction.push(
+				else constructorExprs.push(
 					// if(data.field != null) this.field = data.field			
 					macro if($dataField != null) $thisField = $dataField
 				);
@@ -382,24 +371,41 @@ class Builder
 			});
 
 			if(allOptional)
-				constructorFunction.unshift(macro if(data == null) data = {});
+				constructorExprs.unshift(macro if(data == null) data = {});
 
-			if(cls.superClass != null)
-				constructorFunction.push(macro super(cast data));
+			if(existingConstructor != null) {
+ 				final func = switch existingConstructor.kind {
+					case FFun(f): f;
+					case _: Context.error("DataClass constructor must be a function.", existingConstructor.pos);
+				}
 
-			{
-				access: [APublic],
-				kind: FFun({
-					args: [{
-						name: 'data',
-						opt: allOptional,
-						type: TAnonymous(constructorTypedef)					
-					}],
-					expr: macro $b{constructorFunction},
-					ret: null
-				}),
-				name: 'new',
-				pos: cls.pos
+				for(a in func.args) if(a.name == 'data') {
+					a.opt = allOptional;
+					a.type = TAnonymous(constructorTypedef);
+				}
+
+				func.expr = macro $b{constructorExprs.concat([func.expr])};
+
+				null;
+			}
+			else {
+				if(cls.superClass != null)
+					constructorExprs.push(macro super(cast data));
+
+				{
+					access: [APublic],
+					kind: FFun({
+						args: [{
+							name: 'data',
+							opt: allOptional,
+							type: TAnonymous(constructorTypedef)					
+						}],
+						expr: macro $b{constructorExprs},
+						ret: null
+					}),
+					name: 'new',
+					pos: cls.pos
+				}
 			}
 		}
 
@@ -472,7 +478,7 @@ class Builder
 			f.meta = f.meta.filter(f -> f.name != "validate");
 		}
 
-		return allFields.concat([constructor, validateFunction, copyFunction]);
+		return allFields.concat([constructor, validateFunction, copyFunction].filter(f -> f != null));
 	}
 }
 

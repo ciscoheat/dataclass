@@ -25,12 +25,12 @@ using Dataclass2;
 abstract AInt(Int) to Int from Int {}
 abstract AIntArray(Array<AInt>) to Array<Int> from Array<Int> {}
 
-class AbstractTest implements DataClass 
+@:publicFields class AbstractTest implements DataClass 
 {
-    public final aint : AInt;
-    public final aints : Array<AInt>;
-	public final aaints : Array<Array<AInt>>;
-	public final aintarray : AIntArray;
+    final aint : AInt;
+    final aints : Array<AInt>;
+	final aaints : Array<Array<AInt>>;
+	final aintarray : AIntArray;
 }
 
 @:enum abstract HttpStatus(Int) {
@@ -130,7 +130,8 @@ class DynamicAccessTest implements DataClass {
 ///////////////////////////////////////////////////////////////////////////////
 
 class Tests2 extends BuddySuite implements Buddy<[
-	Tests2, 
+	Tests2,
+	InheritanceTests
 ]>
 {	
 	public function new() {
@@ -342,4 +343,39 @@ class Tests2 extends BuddySuite implements Buddy<[
 			});
 		});
 	}	
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
+////////////////////////////////////////////////////////////////////////////////////////////////
+
+@:publicFields class Document implements DataClass
+{
+	@:exclude final _id : Null<String>;
+	@:validate(_ == null || _ > 0) final _key : Null<Int>;
+
+	public function new(data) {
+		this._id = _key != null ? 'ID:$_key' : "NO-ID";
+	}
+}
+
+class Person extends Document
+{
+	@:validate(_.length > 0) public final name : String;
+}
+
+class InheritanceTests extends BuddySuite
+{
+	public function new() {
+		describe("When inheriting from a class with a constructor", {
+			it("should inject the dataclass constructor before the expressions", {
+				var p = new Person({_key: 123, name: "Test"});
+				p._key.should.be(123);
+				p.name.should.be("Test");
+				p._id.should.be("ID:123");
+
+				(function() new Person({_key: -2, name: "Test"})).should.throwType(DataClassException);
+			});
+		});
+	}
 }
