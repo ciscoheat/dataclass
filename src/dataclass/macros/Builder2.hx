@@ -23,7 +23,8 @@ private enum Nullability {
 private typedef DataClassField = {
 	field: Field,
 	nullability: Nullability,
-	isOption: Bool
+	isOption: Bool,
+	isDate: Bool
 }
 
 @:forward(name, pos, meta, pack)
@@ -129,6 +130,14 @@ class Builder2
 					Context.error("Variable fields and properties are not allowed in a DataClass. Use final instead.", f.pos);
 			}
 
+			final isDate = switch f.kind {
+				case FVar(t, e): switch t {
+					case TPath(p) if(p.name == "Date"):	true;
+					case _:	false;
+				}
+				case _: false;
+			}
+
 			var validators = if(f.meta == null) [] 
 			else f.meta.filter(f -> f.name == "validate" || f.name == ":validate").map(f -> f.params[0]);
 			
@@ -153,7 +162,8 @@ class Builder2
 			return {
 				field: f,
 				nullability: nullability,
-				isOption: isOption
+				isOption: isOption,
+				isDate: isDate
 			}
 		}
 
@@ -161,8 +171,7 @@ class Builder2
 		final dataclassFields = allFields.map(toDataClassField).filter(f -> f != null);
 		final superclassFields = new DataClassType(cls).superclassFields();
 		final constructorFields = superclassFields.map(toDataClassField).concat(dataclassFields);
-
-		var allOptional = true;
+		
 		final constructorTypedef = constructorFields.map(f -> {
 			access: f.field.access,
 			doc: f.field.doc,
@@ -174,7 +183,6 @@ class Builder2
 			},
 			meta: switch f.nullability {
 				case None(_): 
-					allOptional = false;
 					f.field.meta;
 				case _:
 					f.field.meta.concat([{
@@ -213,61 +221,53 @@ class Builder2
 		        |     x    |           |  (8)
 		*/
 
-		/*
-		       | Expression | Regexp |
-		-------------------------------------		
-		Normal | if(!E)     | if(!R.match(Std.string(field)))
-		Option | switch     | 
-		*/
+		function ifIllegalValueSetError(f : DataClassField, validators : Array<Expr>) : Expr {
+			function replaceValidators(vals : Array<Expr>) {
+				// TODO: Check if validators exist
+				//trace(vals.map(v -> v.toString()));
 
-		function validatorExpr(f : DataClassField, e : Expr) {
-			return switch e.expr {
-				case EConst(CIdent("_")):
-					// "v" var
-					macro v;
-				case _:
-					e.map(validatorExpr.bind(f));
-			}
-		}
-
-		function replaceValidators(vals : Array<Expr>, f : DataClassField) {
-			// TODO: Check if validators exist
-			//trace(vals.map(v -> v.toString()));
-			final newVals = vals.map(validatorExpr.bind(f));
-			final it = newVals.iterator();
-
-			// Chain together the validators in an OR expression.
-			function orOp(current : Expr) : Expr {
-				switch current.expr {
-					case EConst(CRegexp(_, _)):
-						current = macro ${current}.match(Std.string(v));
-					case _:
+				function validatorExpr(e : Expr) {
+					return switch e.expr {
+						case EConst(CIdent("_")):
+							// "v" var
+							macro v;
+						case _:
+							e.map(validatorExpr);
+					}
 				}
 
-				return if(!it.hasNext()) macro !($current);
-				else macro !($current) || ${orOp(it.next())}
+				final newVals = vals.map(validatorExpr);
+				final it = newVals.iterator();
+
+				// Chain together the validators in an OR expression.
+				function orOp(current : Expr) : Expr {
+					switch current.expr {
+						case EConst(CRegexp(_, _)):
+							current = macro ${current}.match(Std.string(v));
+						case _:
+					}
+
+					return if(!it.hasNext()) macro !($current);
+					else macro !($current) || ${orOp(it.next())}
+				}
+
+				var ret = orOp(it.next());
+				//trace(ret.toString());
+				return ret;
 			}
 
-			var ret = orOp(it.next());
-			//trace(ret.toString());
-			return ret;
-		}
-
-		function actualValue(f : DataClassField) : Expr {
-			return if(f.isOption)
+			// "v" var
+			final extractValue = if(f.isOption)
 				macro switch $p{['data', f.field.name]} {
 					case None: null;
 					case Some(v): v;
 				}
 			else
 				macro $p{['data', f.field.name]};
-		}
 
-		function replace(f : DataClassField, validators : Array<Expr>) : Expr {
-			// "v" var
 			return macro {
-				final v = ${actualValue(f)};
-				if(${replaceValidators(validators, f)})
+				final v = $extractValue;
+				if(${replaceValidators(validators)})
 					setError($v{f.field.name}, haxe.ds.Option.Some(v));
 			}
 		}
@@ -276,35 +276,41 @@ class Builder2
 			var name = f.field.name;
 			//trace("*** " + name);
 			switch f.nullability {
-				/*(1)*/	case None(validators) if(validators.length == 0):
+				// (1) No default value, cannot be null, no validator
+				case None(validators) if(validators.length == 0):
 					validateBoilerplate.push(macro 
 						if($p{['data', name]} == null) 
 							setError($v{name}, haxe.ds.Option.None)
 					);
 
-				/*(3)*/ case None(validators):
+				// (3) No default value, cannot be null, has validator
+				case None(validators):
 					validateBoilerplate.push(macro 
 						if($p{['data', name]} == null) 
 							setError($v{name}, haxe.ds.Option.None)
 						else
-							${replace(f, validators)}
+							${ifIllegalValueSetError(f, validators)}
 					);
 
-				/*(8)*/ case Nullable(validators) if(validators.length == 0):
+				/*(8)*/ 
+				case Nullable(validators) if(validators.length == 0):
 
-				/*(2)*/ case Nullable(validators):
+				// (2) No default value, can be null, has validator
+				case Nullable(validators):
 					validateBoilerplate.push(macro 
-						${replace(f, validators)}
+						${ifIllegalValueSetError(f, validators)}
 					);
 
-				/*(7)*/ case DefaultValue(validators) if(validators.length == 0):
+				/*(7)*/ 
+				case DefaultValue(validators) if(validators.length == 0):
 
-				/*(4)*/ case DefaultValue(validators):
+				// (4) Has default value, has validator
+				case DefaultValue(validators):
 					validateBoilerplate.push(macro 
 						if($p{['data', name]} == null) 
 							null
 						else 
-							${replace(f, validators)}
+							${ifIllegalValueSetError(f, validators)}
 					);
 
 				case _:
@@ -334,15 +340,32 @@ class Builder2
 
 		///// - Generate constructor
 
-		final constructorFunction : Array<Expr> = [for(f in dataclassFields) {
-			// if(data.field != null) this.field = data.field
-			macro if($p{['data', f.field.name]} != null) $p{['this', f.field.name]} = $p{['data', f.field.name]};
-		}];
-
-		constructorFunction.unshift(macro switch validate(data) { 
-			case Some(errors): throw errors; 
-			case None: 
+		final allOptional = !dataclassFields.exists(f -> switch f.nullability {
+			case None(_): true;
+			case _: false;
 		});
+
+		final constructorFunction : Array<Expr> = [
+			macro switch validate(data) { 
+				case Some(errors): throw errors; 
+				case None: 
+			}
+		];
+
+		for(f in dataclassFields) {
+			final dataField = macro $p{['data', f.field.name]};
+			final thisField = macro $p{['this', f.field.name]};
+
+			if(f.isDate && Context.defined('dataclass-date-auto-conversion')) constructorFunction.push(
+				macro if($dataField != null && Std.is($dataField, String)) $thisField = dataclass.DateConverter.toDate(cast $dataField)
+				else if($dataField != null && Std.is($dataField, Float) || Std.is($dataField, Int)) $thisField = Date.fromTime(cast $dataField)
+				else if($dataField != null) $thisField = $dataField
+			)
+			else constructorFunction.push(
+				// if(data.field != null) this.field = data.field			
+				macro if($dataField != null) $thisField = $dataField
+			);
+		}
 
 		if(allOptional)
 			constructorFunction.unshift(macro if(data == null) data = {});
@@ -365,12 +388,66 @@ class Builder2
 			pos: cls.pos
 		}
 
+		///// - Generate copy method
+
+		final copyField = if(cls.superClass != null) {
+			final copyFields = constructorFields.map(f -> {
+				access: [],
+				doc: f.field.doc,
+				kind: switch f.field.kind {
+					case FVar(t, _):
+						FieldType.FVar(t, null);
+					case _:
+						Context.error("Variable fields and properties are not allowed in a DataClass. Use final instead.", f.field.pos);
+				},
+				meta: f.field.meta.concat([{
+					name: ":optional",
+					pos: f.field.pos
+				}]),
+				name: f.field.name,
+				pos: f.field.pos
+			});
+
+			final copyFunction : Array<Expr> = [
+				macro if(update == null) update = {}
+			];
+
+			for(f in copyFields) copyFunction.push(
+				//if(!Reflect.hasField(update, "id")) update.id = this.id		
+				macro if(!Reflect.hasField(update, $v{f.name})) $p{['update', f.name]} = $p{['this', f.name]}
+			);
+
+			final clsType = {
+				name: cls.name,
+				pack: cls.pack
+			}
+			copyFunction.push(macro return new $clsType(cast update));
+
+			{
+				access: [APublic],
+				kind: FFun({
+					args: [{
+						name: 'update',
+						opt: true,
+						type: TAnonymous(copyFields)
+					}],
+					expr: macro $b{copyFunction},
+					ret: null
+				}),
+				name: 'copy',
+				pos: cls.pos
+			}
+		} else
+			null;
+
+		//////////////////////////////////////////////////////////////////
+
 		for(f in allFields) {
 			// Remove validation metadata for backwards compatibility
 			f.meta = f.meta.filter(f -> f.name != "validate");
 		}
 
-		return allFields.concat([constructor, validateFunction]);
+		return allFields.concat([constructor, validateFunction, copyField].filter(f -> f != null));
 	}
 	
 

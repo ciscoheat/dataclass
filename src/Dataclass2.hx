@@ -176,7 +176,7 @@ class Dataclass2 implements Status extends Parent
 	}
 	*/
 
-	//public function creationYear() return created.getFullYear();
+	public function creationYear() return created.getFullYear();
 }
 
 // Auto-generated (constructor argument)

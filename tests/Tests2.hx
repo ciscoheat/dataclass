@@ -26,8 +26,14 @@ class Tests2 extends BuddySuite implements Buddy<[
 					active: false
 				});
 				test.id.should.be(123);
+
+				final test2 = test.copy();
+				test2.id.should.be(123);
+
+				final test3 = test2.copy({id: 234});
+				test3.id.should.be(234);
 			});
-			/*
+
 			it("Should work according to the concept class", {
 				final test = new Dataclass2({
 					id: 123,
@@ -53,7 +59,6 @@ class Tests2 extends BuddySuite implements Buddy<[
 				final test3 = test2.copy({id: 456});
 				//Sys.println(test3);
 			});
-			*/
 		});
 	}	
 }
