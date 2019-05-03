@@ -1,16 +1,133 @@
 import buddy.*;
+import dataclass.*;
+import haxe.DynamicAccess;
 import haxe.Json;
+import haxe.ds.IntMap;
+import haxe.ds.StringMap;
 import haxe.ds.Option;
+import haxe.DynamicAccess;
 
-/*
+#if js
+import js.html.OptionElement;
+import js.Browser;
+#end
+
 #if cpp
 import hxcpp.StaticStd;
 import hxcpp.StaticRegexp;
 #end
-*/
 
 using buddy.Should;
 using Dataclass2;
+
+/////////////////////////////////////////////////////////////////////
+
+abstract AInt(Int) to Int from Int {}
+abstract AIntArray(Array<AInt>) to Array<Int> from Array<Int> {}
+
+class AbstractTest implements DataClass 
+{
+    public final aint : AInt;
+    public final aints : Array<AInt>;
+	public final aaints : Array<Array<AInt>>;
+	public final aintarray : AIntArray;
+}
+
+@:enum abstract HttpStatus(Int) {
+	var NotFound = 404;
+	var MethodNotAllowed = 405;
+}
+
+enum Color { Red; Blue; Rgb(r: Int, g: Int, b: Int); }
+
+class RequireId implements DataClass
+{
+	// Not null, so id is required
+	public final id : Int;
+}
+
+class AllowNull implements DataClass
+{
+	// Null value is ok
+	public final name : Null<String>;
+}
+
+class DefaultValue implements DataClass
+{
+	// Default value set if no other supplied
+	@:validate(_.length > 0) public final city : String = "Nowhere";
+	public final color : Color = Blue;
+	public final date : Date = Date.now();
+	public final status : HttpStatus = NotFound;
+}
+
+@:publicFields class Validator implements DataClass
+{
+	@:validate(~/^\d{4}-\d\d-\d\d$/) final date : String;
+	@:validate(_.length > 2 && _.length < 9) final str : String;
+	@:validate(_.length > 0 && _[0] >= 100) final integ : Array<Int>;
+	final ok : Bool = false;
+}
+
+class NullValidateTest implements DataClass
+{
+	// Field cannot be called "int" on flash!
+	@:validate(_ > 1000) public final integ : Null<Int>;
+}
+
+class OptionTest implements DataClass
+{
+	@:validate(_ == "valid") public final str : Option<String>;
+}
+
+class OptionObjTest implements DataClass
+{
+	public final obj : Option<RequireId>;
+}
+
+interface IChapter extends DataClass
+{
+	@:validate(_.length > 0)
+	public final info : String;
+}
+
+class SimpleChapter implements IChapter
+{
+	public final info : String = 'simple info';
+}
+
+class ComplexChapter implements IChapter
+{
+	public final info : String = 'complex info';
+	public final markdown : String;
+}
+
+interface Placeable {
+	public final x : Float;
+	public final y : Float;
+}
+
+class Place implements DataClass implements Placeable {
+	public final x : Float;
+	public final y : Float;
+	public final name : String;
+}
+
+class Book implements DataClass {
+	public final chapters : Array<IChapter>;
+	public final name : String;
+}
+
+class DynamicAccessTest implements DataClass {
+	public final email : String;
+
+	@:validate(_.get('test') != 0)
+	public final info : DynamicAccess<Int> = {"test": 456};
+	public final nullInfo : Null<haxe.DynamicAccess<Dynamic>>;
+	public final moreInfo : DynamicAccess<Dynamic>;
+}
+
+///////////////////////////////////////////////////////////////////////////////
 
 class Tests2 extends BuddySuite implements Buddy<[
 	Tests2, 
@@ -23,10 +140,10 @@ class Tests2 extends BuddySuite implements Buddy<[
 					id: 123,
 					email: "test@example.com",
 					city: "Punxuatawney",
-					//avoidNull: Some("value"),
 					active: false
 				});
 				test.id.should.be(123);
+				test.avoidNull.should.equal(None);
 
 				final test2 = test.copy();
 				test2.id.should.be(123);
@@ -40,22 +157,188 @@ class Tests2 extends BuddySuite implements Buddy<[
 					id: 123,
 					email: "test@example.com",
 					city: "Punxuatawney",
-					//avoidNull: Some("value"),
+					avoidNull: Some("value"),
 					active: false
 				});
 				test.active.should.be(false);
-				
+				test.avoidNull.should.equal(Some("value"));
+
 				final testNew = new Dataclass2(test);
-				Sys.println(testNew);
-
 				final json = Json.stringify(test, "	");	
-				Sys.println(json);
 				final data2 : Dynamic = Json.parse(json);
-				//data2.created = new js.Date(data2.created);
-				Sys.println(data2);
-
 				final test2 = new Dataclass2(data2);
-				Sys.println(test2); Sys.println(test2.creationYear());
+
+				test2.yearCreated().should.beGreaterThan(2018);
+			});
+
+			///////////////////////////////////////////////////////////////////
+
+			describe("With non-null fields", {
+				it("should not compile if non-null value is missing", {
+					CompilationShould.failFor(new RequireId()).should.startWith("Not enough arguments");
+					CompilationShould.failFor(new RequireId({})).should.startWith("Object requires field id");
+					new RequireId( { id: 123 } ).id.should.be(123);
+				});
+
+#if !static_target
+				it("should throw if null value is supplied", {
+					(function() new RequireId({id: null})).should.throwType(DataClassException);
+				});
+#end
+			});
+
+			describe("With null fields", {
+				it("should compile if all fields are null and nothing is passed to the constructor", {
+					new AllowNull().name.should.be(null);
+				});
+				it("should compile if field value is missing", {
+					new AllowNull({}).name.should.be(null);
+				});
+				it("should compile if null value is supplied as field", {
+					new AllowNull({name: null}).name.should.be(null);
+				});
+			});
+			
+			describe("With default values", {				
+				it("should be set to default if field value isn't supplied", {
+					var now = Date.now();
+					var o = new DefaultValue();
+					
+					o.city.should.be("Nowhere");
+					o.color.should.equal(Color.Blue);
+					o.date.should.not.be(null);
+					(o.date.getTime() - now.getTime()).should.beLessThan(100);
+				});
+				it("should be set to the supplied value if field value is supplied", {
+					new DefaultValue( { city: "Somewhere" } ).city.should.be("Somewhere");
+				});
+				
+				it("should fail validation if set to an invalid value", {
+					var o = new DefaultValue();
+					(function() DefaultValue.copy(o, {city: ""})).should.throwType(DataClassException);
+				});
+			});
+
+			describe("With the Option type", {
+				it("should validate the underlying value, not the Option object itself", {
+					(function() new OptionTest({
+						str: None
+					})).should.throwType(DataClassException);
+
+					(function() new OptionTest({
+						str: Some("invalid")
+					})).should.throwType(DataClassException);
+
+					var t = new OptionTest({str: Some("valid")});
+					t.str.should.equal(Some("valid"));
+				});
+
+				it("should work for nested structures", {
+					var id = new RequireId({id: 123});
+					var o = new OptionObjTest({
+						obj: Some(id)
+					});
+					var o2 = new OptionObjTest({
+						obj: None
+					});
+
+					o.obj.should.equal(Some(id));
+					o2.obj.should.equal(None);
+				});
+			});
+
+			describe("With DynamicAccess", {
+				it("should pass the data along untouched", {
+					var test = new DynamicAccessTest({
+						email: "test@example.com",
+						info: cast {test: 123},
+						moreInfo: cast {test: 234}
+					});
+					test.info.get('test').should.be(123);
+					test.nullInfo.should.be(null);
+					//(test.any : String).should.be("ANY");
+
+					var test = new DynamicAccessTest({
+						email: "test@example.com",
+						nullInfo: cast {test: 789},
+						moreInfo: cast {test: 234}
+					});
+					test.info.get('test').should.be(456);
+					test.nullInfo.get('test').should.be(789);
+
+					// Validation will fail for info.test
+					(function() {
+						new DynamicAccessTest({
+							email: "test@example.com",
+							info: cast {test: 0},
+							moreInfo: cast {test: 234}
+						});
+					}).should.throwType(DataClassException);
+				});
+			});
+
+			describe("Abstract classes", {
+				it("should resolve to the underlying type", {
+					var abstr = new AbstractTest({
+						aint: 123,
+						aints: [123,456],
+						aaints: [[123],[456]],
+						aintarray: [1,2,3]
+					});
+
+					abstr.aint.should.be(123);
+					
+					abstr.aints.should.containExactly([123,456]);
+
+					abstr.aaints.length.should.be(2);
+					abstr.aaints[0].should.containExactly([123]);
+					abstr.aaints[1].should.containExactly([456]);
+
+					abstr.aintarray.should.containExactly([1,2,3]);
+				});
+			});
+
+			describe("Validators", {
+				it("should validate with @validate(...) expressions", {
+					(function() new Validator({ date: "2015-12-12", str: "AAA", integ: [1001] })).should.not.throwAnything();
+				});
+
+				it("should validate regexps", {
+					(function() new Validator({	date: "*2015-12-12*", str: "AAA", integ: [1001] })).should.throwType(DataClassException);
+				});
+
+				it("should replace _ with the value and validate", {
+					(function() new Validator({	date: "2015-12-12", str: "A", integ: [1001] })).should.throwType(DataClassException);
+					(function() new Validator({	date: "2015-12-12", str: "AAA", integ: [1] })).should.throwType(DataClassException);
+				});
+				
+#if !static_target
+				it("should fail validation for null values even if field can be null", {
+					(function() new NullValidateTest( { integ: null } )).should.throwType(DataClassException);
+					(function() new NullValidateTest( { integ: 1 } )).should.throwType(DataClassException);
+					new NullValidateTest({ integ: 2000 }).integ.should.be(2000);
+				});
+#end
+			});	
+
+			describe("Manual validation", {
+				it("should be done using the static 'validate' field", {
+					CompilationShould.failFor(Validator.validate({}));
+					CompilationShould.failFor(Validator.validate({ date: "2016-05-06" }));
+					
+					var errors = Validator.validate({ integ: [1001], date: "2016-05-06", str: "AAA" });
+					errors.should.equal(None);
+
+					var errors2 = Validator.validate({ integ: [1001], date: "0000", str: "AAA" });
+					switch errors2 {
+						case None: fail('Should be errors.');
+						case Some(error): 
+							switch error.get("date") {
+								case None: fail('Should be date error.');
+								case Some(v): v.should.be("0000");
+							}
+					}
+				});				
 			});
 		});
 	}	
