@@ -163,13 +163,16 @@ class Tests2 extends BuddySuite implements Buddy<[
 				});
 				test.active.should.be(false);
 				test.avoidNull.should.equal(Some("value"));
+				test.yearCreated().should.beGreaterThan(2018);
 
+				#if js
 				final testNew = new Dataclass2(test);
 				final json = Json.stringify(test, "	");	
 				final data2 : Dynamic = Json.parse(json);
 				final test2 = new Dataclass2(data2);
-
 				test2.yearCreated().should.beGreaterThan(2018);
+				#end
+
 			});
 
 			///////////////////////////////////////////////////////////////////
@@ -312,14 +315,6 @@ class Tests2 extends BuddySuite implements Buddy<[
 					(function() new Validator({	date: "2015-12-12", str: "A", integ: [1001] })).should.throwType(DataClassException);
 					(function() new Validator({	date: "2015-12-12", str: "AAA", integ: [1] })).should.throwType(DataClassException);
 				});
-				
-#if !static_target
-				it("should fail validation for null values even if field can be null", {
-					(function() new NullValidateTest( { integ: null } )).should.throwType(DataClassException);
-					(function() new NullValidateTest( { integ: 1 } )).should.throwType(DataClassException);
-					new NullValidateTest({ integ: 2000 }).integ.should.be(2000);
-				});
-#end
 			});	
 
 			describe("Manual validation", {
@@ -346,8 +341,6 @@ class Tests2 extends BuddySuite implements Buddy<[
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-
-////////////////////////////////////////////////////////////////////////////////////////////////
 
 @:publicFields class Document implements DataClass
 {

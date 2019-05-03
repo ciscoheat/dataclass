@@ -484,16 +484,16 @@ class Builder
 
 // ============================================================================
 
-private class Validator
+private class Target
 {
 	static var illegalNullTypes = ['Int', 'Float', 'Bool'];
 	
-	static var isStaticPlatform = Context.defined("cpp") || Context.defined("java") || 
+	static var isStaticTarget = Context.defined("cpp") || Context.defined("java") || 
 		Context.defined("flash") || Context.defined("cs") || Context.defined("hl");
 	
-	// Testing for null is only allowed if on a non-static platform or the type is not a basic type.
+	// Testing for null is only allowed if on a non-static target or the type is not a basic type.
 	public static function nullTestAllowed(type : ComplexType) : Bool {
-		if (!isStaticPlatform) return true;
+		if (!isStaticTarget) return true;
 		
 		return switch Context.followWithAbstracts(ComplexTypeTools.toType(type)) {
 			case TAbstract(t, _):
