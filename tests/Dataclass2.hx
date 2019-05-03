@@ -6,18 +6,21 @@ class Parent implements DataClass {
 	@:validate(_ > 0) public final id : Int;
 }
 
+// PHP bug in Haxe 4 RC 2
+#if !php
 interface Status
 {
 	// Validation added to implementing classes
 	@:validate(_ != MethodNotAllowed)
 	final status : Tests2.HttpStatus;
 }
+#end
 
-@:publicFields class Dataclass2 implements Status extends Parent
+@:publicFields class Dataclass2 #if !php implements Status #end extends Parent
 {
 	final name : Null<String>;  // Null<T> allows null
 
-	@validate(_.length >= 2)    // Expression validation, "_" is replaced with the field
+	@:validate(_.length >= 2)    // Expression validation, "_" is replaced with the field
 	final city : Null<String>;
 
 	final email : String;
