@@ -13,8 +13,6 @@ abstract HttpStatus(Int) {
 
 typedef MutableJson = haxe.DynamicAccess<Dynamic>;
 
-typedef DataClassErrors = Map<String, Option<Any>>;
-
 class Parent implements DataClass {
 	// Validation used in child class(es)
 	@:validate(_ > 0) public final id : Int;
@@ -61,22 +59,3 @@ class Dataclass2 implements Status extends Parent
 
 	public function creationYear() return created.getFullYear();
 }
-
-// Auto-generated (constructor argument)
-typedef PersonConstructor = {
-	final id : Int;
-	@:optional final name : Null<String>;
-	@:optional final city : String;
-	final email : String;
-	@:optional final status : HttpStatus;
-	@:optional final active : Bool;
-	@:optional final color : Color;
-	@:optional final created : Date;
-	@:optional final avoidNull : haxe.ds.Option<String>;
-	@:optional final defaultOption : haxe.ds.Option<String>;
-	@:optional final jsonData : ds.ImmutableJson;
-	@:optional final mutableJson : MutableJson;
-}
-
-// Errors throw:
-//throw new DataClassException<T>(errorFields : DataClassErrors, dataClassObject : T);

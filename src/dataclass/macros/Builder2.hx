@@ -197,10 +197,10 @@ class Builder2
 		///// - Generate static validate function
 
 		final validateBoilerplate = [
-			(macro var errors : DataClassErrors = null, hasErrors = false),
+			(macro var errors : dataclass.DataClassErrors = null, hasErrors = false),
 
 			(macro function setError(field, value) {
-				if(errors == null) errors = new DataClassErrors();
+				if(errors == null) errors = new dataclass.DataClassErrors();
 				errors.set(field, value);
 				hasErrors = true;
 			}),
@@ -332,7 +332,7 @@ class Builder2
 					type: TAnonymous(constructorTypedef)
 				}],
 				expr: macro $b{validateBoilerplate},
-				ret: macro : haxe.ds.Option<DataClassErrors>
+				ret: macro : haxe.ds.Option<dataclass.DataClassErrors>
 			}),
 			name: 'validate',
 			pos: cls.pos
@@ -347,7 +347,7 @@ class Builder2
 
 		final constructorFunction : Array<Expr> = [
 			macro switch validate(data) { 
-				case Some(errors): throw errors; 
+				case Some(errors): throw new dataclass.DataClassException(this, errors); 
 				case None: 
 			}
 		];
