@@ -8,23 +8,21 @@ os:
   - osx
 
 haxe:
-  - "3.4.7"
   - development
 
-matrix:
-  allow_failures:
-    - haxe: development
-  
 install:
-  - haxelib install travix
+  - haxelib git travix https://github.com/back2dos/travix && pushd . && cd $(haxelib config)travix/git && haxe build-neko.hxml && popd
   - haxelib run travix install
 
 script:
+  - haxelib run travix interp
   - haxelib run travix neko
-  - if [ "$TRAVIS_OS_NAME" != "osx" ]; then haxelib run travix python; fi
   - haxelib run travix node
-  - haxelib run travix php
   - haxelib run travix js
-  - haxelib run travix java -D static_target
-  - haxelib run travix cpp -D static_target -lib hxcpp
-  - haxelib run travix cs -D static_target
+  - if [ "$TRAVIS_OS_NAME" != "osx" ]; then haxelib run travix python; fi
+  - haxelib run travix php
+  - haxelib run travix php7
+  - haxelib run travix java
+  - haxelib run travix cs
+  - haxelib run travix cpp
+  - haxelib run travix lua
