@@ -1,7 +1,7 @@
 package dataclass;
 
-class DataClassException<T> {
-    public final dataClass : T;
+class DataClassException {
+    public final dataClass : Any;
     public final errors : DataClassErrors;
 
     public function new(dataClass, errors) {

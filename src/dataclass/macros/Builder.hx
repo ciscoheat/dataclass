@@ -279,7 +279,9 @@ class Builder
 				macro !Reflect.hasField(data, $v{name});
 		}
 
-		for(f in dataclassFields) {
+		// NOTE: Using constructorFields here to do parent class validation as well.
+		// It creates double validation for parent fields, but it should be negligible.
+		for(f in constructorFields) {
 			final name = f.field.name;
 			final type = switch f.field.kind {
 				case FVar(t, _): t;

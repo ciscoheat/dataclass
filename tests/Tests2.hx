@@ -184,6 +184,18 @@ class Tests2 extends BuddySuite implements Buddy<[
 				test2.avoidNull.should.equal(Some("value"));
 				test2.status.should.be(NotFound);
 				#end
+
+				try {
+					new Dataclass2({
+						id: 0,
+						email: "no email",
+						city: "X"
+					});
+					fail("Validation should fail here.");
+				} catch(e : DataClassException) {
+					e.errors.get('id').should.equal(Some(0));
+					e.errors.get('city').should.equal(Some("X"));
+				}
 			});
 
 			///////////////////////////////////////////////////////////////////
