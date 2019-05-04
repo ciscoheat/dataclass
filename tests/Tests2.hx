@@ -12,11 +12,6 @@ import js.html.OptionElement;
 import js.Browser;
 #end
 
-#if cpp
-import hxcpp.StaticStd;
-import hxcpp.StaticRegexp;
-#end
-
 using buddy.Should;
 using Dataclass2;
 
@@ -137,20 +132,35 @@ class Tests2 extends BuddySuite implements Buddy<[
 	public function new() {
 		describe("DataClass", {
 			it("Should instantiate", {
-				final test = new Dataclass2({
-					id: 123,
-					email: "test@example.com",
-					city: "Punxuatawney",
-					active: false
-				});
-				test.id.should.be(123);
-				test.avoidNull.should.equal(None);
+				//try {
+					final test = new Dataclass2({
+						id: 123,
+						email: "test@example.com",
+						city: "Punxuatawney",
+						active: false
+					});
+					test.id.should.be(123);
+					test.avoidNull.should.equal(None);
+					test.status.should.be(NotFound);
 
-				final test2 = test.copy();
-				test2.id.should.be(123);
+					final test2 = test.copy();
+					test2.id.should.be(123);
+					test2.avoidNull.should.equal(None);
+					test2.status.should.be(NotFound);
 
-				final test3 = Dataclass2.copy(test2, {id: 234});
-				test3.id.should.be(234);
+					final test3 = Dataclass2.copy(test2, {id: 234});
+					test3.id.should.be(234);
+					test3.avoidNull.should.equal(None);
+					test3.status.should.be(NotFound);
+
+					(function() new Dataclass2({
+						id: 123,
+						email: "test@example.com",
+						city: "Punxuatawney",
+						active: true,
+						status: MethodNotAllowed
+					})).should.throwType(DataClassException);
+				//} catch(e : DataClassException<Dynamic>) trace(e.errors);
 			});
 
 			it("Should work according to the concept class", {
@@ -166,13 +176,14 @@ class Tests2 extends BuddySuite implements Buddy<[
 				test.yearCreated().should.beGreaterThan(2018);
 
 				#if js
-				final testNew = new Dataclass2(test);
+				// js can JSONify enums directly
 				final json = Json.stringify(test, "	");	
 				final data2 : Dynamic = Json.parse(json);
 				final test2 = new Dataclass2(data2);
 				test2.yearCreated().should.beGreaterThan(2018);
+				test2.avoidNull.should.equal(Some("value"));
+				test2.status.should.be(NotFound);
 				#end
-
 			});
 
 			///////////////////////////////////////////////////////////////////
@@ -184,7 +195,7 @@ class Tests2 extends BuddySuite implements Buddy<[
 					new RequireId( { id: 123 } ).id.should.be(123);
 				});
 
-#if !static_target
+#if !(cpp || java || flash || cs || hl)
 				it("should throw if null value is supplied", {
 					(function() new RequireId({id: null})).should.throwType(DataClassException);
 				});

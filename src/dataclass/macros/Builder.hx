@@ -153,6 +153,8 @@ class Builder
 			}
 		}
 
+		///////////////////////////////////////////////////////////////////////
+
 		final allFields = Context.getBuildFields();
 
 		final dataclassFields = allFields.filter(f -> switch f.kind {
@@ -244,9 +246,7 @@ class Builder
 					else macro !($current) || ${orOp(it.next())}
 				}
 
-				var ret = orOp(it.next());
-				//trace(ret.toString());
-				return ret;
+				return orOp(it.next());
 			}
 
 			var extractValue = if(f.isOption)
@@ -260,8 +260,8 @@ class Builder
 			final output = [macro var v = $extractValue];
 
 			if(f.isDate && Context.defined('dataclass-date-auto-conversion')) output.push(macro
-				if(v != null && Std.is(v, String)) v = dataclass.DateConverter.toDate(cast v)
-				else if(v != null && Std.is(v, Float) || Std.is(v, Int)) v = Date.fromTime(cast v)
+				if(v != null && Std.is((v : Dynamic), String)) v = dataclass.DateConverter.toDate(cast v)
+				else if(v != null && Std.is((v : Dynamic), Float) || Std.is((v : Dynamic), Int)) v = Date.fromTime(cast v)
 			);
 
 			output.push(macro 
@@ -272,50 +272,56 @@ class Builder
 			return macro $b{output};
 		}
 
+		function isNull(name : String, t : ComplexType) {
+			return if(Target.nullTestAllowed(t))
+				macro $p{['data', name]} == null;
+			else
+				macro !Reflect.hasField(data, $v{name});
+		}
+
 		for(f in dataclassFields) {
-			var name = f.field.name;
+			final name = f.field.name;
+			final type = switch f.field.kind {
+				case FVar(t, _): t;
+				case _: Context.error("Invalid DataClass field", f.field.pos);
+			}
+
 			//trace("*** " + name);
-			switch f.nullability {
+			final validateExpr = switch f.nullability {
 				// (1) No default value, cannot be null, no validator
 				case None(validators) if(validators.length == 0):
-					validateBoilerplate.push(macro 
-						if($p{['data', name]} == null) 
-							setError($v{name}, haxe.ds.Option.None)
-					);
+					macro if(${isNull(name, type)})
+						setError($v{name}, haxe.ds.Option.None);
 
 				// (3) No default value, cannot be null, has validator
 				case None(validators):
-					validateBoilerplate.push(macro 
-						if($p{['data', name]} == null) 
-							setError($v{name}, haxe.ds.Option.None)
-						else
-							${ifIllegalValueSetError(f, validators)}
-					);
+					macro if(${isNull(name, type)})
+						setError($v{name}, haxe.ds.Option.None)
+					else
+						${ifIllegalValueSetError(f, validators)};
 
 				// (8) Pass through
 				case Nullable(validators) if(validators.length == 0):
+					null;
 
 				// (2) No default value, can be null, has validator
 				case Nullable(validators):
-					validateBoilerplate.push(macro 
-						${ifIllegalValueSetError(f, validators)}
-					);
+					macro ${ifIllegalValueSetError(f, validators)};
 
 				// (7) Pass through
-				case DefaultValue(validators) if(validators.length == 0):
+				case DefaultValue(validators) if(validators.length == 0): 
+					null;
 
 				// (4) Has default value, has validator
 				case DefaultValue(validators):
-					validateBoilerplate.push(macro 
-						if($p{['data', name]} == null) 
-							null
-						else 
-							${ifIllegalValueSetError(f, validators)}
-					);
+					macro if(!${isNull(name, type)})
+						${ifIllegalValueSetError(f, validators)};
 
 				case _:
 					Context.error("Invalid default/nullable state for field.", f.field.pos);
 			}
+
+			if(validateExpr != null) validateBoilerplate.push(validateExpr);
 		}
 
 		validateBoilerplate.push(macro return hasErrors 
@@ -348,21 +354,33 @@ class Builder
 					case Some(errors): throw new dataclass.DataClassException(this, errors); 
 					case None: 
 				}
+				//,macro trace(data)
 			];
 
 			for(f in dataclassFields) {
+				final type = switch f.field.kind {
+					case FVar(t, _): t;
+					case _: Context.error("Invalid DataClass field", f.field.pos);
+				}
+
+				//final dataField = macro ($p{['data', f.field.name]} : Dynamic);
 				final dataField = macro $p{['data', f.field.name]};
 				final thisField = macro $p{['this', f.field.name]};
 
+				final fieldExists = Target.nullTestAllowed(type)
+					? (macro $dataField != null)
+					: (macro Reflect.hasField(data, $v{f.field.name}));
+
 				if(f.isDate && Context.defined('dataclass-date-auto-conversion')) constructorExprs.push(
-					macro if($dataField != null && Std.is($dataField, String)) $thisField = dataclass.DateConverter.toDate(cast $dataField)
-					else if($dataField != null && Std.is($dataField, Float) || Std.is($dataField, Int)) $thisField = Date.fromTime(cast $dataField)
-					else if($dataField != null) $thisField = $dataField
+					macro if($fieldExists && Std.is(($dataField : Dynamic), String))
+						$thisField = dataclass.DateConverter.toDate(cast $dataField);
+					else if($fieldExists && Std.is(($dataField : Dynamic), Float) || Std.is(($dataField : Dynamic), Int)) 
+						$thisField = Date.fromTime(cast $dataField)
+					else if($fieldExists) 
+						$thisField = $dataField
 				)
-				else constructorExprs.push(
-					// if(data.field != null) this.field = data.field			
-					macro if($dataField != null) $thisField = $dataField
-				);
+				else
+					constructorExprs.push(macro if($fieldExists) $thisField = $dataField);
 			}
 
 			final allOptional = !dataclassFields.exists(f -> switch f.nullability {
@@ -435,6 +453,7 @@ class Builder
 
 			for(f in copyFields) copyFunction.push(
 				//if(!Reflect.hasField(update, "id")) update.id = this.id		
+				//macro { trace($v{f.name} + ": " + $p{['dataClass', f.name]}); if(!Reflect.hasField(update, $v{f.name})) $p{['update', f.name]} = $p{['dataClass', f.name]}}
 				macro if(!Reflect.hasField(update, $v{f.name})) $p{['update', f.name]} = $p{['dataClass', f.name]}
 			);
 
