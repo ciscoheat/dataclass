@@ -27,9 +27,9 @@ enum Color { Red; Blue; }
 
 	///// Default values /////
 
-	final active : Bool = true;         // Default values
+	final active : Bool = true;
 	final color : Color = Blue;
-	final created : Date = Date.now();  // Works also for statements
+	final created : Date = Date.now(); // Works also for statements
 
 	///// Null safety /////
 
@@ -78,7 +78,7 @@ It is highly recommended that you avoid `Null<T>` in DataClass, rather use `Opti
 final name : Option<String>;
 ```
 
-To avoid the null check completely, specify a default value for the field. Just remember that the default value will **not** be tested against any validators.
+To avoid the null check completely, specify a default value for the field. Just remember that the default value will **not** be tested against any validators, since it creates issues with inheritance and error handling.
 
 ```haxe
 @:validate(name.length > 1)
@@ -98,6 +98,7 @@ class Custom implements DataClass {
 	// A parameter called 'data' is required
 	public function new(data) { 
 		// [Generated code inserted here]
+
 		// Your code here:
 		this.idStr = Std.string(this.id);
 	}
@@ -130,18 +131,11 @@ final p = new Person({id: 1, name: "Test"}); // Ok
 You can add validators to an interface, they will be used in the implementing DataClass.
 
 ```haxe
-interface IChapter extends DataClass
+interface IChapter extends DataClass // extending is optional, but convenient
 {
 	@:validate(_.length > 0)
 	public final info : String;
 }
-
-class SimpleChapter implements IChapter
-{
-	public final info : String = 'simple info';
-	public final text : String;
-}
-
 ```
 
 ## Manual validation
@@ -170,9 +164,9 @@ class Main {
 }
 ```
 
-## Copying the object
+## Modifying the object
 
-A static `copy` method is also available on the class, which you can use to create new objects of the same type in a simple manner:
+Since all fields must be `final`, changing the object isn't possible, but a static `copy` method is available on the class which you can use to create new objects of the same type in a simple manner:
 
 ```haxe
 final p = new Person({id: 1, name: "Test"});
@@ -201,6 +195,24 @@ try new Person({
 	trace(e.dataClass); // The failed object
 }
 ```
+
+## JSON/Date conversion
+
+DataClass can ease the JSON conversion process, especially when using `Date`. When defining `-D dataclass-date-auto-conversion`, strings and numbers will be automatically converted to `Date`, so you can basically create DataClass objects directly from JSON:
+
+```haxe
+class Test implements DataClass {
+	public final id : Int;
+	public final created : Date;
+}
+
+final json = haxe.Json.parse('{"id":123,"created":"2019-05-05T06:10:24.428Z"}');
+final t = new Test(json);
+
+trace(t.created.getFullYear());
+```
+
+This works with strings in the javascript json format `2012-04-23T18:25:43.511Z` and numbers representing the number of milliseconds elapsed since 1st January 1970.
 
 ## Installation
 
