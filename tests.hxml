@@ -5,3 +5,4 @@
 -main Tests2
 #-D haxeJSON
 -D dataclass-date-auto-conversion
+-debug

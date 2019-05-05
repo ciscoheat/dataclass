@@ -5,15 +5,10 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "type": "java",
-            "projectName": "dataclass",
-            "name": "Debug (Attaching)",
-            "request": "attach",
-            "hostName": "localhost",
-            "port": 8000,
-            "sourcePaths": [
-                "${workspaceFolder}/bin/java/src"
-            ]
+            "type": "node",
+            "request": "launch",
+            "name": "Launch Program",
+            "program": "${workspaceFolder}/bin/node/tests.js"
         }
     ]
 }

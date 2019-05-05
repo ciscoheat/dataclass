@@ -78,7 +78,7 @@ It is highly recommended that you avoid `Null<T>` in DataClass, rather use `Opti
 final name : Option<String>;
 ```
 
-To avoid the null check completely, specify a default value for the field.
+To avoid the null check completely, specify a default value for the field. Just remember that the default value will **not** be tested against any validators.
 
 ```haxe
 @:validate(name.length > 1)

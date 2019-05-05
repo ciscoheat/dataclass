@@ -17,7 +17,7 @@ using StringTools;
 private enum Nullability {
 	None(validators: Array<Expr>);
 	Nullable(validators: Array<Expr>);
-	DefaultValue(validators: Array<Expr>);
+	DefaultValue(value: Expr, validators: Array<Expr>);
 }
 
 private typedef DataClassField = {
@@ -139,7 +139,7 @@ class Builder
 					Nullable(validators);
 				case FVar(t, e) if(e != null):
 					//trace(f.name + " has default value");
-					DefaultValue(validators);
+					DefaultValue(e, validators);
 				case _:
 					//trace(f.name + " is neither nullable nor has default value.");
 					None(validators);
@@ -216,38 +216,36 @@ class Builder
 		        |     x    |           |  (8)
 		*/
 
-		function ifIllegalValueSetError(f : DataClassField, validators : Array<Expr>) : Expr {
-			function replaceValidators(vals : Array<Expr>) {
-				// TODO: Check if validators exist
-				//trace(vals.map(v -> v.toString()));
+		function replaceValidators(vals : Array<Expr>, replace : Expr) {
+			// TODO: Check if validators exist
+			//trace(vals.map(v -> v.toString()));
 
-				function validatorExpr(e : Expr) {
-					return switch e.expr {
-						case EConst(CIdent("_")):
-							// "v" var
-							macro v;
-						case _:
-							e.map(validatorExpr);
-					}
+			function validatorExpr(e : Expr) {
+				return switch e.expr {
+					case EConst(CIdent("_")): replace;
+					case _:	e.map(validatorExpr);
 				}
-
-				final newVals = vals.map(validatorExpr);
-				final it = newVals.iterator();
-
-				// Chain together the validators in an OR expression.
-				function orOp(current : Expr) : Expr {
-					switch current.expr {
-						case EConst(CRegexp(_, _)):
-							current = macro ${current}.match(Std.string(v));
-						case _:
-					}
-
-					return if(!it.hasNext()) macro !($current);
-					else macro !($current) || ${orOp(it.next())}
-				}
-
-				return orOp(it.next());
 			}
+
+			final newVals = vals.map(validatorExpr);
+			final it = newVals.iterator();
+
+			// Chain together the validators in an OR expression.
+			function orOp(current : Expr) : Expr {
+				switch current.expr {
+					case EConst(CRegexp(_, _)):
+						current = macro ${current}.match(Std.string($replace));
+					case _:
+				}
+
+				return if(!it.hasNext()) macro !($current);
+				else macro !($current) || ${orOp(it.next())}
+			}
+
+			return orOp(it.next());
+		}
+
+		function ifIllegalValueSetError(f : DataClassField, validators : Array<Expr>) : Expr {
 
 			var extractValue = if(f.isOption)
 				macro switch $p{['data', f.field.name]} {
@@ -265,7 +263,7 @@ class Builder
 			);
 
 			output.push(macro 
-				if(${replaceValidators(validators)})
+				if(${replaceValidators(validators, macro v)})
 					setError($v{f.field.name}, haxe.ds.Option.Some(v))
 			);
 
@@ -311,11 +309,11 @@ class Builder
 					macro ${ifIllegalValueSetError(f, validators)};
 
 				// (7) Pass through
-				case DefaultValue(validators) if(validators.length == 0): 
+				case DefaultValue(_, validators) if(validators.length == 0):
 					null;
 
 				// (4) Has default value, has validator
-				case DefaultValue(validators):
+				case DefaultValue(value, validators):
 					macro if(!${isNull(name, type)})
 						${ifIllegalValueSetError(f, validators)};
 

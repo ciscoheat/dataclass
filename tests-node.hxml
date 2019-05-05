@@ -8,3 +8,5 @@
 -main Tests2
 -js bin/node/tests.js 
 -D buddy-colors
+-D dataclass-date-auto-conversion
+-debug

@@ -39,7 +39,7 @@ interface Status
 	//final nullDef : Null<String> = "invalid"; // Compilation error, cannot have null with def. value
 	final avoidNull : Option<String>; // = None is automatically added.
 
-	@:validate(_ == "ok") @:validate(_ != "NOk")	// Validation for Option is tested for the wrapped value
+	@:validate(_ == "ok") @:validate(_ != "Not ok")	// Validation for Option is tested for the wrapped value
 	final defaultOption : haxe.ds.Option<String> = "ok"; // = "ok" Will become Some("ok")
 
 	///// JSON options /////
