@@ -71,9 +71,10 @@ class Main {
 
 ## Null safety
 
-It is highly recommended that you avoid `Null<T>` in DataClass, rather use `Option<T>`, but if you decide to use it be sure to test for `null` in validators too. This also applies when validating `Option<T>`, where a `None` value will be `null` in a validator! Example:
+It is highly recommended that you avoid `Null<T>` in DataClass, rather use `haxe.ds.Option<T>`, but if you decide to use it be sure to test for `null` in validators too. This also applies when validating `Option<T>`, where a `None` value will be `null` in a validator! Example:
 
 ```haxe
+// Same validation as for Null<String>
 @:validate(name == null || name.length > 1)
 final name : Option<String>;
 ```
@@ -191,8 +192,9 @@ try new Person({
 	id: 2,
 	email: "no email"
 }) catch(e : DataClassException) {
-	trace(e.errors); // DataClassErrors
+	trace(e.errors);    // DataClassErrors
 	trace(e.dataClass); // The failed object
+	trace(e.data);      // The failed data
 }
 ```
 

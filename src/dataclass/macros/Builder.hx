@@ -351,7 +351,7 @@ class Builder
 
 			final constructorExprs : Array<Expr> = [
 				macro switch validate(data) { 
-					case Some(errors): throw new dataclass.DataClassException(this, errors); 
+					case Some(errors): @:pos(cls.pos) throw new dataclass.DataClassException(this, data, errors); 
 					case None: 
 				}
 				//,macro trace(data)
