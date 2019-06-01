@@ -75,14 +75,14 @@ It is highly recommended that you avoid `Null<T>` in DataClass, rather use `haxe
 
 ```haxe
 // Same validation as for Null<String>
-@:validate(name == null || name.length > 1)
+@:validate(_ == null || _.length > 1)
 final name : Option<String>;
 ```
 
 To avoid the null check completely, specify a default value for the field. Just remember that the default value will **not** be tested against any validators, since it creates issues with inheritance and error handling.
 
 ```haxe
-@:validate(name.length > 1)
+@:validate(_.length > 1)
 final name : Option<String> = "No name";
 ```
 
