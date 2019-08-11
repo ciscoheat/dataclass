@@ -98,7 +98,7 @@ class Builder
 		}];
 
 		function toDataClassField(f : Field) : DataClassField {
-			function checkForDate(t : ComplexType) return switch t {
+			function hasDate(t : ComplexType) return switch t {
 				case TPath(p) if(p.name == "Date"):	true;
 				case _:	false;
 			}
@@ -114,9 +114,9 @@ class Builder
 								case TPType(t): t;
 								case _: Context.error("Invalid Option type.", f.pos);
 							}
-							{ isOption: true, isDate: checkForDate(typeParam) };
+							{ isOption: true, isDate: hasDate(typeParam) };
 						case _:
-							{ isOption: false, isDate: checkForDate(t) };
+							{ isOption: false, isDate: hasDate(t) };
 					}
 				case _: 					
 					Context.error("Invalid DataClass field type.", f.pos);

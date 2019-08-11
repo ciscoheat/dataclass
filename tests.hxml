@@ -4,5 +4,6 @@
 -cp ./src/
 -main Tests2
 #-D haxeJSON
+#-D buddy-ignore-passing-specs
 -D dataclass-date-auto-conversion
 -debug

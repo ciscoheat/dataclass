@@ -1,7 +1,5 @@
 package dataclass;
 
-using StringTools;
-
 /**
  * Date from/to ISO 8601 format.
  */
@@ -9,7 +7,7 @@ class DateConverter
 {
 	public static function toDate(input : String) : Date {
         #if js
-        return cast new js.Date(input);
+        return cast new js.lib.Date(input);
         #else
 		var s = input.trim();
 		if (s.endsWith('Z')) {
@@ -28,7 +26,7 @@ class DateConverter
 	
 	public static function toISOString(input : Date) : String {
         #if js
-        var d : js.Date = cast input;
+        var d : js.lib.Date = cast input;
         return d.toISOString();
         #else
 		var time = DateTools.delta(input, -getTimeZone());

@@ -122,6 +122,15 @@ class DynamicAccessTest implements DataClass {
 	public final moreInfo : DynamicAccess<Dynamic>;
 }
 
+enum Content {
+	X; O; No;
+}
+
+class Tile implements DataClass {
+	@:validate(!_.equals(No))
+	public final content : Content;
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 
 class Tests2 extends BuddySuite implements Buddy<[
@@ -195,6 +204,16 @@ class Tests2 extends BuddySuite implements Buddy<[
 				} catch(e : DataClassException) {
 					e.errors.get('id').should.equal(Some(0));
 					e.errors.get('city').should.equal(Some("X"));
+				}
+			});
+
+			it("should validate Enums", {
+				final test = new Tile({content: X});
+				test.content.should.equal(X);
+
+				try new Tile({content: No})
+				catch(e : DataClassException) {
+					e.errors.get('content').should.equal(Some(No));
 				}
 			});
 
