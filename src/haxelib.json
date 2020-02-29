@@ -4,7 +4,7 @@
     "description": "A convenient way to create domain objects, DTO's, web forms, and other data structures.",
     "license": "MIT",
     "contributors": ["ciscoheat"],
-    "version": "2.0.0",
-    "releasenote": "Rewritten for Haxe 4.",
+    "version": "2.0.1",
+    "releasenote": "Null safety compatibility.",
     "tags": ["data", "dto", "validation", "contracts"]
 }

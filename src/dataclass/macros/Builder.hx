@@ -192,10 +192,9 @@ class Builder
 		///// - Generate static validate function
 
 		final validateBoilerplate = [
-			(macro var errors : dataclass.DataClassErrors = null, hasErrors = false),
+			(macro var errors : dataclass.DataClassErrors = new dataclass.DataClassErrors(), hasErrors = false),
 
 			(macro function setError(field, value) {
-				if(errors == null) errors = new dataclass.DataClassErrors();
 				errors.set(field, value);
 				hasErrors = true;
 			}),
