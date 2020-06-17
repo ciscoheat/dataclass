@@ -157,7 +157,7 @@ class Builder
 
 		final allFields = Context.getBuildFields();
 
-		final dataclassFields = allFields.filter(f -> switch f.kind {
+		final dataclassFields = allFields.filter(f -> !f.access.has(AStatic)).filter(f -> switch f.kind {
 			case FVar(_, _): !f.meta.exists(m -> m.name == ":exclude");
 			case FFun(_): false;
 			case FProp(_, _, _, _):
@@ -492,6 +492,10 @@ class Builder
 			// Remove validation metadata for backwards compatibility
 			if(f.meta.exists(m -> m.name == "validate"))
 				Context.warning('@validate metadata is deprecated, use @:validate instead.', f.pos);
+
+			if(f.access.has(AStatic) && f.meta.exists(m -> m.name == ":validate")) {
+				Context.error('@:validate cannot be used on static fields.', f.pos);
+			}
 
 			f.meta = f.meta.filter(f -> f.name != "validate");
 		}

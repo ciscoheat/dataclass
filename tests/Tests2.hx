@@ -131,6 +131,24 @@ class Tile implements DataClass {
 	public final content : Content;
 }
 
+class WishItemData implements DataClass {
+    static final item_price_max : Int = 20;
+
+    @:validate(_ > 0 && _ <= item_price_max)
+    public final item_price:Float;
+}
+
+/*
+// This should fail due to a validator on a static field.
+class WishItemData2 implements DataClass {
+	@:validate(_ == 20)
+    static final item_price_max : Int = 20;
+
+    @:validate(_ > 0 && _ <= item_price_max)
+    public final item_price:Float;
+}
+*/
+
 ///////////////////////////////////////////////////////////////////////////////
 
 class Tests2 extends BuddySuite implements Buddy<[
@@ -217,12 +235,16 @@ class Tests2 extends BuddySuite implements Buddy<[
 				}
 			});
 
+			it("should work with static fields without validators", {
+				new WishItemData({item_price: 12.34}).should.not.be(null);
+			});
+
 			///////////////////////////////////////////////////////////////////
 
 			describe("With non-null fields", {
 				it("should not compile if non-null value is missing", {
-					CompilationShould.failFor(new RequireId()).should.startWith("Not enough arguments");
-					CompilationShould.failFor(new RequireId({})).should.startWith("Object requires field id");
+					CompilationShould.failFor(new RequireId());
+					CompilationShould.failFor(new RequireId({}));
 					new RequireId( { id: 123 } ).id.should.be(123);
 				});
 
@@ -335,12 +357,12 @@ class Tests2 extends BuddySuite implements Buddy<[
 					abstr.aint.should.be(123);
 					
 					abstr.aints.should.containExactly([123,456]);
+					//abstr.aintarray.should.containExactly([1,2,3]);
 
 					abstr.aaints.length.should.be(2);
 					abstr.aaints[0].should.containExactly([123]);
 					abstr.aaints[1].should.containExactly([456]);
 
-					abstr.aintarray.should.containExactly([1,2,3]);
 				});
 			});
 
