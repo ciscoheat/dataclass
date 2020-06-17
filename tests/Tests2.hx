@@ -138,6 +138,11 @@ class WishItemData implements DataClass {
     public final item_price:Float;
 }
 
+class DataclassContainer implements DataClass {
+	public final item : WishItemData;
+	public final id : Int;
+}
+
 /*
 // This should fail due to a validator on a static field.
 class WishItemData2 implements DataClass {
@@ -237,6 +242,20 @@ class Tests2 extends BuddySuite implements Buddy<[
 
 			it("should work with static fields without validators", {
 				new WishItemData({item_price: 12.34}).should.not.be(null);
+			});
+
+			it("should be compatible with deep_equal", {
+				final test1 = new DataclassContainer({
+					item: new WishItemData({item_price: 10}),
+					id: 123
+				});
+
+				final test2 = new DataclassContainer({
+					item: new WishItemData({item_price: 10}),
+					id: 123
+				});
+
+				deepequal.DeepEqual.compare(test1, test2).isSuccess().should.be(true);
 			});
 
 			///////////////////////////////////////////////////////////////////

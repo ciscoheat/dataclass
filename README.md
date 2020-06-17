@@ -198,6 +198,10 @@ try new Person({
 }
 ```
 
+## Equality comparison
+
+Use a library like [deep_equal](https://lib.haxe.org/p/deep_equal/) for value comparison between DataClass objects.
+
 ## JSON/Date conversion
 
 DataClass can ease the JSON conversion process, especially when using `Date`. When defining `-D dataclass-date-auto-conversion`, strings and numbers will be automatically converted to `Date`, so you can basically create DataClass objects directly from JSON:

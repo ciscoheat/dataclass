@@ -3,6 +3,7 @@
 -lib hxnodejs 
 -lib travix 
 -lib dataclass
+-lib deep_equal
 -cp ./tests/
 -cp ./src/
 -main Tests2

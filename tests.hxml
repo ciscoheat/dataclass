@@ -1,5 +1,6 @@
 -lib buddy
 -lib deepstate
+-lib deep_equal
 -cp ./tests/
 -cp ./src/
 -main Tests2
