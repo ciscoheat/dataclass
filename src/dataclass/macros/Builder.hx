@@ -160,8 +160,9 @@ class Builder
 		final dataclassFields = allFields.filter(f -> !f.access.has(AStatic)).filter(f -> switch f.kind {
 			case FVar(_, _): !f.meta.exists(m -> m.name == ":exclude");
 			case FFun(_): false;
+			case FProp('get', 'never', _, _): false;
 			case FProp(_, _, _, _):
-				Context.error("Variable fields and properties are not allowed in a DataClass. Use final instead.", f.pos);
+				Context.error("Variable fields and properties are not allowed in a DataClass. Use final instead, or get/never.", f.pos);
 		}).map(toDataClassField);
 
 		final superclassFields = DataClassType.superclassFields(cls);

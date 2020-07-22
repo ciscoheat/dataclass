@@ -12,6 +12,7 @@ class DataClassException {
     }
 
     public function toString() {
-        return Type.getClassName(Type.getClass(dataClass)) + " invalid data: " + errors;
+        final cls : Null<Class<Any>> = Type.getClass(dataClass);
+        return (cls == null ? "DataClass" : Type.getClassName(cls)) + " invalid data: " + errors;
     }
 }

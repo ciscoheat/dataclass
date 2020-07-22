@@ -69,6 +69,9 @@ class NullValidateTest implements DataClass
 {
 	// Field cannot be called "int" on flash!
 	@:validate(_ > 1000) public final integ : Null<Int>;
+
+	public var isLarge(get, never) : Bool;
+	function get_isLarge() return integ >= 1000000;
 }
 
 class OptionTest implements DataClass
@@ -146,12 +149,21 @@ class DataclassContainer implements DataClass {
 
 /*
 // This should fail due to a validator on a static field.
-class WishItemData2 implements DataClass {
+class WillFail implements DataClass {
 	@:validate(_ == 20)
     static final item_price_max : Int = 20;
 
     @:validate(_ > 0 && _ <= item_price_max)
     public final item_price:Float;
+}
+*/
+
+// This should fail due to a property with non-allowed accessors
+/*
+class WillFail implements DataClass {
+	public final test : Float;
+	
+	public var test2(default, null) : Int;
 }
 */
 
@@ -430,6 +442,13 @@ class Tests2 extends BuddySuite implements Buddy<[
 
 					DefaultValue.validateDate(Date.fromString("2019-01-01")).should.be(false);
 					DefaultValue.validateDate(Date.fromString("2020-01-01")).should.be(true);
+				});
+			});
+
+			describe("Properties", {
+				it("only properties with 'get, never' accessors are allowed", {
+					final n = new NullValidateTest({integ: 11000000});
+					n.isLarge.should.be(true);
 				});
 			});
 		});

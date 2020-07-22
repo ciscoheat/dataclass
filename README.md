@@ -37,6 +37,11 @@ enum Color { Red; Blue; }
 
 	@:validate(_ == "ok") // Validation for Option is tested for the wrapped value
 	final defaultOption : Option<String> = "ok"; // Will become Some("ok")
+
+	///// Properties /////
+
+	var isBlue(get, never) : Bool; // Only get/never properties are allowed.
+	function get_isBlue() return color.match(Blue);
 }
 
 class Main {

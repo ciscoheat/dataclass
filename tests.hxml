@@ -9,3 +9,5 @@
 #-D buddy-ignore-passing-specs
 #--times
 #-D macro-times
+--macro nullSafety('dataclass')
+--macro nullSafety('dataclass.macros')
