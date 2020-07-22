@@ -79,7 +79,7 @@ It is highly recommended that you avoid `Null<T>` in DataClass, rather use `haxe
 final name : Option<String>;
 ```
 
-To avoid the null check completely, specify a default value for the field. Just remember that the default value will **not** be tested against any validators, since it creates issues with inheritance and error handling.
+To avoid the null check completely, specify a default value for the field, as in the example below. Just remember that the default value will **not** be tested against any validators, since it creates issues with inheritance and error handling.
 
 ```haxe
 @:validate(_.length > 1)
@@ -105,6 +105,8 @@ class Custom implements DataClass {
 	}
 }
 ```
+
+Validating in the constructor is useful when you have validation rules spanning multiple fields.
 
 ## Inheritance
 
@@ -139,9 +141,9 @@ interface IChapter extends DataClass // extending is optional, but convenient
 }
 ```
 
-## Manual validation
+## Validation
 
-All classes implementing `DataClass` will get a static `validate` method that can be used to test if some input will pass validation:
+All classes implementing `DataClass` will get a static `validate` method that can be used to test if some input data will pass validation:
 
 ```haxe
 class Main {
@@ -165,9 +167,11 @@ class Main {
 }
 ```
 
-## Modifying the object
+The `validate` method requires a complete input set, which may not be ideal when checking a single value like a html input field. Therefore all fields with validators will generate a static `validateFieldName(testValue) : Bool` method as well.
 
-Since all fields must be `final`, changing the object isn't possible, but a static `copy` method is available on the class which you can use to create new objects of the same type in a simple manner:
+## Updating the object
+
+Since all fields must be `final`, changing the Dataclass object isn't possible, but a static `copy` method is available which you can use to create new objects of the same type in a simple manner:
 
 ```haxe
 final p = new Person({id: 1, name: "Test"});
@@ -183,9 +187,9 @@ final p = new Person({id: 1, name: "Test"});
 final p2 = p.copy({id: 2});
 ```
 
-## Exceptions on failed validation
+## Exceptions
 
-When a validation fails, a `dataclass.DataClassException` is thrown:
+When a Dataclass object is instantiated but the input fails validaton, a `dataclass.DataClassException` is thrown:
 
 ```haxe
 try new Person({
@@ -218,7 +222,7 @@ final t = new Test(json);
 trace(t.created.getFullYear());
 ```
 
-This works with strings in the javascript json format `2012-04-23T18:25:43.511Z` and numbers representing the number of milliseconds elapsed since 1st January 1970.
+This works with strings in the javascript json format `2012-04-23T18:25:43.511Z` and numbers representing the number of milliseconds elapsed since 1st January 1970. An exception is when targeting javascript, where the native [Date](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date) methods will be used, making it possible to store the date in many different formats.
 
 ## Installation
 

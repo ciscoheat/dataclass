@@ -52,6 +52,7 @@ class DefaultValue implements DataClass
 	// Default value set if no other supplied
 	@:validate(_.length > 0) public final city : String = "Nowhere";
 	public final color : Color = Blue;
+	@:validate(_.getFullYear() >= 2020)
 	public final date : Date = Date.now();
 	public final status : HttpStatus = NotFound;
 }
@@ -417,7 +418,19 @@ class Tests2 extends BuddySuite implements Buddy<[
 								case Some(v): v.should.be("0000");
 							}
 					}
-				});				
+				});	
+				
+				it("should be possible to validate just one field with the static validate methods", {
+					Validator.validateDate("2020-07-22").should.be(true);
+					Validator.validateDate("x").should.be(false);
+					Validator.validateInteg([200, 300]).should.be(true);
+
+					Tile.validateContent(X).should.be(true);
+					Tile.validateContent(No).should.be(false);
+
+					DefaultValue.validateDate(Date.fromString("2019-01-01")).should.be(false);
+					DefaultValue.validateDate(Date.fromString("2020-01-01")).should.be(true);
+				});
 			});
 		});
 	}	

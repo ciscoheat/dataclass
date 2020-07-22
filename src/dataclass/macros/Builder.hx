@@ -104,7 +104,7 @@ class Builder
 			}
 
 			final types = switch f.kind {
-				case FVar(t, e) if(f.access != null && f.access.has(AFinal)): 
+				case FVar(t, e) if(f.access != null && f.access.has(AFinal)):
 					switch t {
 						case TPath(p) if(p.name == "Option"):
 							// TODO: Move modification to last step before returning fields
@@ -189,6 +189,58 @@ class Builder
 			pos: f.field.pos
 		});
 
+		///// - Generate validateField() functions
+
+		final validateFieldFunctions = [for(field in dataclassFields) {
+			switch field.field.kind {
+				case FVar(type, _):
+					switch field.nullability {
+						case None(validators) | Nullable(validators) | DefaultValue(_, validators):
+							if(validators.length == 0) continue;
+
+							function transformValidator(e : Expr) return switch e.expr {
+								case EConst(CRegexp(_, _)):
+									macro ${e}.match(Std.string(_));
+								case _:	
+									e;
+							}				
+
+							final it = validators.iterator();
+							var condition = transformValidator(it.next());
+							while(it.hasNext()) condition = {
+								expr: EBinop(OpBoolAnd, macro $e{transformValidator(it.next())}, macro ($condition)), 
+								pos: condition.pos
+							}
+
+							{
+								access: [APublic, AStatic],
+								kind: FFun({
+									args: [{
+										name: '_',
+										opt: false,
+										type: switch type {
+											// If option, returns its parameter type
+											case TPath({name: "Option", params: [TPType(param)], pack: _}):
+												param;
+											case _:
+												type;
+										}
+									}],
+									expr: macro return $condition,
+									ret: macro : Bool
+								}),
+								name: 'validate' + field.field.name.charAt(0).toUpperCase() + field.field.name.substr(1),
+								pos: field.field.pos
+							}				
+					}
+				case _:
+					Context.error(
+						"Variable fields and properties are not allowed in a DataClass. Use final instead.", 
+						field.field.pos
+					);
+			}
+		}];
+
 		///// - Generate static validate function
 
 		final validateBoilerplate = [
@@ -204,7 +256,7 @@ class Builder
 		Any field that (can be null or has default value) and (has no validator) is not tested.
 		Default and Nullable cannot be combined.
 
-        Default | Nullable | Validator | TEST
+		Default | Nullable | Validator | TEST
 		        |          |           |  (1)
 		        |     x    |     x     |  (2)
 		        |          |     x     |  (3)
@@ -500,7 +552,7 @@ class Builder
 			f.meta = f.meta.filter(f -> f.name != "validate");
 		}
 
-		return allFields.concat([constructor, validateFunction, copyFunction].filter(f -> f != null));
+		return allFields.concat([constructor, validateFunction, copyFunction].concat(validateFieldFunctions).filter(f -> f != null));
 	}
 }
 
