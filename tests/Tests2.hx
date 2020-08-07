@@ -268,7 +268,7 @@ class Tests2 extends BuddySuite implements Buddy<[
 					id: 123
 				});
 
-				deepequal.DeepEqual.compare(test1, test2).isSuccess().should.be(true);
+				Std.string(deepequal.DeepEqual.compare(test1, test2)).should.be("Success(Noise)");
 			});
 
 			///////////////////////////////////////////////////////////////////
@@ -452,8 +452,190 @@ class Tests2 extends BuddySuite implements Buddy<[
 				});
 			});
 		});
+
+		@include describe("DataMap", {
+			it("should use a brief syntax to map Dataclass objects.", {
+				final test = new DataMapTest();
+				final customer : ProgramViewPerson = {
+					_id: 1,
+					name: "TestCustomer",
+					programs: [{
+						name: "TestProg",
+						sets: [{
+							_id: 2,
+							selected: false,
+							reps: "0",
+							exercises: [{
+								sets: "3",
+								reps: "3",
+								extrainfo: "",
+								exerciseTemplateId: 10
+							}]
+						}]
+					}]
+				}
+
+				Std.string(deepequal.DeepEqual.compare(
+					test.toCustomer(customer), test.toCustomerGold(customer)
+				)).should.be("Success(Noise)");
+			});
+
+			it("should handle :structInit classes", {
+				final superSet = new DataMapTest().toSuperSet(new SuperSet({
+					_id: 0,
+					reps: 0,
+					exercises: [new Exercise({
+						sets: 1, reps: "2", extrainfo: "", exerciseTemplateId: 2
+					})]
+				}));
+
+				superSet.should.beType(ProgramViewSuperSet);
+				superSet.exercises[0].should.beType(ProgramViewExercise);
+				superSet.selected.should.be(false);
+				superSet.exercises[0].reps.should.be("2");
+			});
+		});
 	}	
 }
+
+class DataMapTest
+{
+	public function new() {}
+
+	public function toSuperSet(set : SuperSet) : ProgramViewSuperSet {
+		return DataMap.dataMap(set, {
+			_id: Same,
+			selected: false,
+			reps: Std.string(Same),
+			exercises: e -> {
+				sets: Std.string(Same),
+				reps: Same,
+				extrainfo: Same,
+				exerciseTemplateId: Same
+			}
+		});
+	}
+
+	public function toCustomer(person : ProgramViewPerson) : Customer {
+
+		return DataMap.dataMap(person, {
+			_id: Same,
+			name: Same,
+			programs: p -> {
+				name: Same,
+				supersets: (s, sets) -> {
+					_id: s._id,
+					reps: Std.parseInt(Same),
+					exercises: e -> {
+						sets: Std.parseInt(Same),
+						reps: Same,
+						extrainfo: Same,
+						exerciseTemplateId: Same
+					}
+				}
+			}
+		}, Customer);
+	}
+
+    public function toCustomerGold(person : ProgramViewPerson) : Customer {
+        return new Customer({
+            _id: person._id,
+            name: person.name,
+            programs: [for(p in person.programs) new Program({
+                name: p.name,
+                supersets: [for(s in p.sets) new SuperSet({
+                    _id: s._id,
+                    reps: Std.parseInt(s.reps),
+                    exercises: [for(e in s.exercises) new Exercise({
+                        sets: Std.parseInt(e.sets),
+                        reps: e.reps,
+                        extrainfo: e.extrainfo,
+                        exerciseTemplateId: e.exerciseTemplateId
+                    })]
+                })]
+            })]
+        });
+    }
+}
+
+///// DataMap /////////////////////////////////////////////////////////////////
+
+@:publicFields @:structInit private class ProgramViewSuperSet {
+    final _id : Int;
+    var selected : Bool;
+    var reps : String;
+    final exercises : Array<ProgramViewExercise> = [];
+}
+
+@:publicFields @:structInit private class ProgramViewExercise {
+    var sets : String;
+    var reps : String;
+    var extrainfo : String;
+    final exerciseTemplateId : Int;
+}
+
+@:publicFields @:structInit private class ProgramViewProgram {
+    var name : String;
+    final sets : Array<ProgramViewSuperSet> = [];
+}
+
+@:publicFields @:structInit private class ProgramViewPerson {
+    final _id : Int;
+    var name : String; 
+    final programs : Array<ProgramViewProgram> = [];
+}
+
+/////
+
+@:publicFields class Customer implements DataClass
+{   
+    final _id : Int;
+    @:validate(_.length > 0)
+    final name : String;
+ //   final email : String;
+ //   final phone : String;
+    final programs : Array<Program> = [];
+}
+
+@:publicFields class Program implements DataClass
+{   
+ //   final _id : Int;
+    final name : String;
+    final supersets : Array<SuperSet> = []; 
+}
+
+@:publicFields class SuperSet implements DataClass
+{
+    private static var idCount = 0;
+    public static function nextId() return ++idCount;
+
+    final _id : Null<Int>;
+
+    @:validate(_ == 0 || _ >= 2)
+    final reps : Int;
+
+    final exercises : Array<Exercise> = [];
+
+    function new(data) {
+        if(reps == 0 && exercises.length != 1)
+            throw new js.lib.Error("Too many exercises");
+        else if(reps > 0 && exercises.length < 2)
+            throw new js.lib.Error("Too few exercises");
+
+        if(_id == null) _id = nextId();
+    }
+}
+
+@:publicFields class Exercise implements DataClass 
+{
+ //   final _id : Int;
+    final sets : Int;
+    final reps : String;    
+    final extrainfo : String;
+    final exerciseTemplateId : Int;
+}
+
+/////
 
 ///////////////////////////////////////////////////////////////////////////////
 

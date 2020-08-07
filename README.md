@@ -84,7 +84,7 @@ It is highly recommended that you avoid `Null<T>` in DataClass, rather use `haxe
 final name : Option<String>;
 ```
 
-To avoid the null check completely, specify a default value for the field, as in the example below. Just remember that the default value will **not** be tested against any validators, since it creates issues with inheritance and error handling.
+To avoid the null check completely, specify a default value for the field, as in the example below. Just remember that the default value will **not** be tested against any validators (it creates issues with inheritance and error handling).
 
 ```haxe
 @:validate(_.length > 1)
@@ -190,6 +190,30 @@ using Person;
 
 final p = new Person({id: 1, name: "Test"});
 final p2 = p.copy({id: 2});
+```
+
+## Updating and validating for the web
+
+When handling browser form input, it could be tempting to make a `Dataclass` for the form, but for every keystroke or click the model will mutate, so it's more convenient to make a simpler data structure for the form:
+
+```haxe
+@:publicFields @:structInit private class Form {
+    var firstName : String;
+    var lastName : String;
+    var email : String;
+}
+```
+
+When submitting the form, a transformation function could be used to create the `Dataclass` required by the business logic. 
+
+Note that you can use validators from the real `Dataclass` for validation. Here's how it would look like in [Mithril](https://github.com/ciscoheat/mithril-hx), where `Person` is the corresponding `Dataclass` for the above form:
+
+```haxe
+m("input[placeholder='First name']", {
+	"class": if(Person.validateName(form.firstName)) null else "error",
+	value: form.firstName,
+	oninput: e -> form.firstName = e.target.value
+})
 ```
 
 ## Exceptions

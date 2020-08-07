@@ -90,6 +90,9 @@ class Builder
 		if (cls.meta.has(":dataClassGenerated")) return null;
 		else cls.meta.add(":dataClassGenerated", [], cls.pos);
 
+		if (cls.meta.has(":structInit")) 
+			Context.error("A Dataclass cannot use :structInit.", cls.pos);
+
 		// Add validators from interfaces
 		final interfaceFields = [for(i in cls.interfaces) {
 			var interf = i.t.get();
