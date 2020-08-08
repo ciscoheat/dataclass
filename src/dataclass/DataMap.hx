@@ -1,11 +1,9 @@
 package dataclass;
 
 import haxe.macro.ComplexTypeTools;
-import haxe.macro.TypeTools;
 import haxe.macro.Expr;
 
 #if macro
-import haxe.ds.Option;
 import haxe.macro.Context;
 import haxe.macro.Type;
 
@@ -23,6 +21,15 @@ using StringTools;
     final currentType : Type;
 }
 #end
+
+enum DataMapField
+{
+    Same;
+    SameInt;
+    SameFloat;
+    SameString;
+    SameFloatToInt;
+}
 
 class DataMap
 {
@@ -122,6 +129,22 @@ class DataMap
             case EConst(CIdent("Same")): 
                 {expr: EField(info.identifier, fieldName), pos: e.pos};
 
+            case EConst(CIdent("SameString")):
+                final ident = {expr: EField(info.identifier, fieldName), pos: e.pos};
+                macro Std.string($ident);
+
+            case EConst(CIdent("SameInt")):
+                final ident = {expr: EField(info.identifier, fieldName), pos: e.pos};
+                macro Std.parseInt($ident);
+
+            case EConst(CIdent("SameFloat")):
+                final ident = {expr: EField(info.identifier, fieldName), pos: e.pos};
+                macro Std.parseFloat($ident);
+
+            case EConst(CIdent("SameFloatToInt")):
+                final ident = {expr: EField(info.identifier, fieldName), pos: e.pos};
+                macro Std.int($ident);
+    
             case _: 
                 e.map(mapField.bind(info, fieldName));
         }
@@ -138,8 +161,12 @@ class DataMap
         if(expectedType == null) Context.error("No return type found, please specify it.", Context.currentPos());
 
         function toAnonField(e : Expr) return switch e.expr {
-            case EObjectDecl(fields): fields;
-            case _: Context.error("Required: Anonymous object declaration.", e.pos);
+            case EObjectDecl(fields): 
+                fields;
+            case ENew(typePath, [{expr: EObjectDecl(fields), pos: _}]):
+                fields;
+            case _: 
+                Context.error("Required: Anonymous object declaration or object instantiation.", e.pos);
         }    
     
         final structure = mapStructure({
