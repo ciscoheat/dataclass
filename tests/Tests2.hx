@@ -15,6 +15,7 @@ import js.Browser;
 
 using buddy.Should;
 using Dataclass2;
+using dataclass.DataMap;
 
 /////////////////////////////////////////////////////////////////////
 
@@ -505,6 +506,14 @@ class DataMapTest
 {
 	public function new() {}
 
+	/*
+	public function toCustomerAutocomplete(person : ProgramViewPerson) {
+		return dataMap2(person, new Customer({
+
+		})
+	}
+	*/
+
 	public function toSuperSet(set : SuperSet) : ProgramViewSuperSet {
 		return DataMap.dataMap(set, {
 			_id: Same,
@@ -519,7 +528,7 @@ class DataMapTest
 		});
 	}
 
-	public function toCustomer(person : ProgramViewPerson) {
+	public function toCustomer(person : ProgramViewPerson) : Customer {
 		return dataMap(person, {
 			_id: Same,
 			name: Same,

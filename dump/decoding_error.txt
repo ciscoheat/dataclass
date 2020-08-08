@@ -1,0 +1,6 @@
+{
+	expr: null <- expected value
+	pos: null <- expected value
+}
+line 2: expected value
+line 3: expected value

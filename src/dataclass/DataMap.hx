@@ -88,7 +88,6 @@ class DataMap
                             }).expr;
                             e;
                         case _:
-                            trace(e.expr);
                             Context.error("Unsupported for expression", e.pos);    
                     }                        
                     case _:
@@ -158,7 +157,8 @@ class DataMap
         else
             Context.getType(returns.toString());
 
-        if(expectedType == null) Context.error("No return type found, please specify it.", Context.currentPos());
+        if(expectedType == null || switch expectedType { case TMono(_): true; case _: false; })
+            Context.error("No return type found, please specify it.", Context.currentPos());
 
         function toAnonField(e : Expr) return switch e.expr {
             case EObjectDecl(fields): 
