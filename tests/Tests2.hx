@@ -6,6 +6,7 @@ import haxe.ds.IntMap;
 import haxe.ds.StringMap;
 import haxe.ds.Option;
 import haxe.DynamicAccess;
+import dataclass.DataMap.dataMap as dataMap;
 
 #if js
 import js.html.OptionElement;
@@ -498,6 +499,8 @@ class Tests2 extends BuddySuite implements Buddy<[
 	}	
 }
 
+///// DataMap /////////////////////////////////////////////////////////////////
+
 class DataMapTest
 {
 	public function new() {}
@@ -508,7 +511,7 @@ class DataMapTest
 			selected: false,
 			reps: Std.string(Same),
 			exercises: e -> {
-				sets: Std.string(Same),
+				sets: SameString,
 				reps: Same,
 				extrainfo: Same,
 				exerciseTemplateId: Same
@@ -516,15 +519,15 @@ class DataMapTest
 		});
 	}
 
-	public function toCustomer(person : ProgramViewPerson) : Customer {
-		return DataMap.dataMap(person, {
+	public function toCustomer(person : ProgramViewPerson) {
+		return dataMap(person, {
 			_id: Same,
 			name: Same,
 			programs: [for(p in person.programs) new Program({				
 				name: Same,
 				supersets: (s, sets) -> {
 					_id: s._id,
-					reps: Std.parseInt(Same),
+					reps: SameInt,
 					exercises: e -> new Exercise({
 						sets: Std.parseInt(Same),
 						reps: Same,
@@ -533,10 +536,10 @@ class DataMapTest
 					})
 				}
 			})]
-		}, Customer);
+		});
 	}
 
-    public function toCustomerGold(person : ProgramViewPerson) : Customer {
+    public function toCustomerGold(person : ProgramViewPerson) {
         return new Customer({
             _id: person._id,
             name: person.name,
@@ -556,8 +559,6 @@ class DataMapTest
         });
     }
 }
-
-///// DataMap /////////////////////////////////////////////////////////////////
 
 @:publicFields @:structInit private class ProgramViewSuperSet {
     final _id : Int;
@@ -617,9 +618,9 @@ class DataMapTest
 
     function new(data) {
         if(reps == 0 && exercises.length != 1)
-            throw new js.lib.Error("Too many exercises");
+            throw "Too many exercises";
         else if(reps > 0 && exercises.length < 2)
-            throw new js.lib.Error("Too few exercises");
+            throw "Too few exercises";
 
         if(_id == null) _id = nextId();
     }
