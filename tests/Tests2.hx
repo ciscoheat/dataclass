@@ -453,7 +453,7 @@ class Tests2 extends BuddySuite implements Buddy<[
 			});
 		});
 
-		@include describe("DataMap", {
+		describe("DataMap", {
 			it("should use a brief syntax to map Dataclass objects.", {
 				final test = new DataMapTest();
 				final customer : ProgramViewPerson = {
@@ -517,23 +517,22 @@ class DataMapTest
 	}
 
 	public function toCustomer(person : ProgramViewPerson) : Customer {
-
 		return DataMap.dataMap(person, {
 			_id: Same,
 			name: Same,
-			programs: p -> {
+			programs: [for(p in person.programs) new Program({				
 				name: Same,
 				supersets: (s, sets) -> {
 					_id: s._id,
 					reps: Std.parseInt(Same),
-					exercises: e -> {
+					exercises: e -> new Exercise({
 						sets: Std.parseInt(Same),
 						reps: Same,
 						extrainfo: Same,
 						exerciseTemplateId: Same
-					}
+					})
 				}
-			}
+			})]
 		}, Customer);
 	}
 
