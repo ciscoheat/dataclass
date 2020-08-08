@@ -10,14 +10,14 @@ class DateConverter
         #if js
         return cast new js.lib.Date(input);
         #else
-		var s = input.trim();
+		final s = input.trim();
 		if (s.endsWith('Z')) {
-			var isoZulu = ~/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d+)?Z$/;
+			final isoZulu = ~/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d+)?Z$/;
 			inline function d(pos : Int) return Std.parseInt(isoZulu.matched(pos));
 			if (isoZulu.match(s)) {
-				var hours = Std.int(Math.round(getTimeZone() / 1000 / 60 / 60));
-				var minutes = hours * 60 - Std.int(Math.round(getTimeZone() / 1000 / 60));
-				return new Date(d(1), d(2) - 1, d(3), d(4) + hours, d(5) + minutes, d(6));
+				final hours = Std.int(Math.round(getTimeZone() / 1000 / 60 / 60));
+				final minutes = hours * 60 - Std.int(Math.round(getTimeZone() / 1000 / 60));
+				@:nullSafety(Off) return new Date(d(1), d(2) - 1, d(3), d(4) + hours, d(5) + minutes, d(6));
 			}
 		}
 		
@@ -27,10 +27,10 @@ class DateConverter
 	
 	public static function toISOString(input : Date) : String {
         #if js
-        var d : js.lib.Date = cast input;
+        final d : js.lib.Date = cast input;
         return d.toISOString();
         #else
-		var time = DateTools.delta(input, -getTimeZone());
+		final time = DateTools.delta(input, -getTimeZone());
 		return DateTools.format(time, "%Y-%m-%dT%H:%M:%SZ");
         #end
 	}
