@@ -189,32 +189,38 @@ class DataMap
         }
     }
 
-    static function mapDisplay(toStructure : Expr, expectedType : Type) {
-        switch toStructure.expr {
-            case EDisplay({expr: EBlock([]), pos: _}, DKStructure):
-                switch Context.toComplexType(expectedType) {
-                    case TPath(p):
-                        final f = mapSameForDisplay({expr: EDisplay(macro {}, DKStructure), pos: Context.currentPos()});
-                        return macro new $p($f);
-                    case _:
-                }
-            case EDisplay({expr: EObjectDecl(fields), pos: _}, DKStructure):
-                switch Context.toComplexType(expectedType) {
-                    case TPath(p):
-                        final f = mapSameForDisplay({expr: EDisplay({
-                            expr: EObjectDecl(fields.map(f -> {expr: mapSameForDisplay(f.expr), field: f.field, quotes: f.quotes})),
-                            pos: toStructure.pos
-                        }, DKStructure), pos: Context.currentPos()});
-                        return macro new $p($f);
-                    case _:
-                }    
+    static function mapDisplayStructure(structure : Expr, structureType : Type) : Expr {
+        /*
+        trace("====START=====================");
+        trace(toStructure.expr);
+        trace(typePath);
+
+        final typePath = switch Context.toComplexType(structureType) {
+            case TPath(p): p;
+            case _: null;
+        }
+
+        if(typePath != null) switch toStructure.expr {
+            case EDisplay({expr: EBlock([]), pos: _}, _) if(typePath != null):
+                final f = {expr: EDisplay(macro {}, DKStructure), pos: Context.currentPos()};
+                return macro new $typePath($f);
+
+            case EDisplay({expr: EObjectDecl(fields), pos: _}, _):
+                final f = mapSameForDisplay({expr: EDisplay({
+                    expr: EObjectDecl(fields.map(f -> {expr: mapSameForDisplay(f.expr), field: f.field, quotes: f.quotes})),
+                    pos: toStructure.pos
+                }, DKStructure), pos: Context.currentPos()});
+                return macro new $typePath($f);
+
             case _:
                 //trace("----------- No match");
-        }            
-        toStructure.iter(e -> trace(Std.string(e.expr)));
+        }
+       
+        final f = []; toStructure.iter(e -> f.push(Std.string(e.expr))); trace(f);
         //trace(toStructure.toString());
-        //trace("=========================");
-        return mapSameForDisplay(toStructure);
+        trace("====END=====================");
+        */
+        return mapSameForDisplay(structure);
     }
 
     #end
@@ -228,10 +234,13 @@ class DataMap
             case _: 
                 Context.getType(returns.toString());
         }
+
         if(expectedType == null)
             Context.error("No return type found, please specify it.", Context.currentPos());
 
-        if(Context.defined("display")) return mapDisplay(toStructure, expectedType);
+        if(Context.defined("display")) {
+            return mapDisplayStructure(toStructure, expectedType);
+        }
 
         function toAnonField(e : Expr) return switch e.expr {
             case EObjectDecl(fields): 
