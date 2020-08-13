@@ -15,7 +15,7 @@ import js.Browser;
 
 using buddy.Should;
 using Dataclass2;
-using dataclass.DataMap;
+//using dataclass.DataMap;
 
 /////////////////////////////////////////////////////////////////////
 
@@ -507,15 +507,20 @@ class DataMapTest
 	public function new() {}
 
 	/*
+	// Autocomplete test method
 	public function toCustomerAutocomplete(person : ProgramViewPerson) {
-		return dataMap2(person, new Customer({
-
-		})
+		return dataMap(person, new Customer({
+			name: Same,
+			programs: p -> new Program({
+				name: Same,
+				supersets: new SuperSet({})
+			})
+		}));
 	}
 	*/
 
-	public function toSuperSet(set : SuperSet) : ProgramViewSuperSet {
-		return DataMap.dataMap(set, {
+	public function toSuperSet(set : SuperSet) {
+		final set : ProgramViewSuperSet = DataMap.dataMap(set, {
 			_id: Same,
 			selected: false,
 			reps: Std.string(Same),
@@ -526,13 +531,14 @@ class DataMapTest
 				exerciseTemplateId: Same
 			}
 		});
+		return set;
 	}
 
 	public function toCustomer(person : ProgramViewPerson) : Customer {
 		return dataMap(person, {
 			_id: Same,
 			name: Same,
-			programs: [for(p in person.programs) new Program({				
+			programs: p -> {
 				name: Same,
 				supersets: (s, sets) -> {
 					_id: s._id,
@@ -544,7 +550,7 @@ class DataMapTest
 						exerciseTemplateId: Same
 					})
 				}
-			})]
+			}
 		});
 	}
 

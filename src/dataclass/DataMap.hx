@@ -36,8 +36,6 @@ class DataMap
 {
     #if macro
 
-    ///// Helpers ///////////////////////////////////////////////
-
     static function createNew(type : Type, structure : Expr) {
         return switch type {
             case TInst(t, _): 
@@ -70,7 +68,9 @@ class DataMap
         }
     
         return switch type {
-            case TLazy(f): returnTypeForField(f(), fieldName);
+            case TLazy(f): 
+                returnTypeForField(f(), fieldName);
+
             case TInst(t, _): 
                 final field = t.get().fields.get().find(f -> f.name == fieldName);
                 if(field == null) Context.error('Field not found on $type: ' + fieldName, Context.currentPos());
@@ -80,6 +80,9 @@ class DataMap
                 final field = a.get().fields.find(f -> f.name == fieldName);
                 if(field == null) Context.error('Field not found on $type: ' + fieldName, Context.currentPos());
                 else returnTypeInArray(field.type);
+
+            case TMono(t):
+                Context.error("No dataMap type found, please specify it explicitly.", Context.currentPos());
 
             case _: 
                 Context.error("Unsupported type for dataMap: " + type, Context.currentPos());
@@ -91,27 +94,8 @@ class DataMap
         function identifier(name) return {expr: EField(info.identifier, name), pos: e.pos};
 
         return switch e.expr {
-            // Array comprehension for loops
-            case EArrayDecl([{expr: EFor({expr: EBinop(op, e1, e2), pos: _}, forExpr), pos: _}]): 
-                switch forExpr.expr {
-                    case ENew(typePath, [structure]): switch structure.expr {
-                        case EObjectDecl(fields):
-                            structure.expr = mapStructure({
-                                identifier: e1,
-                                fields: fields,
-                                currentType: ComplexTypeTools.toType(TPath(typePath))
-                            }).expr;
-                            e;
-                        case _:
-                            Context.error("Unsupported for expression", e.pos);    
-                    }                        
-                    case _:
-                        Context.error("Unsupported for expression", e.pos);
-                }
-
             // Lambda functions on an Array field
             case EFunction(FArrow, f): 
-                //trace('========== Function: $fieldName');
                 if(f.expr == null) return Context.error("No object declaration in function", e.pos);
 
                 // If no Array, ignore
@@ -182,65 +166,25 @@ class DataMap
                 case "Same" | "SameString" | "SameInt" | "SameFloat" | "SameFloatToInt":
                     {expr: ECheckType(e, macro : Any), pos: e.pos};
                 case _: 
-                    e;
+                    e.map(mapSameForDisplay);
             }
 
             case _: e.map(mapSameForDisplay);
         }
     }
 
-    static function mapDisplayStructure(structure : Expr, structureType : Type) : Expr {
-        /*
-        trace("====START=====================");
-        trace(toStructure.expr);
-        trace(typePath);
-
-        final typePath = switch Context.toComplexType(structureType) {
-            case TPath(p): p;
-            case _: null;
-        }
-
-        if(typePath != null) switch toStructure.expr {
-            case EDisplay({expr: EBlock([]), pos: _}, _) if(typePath != null):
-                final f = {expr: EDisplay(macro {}, DKStructure), pos: Context.currentPos()};
-                return macro new $typePath($f);
-
-            case EDisplay({expr: EObjectDecl(fields), pos: _}, _):
-                final f = mapSameForDisplay({expr: EDisplay({
-                    expr: EObjectDecl(fields.map(f -> {expr: mapSameForDisplay(f.expr), field: f.field, quotes: f.quotes})),
-                    pos: toStructure.pos
-                }, DKStructure), pos: Context.currentPos()});
-                return macro new $typePath($f);
-
-            case _:
-                //trace("----------- No match");
-        }
-       
-        final f = []; toStructure.iter(e -> f.push(Std.string(e.expr))); trace(f);
-        //trace(toStructure.toString());
-        trace("====END=====================");
-        */
-        return mapSameForDisplay(structure);
-    }
-
     #end
 
-    public static macro function dataMap(from : Expr, toStructure : Expr, ?returns : Expr) {
-        final expectedType = switch returns.expr {
-            case EConst(CIdent("null")): switch toStructure.expr {
-                case ENew(t, _): ComplexTypeTools.toType(TPath(t));
-                case _: Context.getExpectedType();
-            }
-            case _: 
-                Context.getType(returns.toString());
+    public static macro function dataMap(from : Expr, toStructure : Expr) {
+        if(Context.defined("display")) return mapSameForDisplay(toStructure);
+
+        final expectedType = switch toStructure.expr {
+            case ENew(t, _): ComplexTypeTools.toType(TPath(t));
+            case _: Context.getExpectedType();
         }
 
         if(expectedType == null)
-            Context.error("No return type found, please specify it.", Context.currentPos());
-
-        if(Context.defined("display")) {
-            return mapDisplayStructure(toStructure, expectedType);
-        }
+            Context.error("No dataMap type found, please specify it explicitly.", toStructure.pos);
 
         function toAnonField(e : Expr) return switch e.expr {
             case EObjectDecl(fields): 
