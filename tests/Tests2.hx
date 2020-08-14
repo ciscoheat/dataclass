@@ -524,12 +524,12 @@ class DataMapTest
 			_id: Same,
 			selected: false,
 			reps: Std.string(Same),
-			exercises: e -> {
+			exercises: e -> new ProgramViewExercise({
 				sets: SameString,
 				reps: Same,
 				extrainfo: Same,
 				exerciseTemplateId: Same
-			}
+			})
 		});
 		return set;
 	}
@@ -543,12 +543,15 @@ class DataMapTest
 				supersets: (s, sets) -> {
 					_id: s._id,
 					reps: SameInt,
-					exercises: e -> new Exercise({
-						sets: Std.parseInt(Same),
-						reps: Same,
-						extrainfo: Same,
-						exerciseTemplateId: Same
-					})
+					exercises: e -> {
+						final x = 0;
+						new Exercise({
+							sets: Std.parseInt(Same) + x,
+							reps: Same,
+							extrainfo: Same,
+							exerciseTemplateId: Same
+						});
+					}
 				}
 			}
 		});

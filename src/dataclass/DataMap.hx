@@ -11,18 +11,6 @@ import haxe.ds.Option;
 using haxe.macro.ExprTools;
 using Lambda;
 using StringTools;
-
-@:publicFields @:structInit private class DataClassInfo {    
-    // The identifier used for the structure
-    final identifier : Expr;
-    
-    // All fields in the current structure
-    final fields : Array<ObjectField>;
-
-    // Type as determined by the macro Context.
-    // If instance, 
-    final currentType : Option<Type>;
-}
 #end
 
 enum DataMapField
@@ -36,76 +24,111 @@ enum DataMapField
 
 class DataMap
 {
+    public static macro function dataMap(from : Expr, to : Expr) {
+        if(Context.defined("display")) return mapSameForDisplay(to);
+
+        final expectedType = switch to.expr {
+            case ENew(t, _): ComplexTypeTools.toType(TPath(t));
+            case _: Context.getExpectedType();
+        }
+
+        return mapStructure(objectFields(to), from, expectedType);
+    }
+
+    ///////////////////////////////////////////////////////////////////////////
+
     #if macro
 
     // Map an expression for a field to the real expression
-    static function mapField(from : Expr, fromType : Null<Type>, field : ObjectField) : Expr {
-        function identifier(name) return {expr: EField(from, name), pos: field.expr.pos};
+    static function mapField(from : Expr, fromType : Null<Type>, field : ObjectField) : Expr {        
+        return switch field.expr.expr {  
 
-        return switch field.expr.expr {
-            // Lambda functions on an Array field
+            // A lambda function on an Array field is transformed to an array comprehension for loop
             case EFunction(FArrow, func): 
-                if(func.expr == null) return Context.error("No object declaration in function", func.expr.pos);
+                if(func.expr == null) return Context.error("No object declaration in function.", func.expr.pos);
 
                 final forVar = macro $i{func.args[0].name};
                 final functionField = switch func.args.length {
                     case 1: field.field;
                     case 2: func.args[1].name;
-                    case _: Context.error("Unsupported arguments in lambda function", func.expr.pos);
+                    case _: Context.error("Unsupported number of arguments in lambda function.", func.expr.pos);
                 }
-                final forIterate = identifier(functionField);
+                final forIterate = {expr: EField(from, functionField), pos: field.expr.pos};
                 
                 switch func.expr.expr {
                     case EMeta(_, {expr: EReturn(e), pos: _}): 
-                        final structureFields = objectFields(e);
                         final structureType = switch e.expr {
-                            case ENew(typePath, _): ComplexTypeTools.toType(TPath(typePath));
-                            case _ if(fromType != null): returnTypeIfArray(returnTypeForField(fromType, field.field));
+                            case ENew(typePath, _): 
+                                ComplexTypeTools.toType(TPath(typePath));
+                            case EObjectDecl(_) if(fromType != null): 
+                                returnTypeIfArray(returnTypeForField(fromType, field.field));
                             case _: null;
                         }
-
-                        //final structure = createNew(fromType, mapStructure(structureFields, forVar, structureType));
-                        final structure = mapStructure(structureFields, forVar, structureType);
+                        
+                        final structure = if(structureType != null)
+                            mapStructure(objectFields(e), forVar, structureType);
+                        else
+                            mapExpr(forVar, field.field, e);
         
                         macro [for($forVar in $forIterate) $structure];
         
                     case _: 
-                        Context.error("Lambda function can only contain an anonymous structure or an instantiation of a Dataclass.", func.expr.pos);
+                        Context.error("Must be a lambda function.", func.expr.pos);
                 }
 
+            // Array comprehension for loops needs a context switch
+            case EArrayDecl([{expr: EFor({expr: EBinop(op, e1, e2), pos: _}, forExpr), pos: _}]): 
+                final forExpr = mapExpr(e1, field.field, forExpr);
+                macro [for($e1 in $e2) $forExpr];
+
             case _:
-                mapExpr(identifier(field.field), field.expr);
+                mapExpr(from, field.field, field.expr);
         }
     }
 
-    static function mapExpr(ident : Expr, e : Expr) return switch e.expr {
+    /**
+     * Map Same-identifiers to Std functions
+     */
+    static function mapExpr(ident : Expr, currentField : String, e : Expr) {
+        function identifier() {
+            return {expr: EField(ident, currentField), pos: ident.pos};
+        }
 
-        ///// Map Same-identifiers to Std functions /////
+        return switch e.expr {            
+            case EObjectDecl(fields):
+                mapStructure(fields, ident, null);
 
-        case EConst(CIdent("Same")):                 
-            ident;
+            case ENew(typePath, [{expr: EObjectDecl(fields), pos: _}]):
+                mapStructure(fields, ident, ComplexTypeTools.toType(TPath(typePath)));
+        
+            case EConst(CIdent("Same")):
+                identifier();
 
-        case EConst(CIdent("SameString")):
-            macro Std.string($ident);
+            case EConst(CIdent("SameString")):
+                macro Std.string(${identifier()});
 
-        case EConst(CIdent("SameInt")):
-            macro Std.parseInt($ident);
+            case EConst(CIdent("SameInt")):
+                macro Std.parseInt(${identifier()});
 
-        case EConst(CIdent("SameFloat")):
-            macro Std.parseFloat($ident);
+            case EConst(CIdent("SameFloat")):
+                macro Std.parseFloat(${identifier()});
 
-        case EConst(CIdent("SameFloatToInt")):
-            macro Std.int($ident);
+            case EConst(CIdent("SameFloatToInt")):
+                macro Std.int(${identifier()});
 
-        case _: 
-            e.map(mapExpr.bind(ident));
+            case _: 
+                e.map(mapExpr.bind(ident, currentField));
+        }
     }
 
     static function objectFields(e : Expr) return switch e.expr {
         case EObjectDecl(fields) | ENew(_, [{expr: EObjectDecl(fields), pos: _}]):
             fields;
         case _: 
-            Context.error("Required: Anonymous object declaration or object instantiation.", e.pos);
+            Context.error(
+                "Required: Anonymous object declaration or object instantiation.", 
+                e.pos
+            );
     }
 
     static function mapStructure(fields : Array<ObjectField>, from : Expr, fromType : Null<Type>) : Expr {
@@ -116,23 +139,6 @@ class DataMap
         }));
 
         return createNew(fromType, {expr: newObj, pos: Context.currentPos()});
-    }
-
-    /**
-     * The "Same" values will mess up autocompletion, so typecheck them to Any.
-     * Will only happen in display mode.
-     */
-     static function mapSameForDisplay(e : Expr) : Expr {
-        return switch e.expr {
-            case EConst(CIdent(s)): switch s {
-                case "Same" | "SameString" | "SameInt" | "SameFloat" | "SameFloatToInt":
-                    {expr: ECheckType(e, macro : Any), pos: e.pos};
-                case _: 
-                    e.map(mapSameForDisplay);
-            }
-
-            case _: e.map(mapSameForDisplay);
-        }
     }
 
     static function returnTypeIfArray(type : Type) : Null<Type> {
@@ -171,17 +177,23 @@ class DataMap
             }
         case _: fromStructure;
     }
-   
-    #end
 
-    public static macro function dataMap(from : Expr, structure : Expr) {
-        if(Context.defined("display")) return mapSameForDisplay(structure);
+    /**
+     * The "Same" values will mess up autocompletion, so typecheck them to Any.
+     * Will only happen in display mode.
+     */
+    static function mapSameForDisplay(e : Expr) : Expr {
+        return switch e.expr {
+            case EConst(CIdent(s)): switch s {
+                case "Same" | "SameString" | "SameInt" | "SameFloat" | "SameFloatToInt":
+                    {expr: ECheckType(e, macro : Any), pos: e.pos};
+                case _: 
+                    e.map(mapSameForDisplay);
+            }
 
-        final expectedType = switch structure.expr {
-            case ENew(t, _): ComplexTypeTools.toType(TPath(t));
-            case _: Context.getExpectedType();
+            case _: e.map(mapSameForDisplay);
         }
-
-        return mapStructure(objectFields(structure), from, expectedType);
     }
+    
+    #end
 }
