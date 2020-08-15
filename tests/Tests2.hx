@@ -518,7 +518,7 @@ class DataMapTest
 	public function toCustomerAutocomplete(person : ProgramViewPerson) {
 		return dataMap(person, new Customer({
 			name: Same,
-			programs: p -> new Program({
+			programs: for(p in person.programs) new Program({
 				name: Same,
 				supersets: new SuperSet({})
 			})
@@ -552,7 +552,7 @@ class DataMapTest
 			programs: p -> {
 				name: Same,
 				map: [for(s in ["A", "B", "C"]) s => p.name],
-				supersets: (s, sets) -> {
+				supersets: for(s in p.sets) {
 					_id: s._id,
 					reps: SameInt,
 					exercises: e -> {

@@ -43,9 +43,27 @@ class DataMap
 
     #if macro
 
+    // Extract V in for(V in ...) or for(K => V in ...)
+    static function extractForVar(e : Expr) return switch e.expr {
+        case EConst(CIdent(s)) | EBinop(OpArrow, _, {expr: EConst(CIdent(s)), pos: _}):
+            macro $i{s};
+        case _:
+            Context.error("Unsupported for expression", e.pos);
+    }
+
     // Map an expression for a field to the real expression
     static function mapField(from : Expr, fromType : Null<Type>, field : ObjectField) : Expr {        
-        return switch field.expr.expr {  
+        return switch field.expr.expr {
+
+            // A for loop is transformed to an array comprehension
+            case EFor({expr: EBinop(OpIn, forVar, iterable), pos: _}, forExpr):
+                final ident = extractForVar(forVar);
+                final forExpr = switch structureType(forExpr, fromType, field.field) {
+                    case null: mapExpr(ident, field.field, forExpr);
+                    case type: mapStructure(objectFields(forExpr), ident, extractTypeFromArray(type));
+                }
+
+                macro [for($forVar in $iterable) $forExpr];
 
             // A lambda function on an Array field is transformed to an array comprehension for loop
             case EFunction(FArrow, func): 
@@ -59,22 +77,14 @@ class DataMap
                 }
                 final forIterate = {expr: EField(from, functionField), pos: field.expr.pos};
                 
-                // Figure out if an object should be instantiated.
+                // Figure out if an object should be instantiated
                 switch func.expr.expr {
                     case EMeta(_, {expr: EReturn(e), pos: _}): 
-                        final structureType = switch e.expr {
-                            case ENew(typePath, _): 
-                                ComplexTypeTools.toType(TPath(typePath));
-                            case EObjectDecl(_) if(fromType != null): 
-                                extractTypeFromArray(returnTypeForField(fromType, field.field));
-                            case _: null;
+                        final structure = switch structureType(e, fromType, field.field) {
+                            case null: mapExpr(forVar, field.field, e);
+                            case type: mapStructure(objectFields(e), forVar, extractTypeFromArray(type));
                         }
-                        
-                        final structure = if(structureType != null)
-                            mapStructure(objectFields(e), forVar, structureType);
-                        else
-                            mapExpr(forVar, field.field, e);
-        
+                                
                         macro [for($forVar in $forIterate) $structure];
         
                     case _: 
@@ -92,8 +102,9 @@ class DataMap
         }
 
         return switch e.expr {
-            case EFor({expr: EBinop(OpIn, e1, e2), pos: _}, forExpr):
-                macro for($e1 in $e2) ${mapExpr(e1, currentField, forExpr)};
+            case EFor({expr: EBinop(OpIn, forVar, e2), pos: _}, forExpr):
+                final ident = extractForVar(forVar);
+                macro for($forVar in $e2) ${mapExpr(ident, currentField, forExpr)};
 
             case EObjectDecl(fields):
                 mapStructure(fields, ident, null);
@@ -154,6 +165,18 @@ class DataMap
             case _: null;
         }
     }
+
+    /**
+     * If e is a structure, return its type or try to derive it from its field.
+     */
+    static function structureType(e : Expr, fromType : Null<Type>, fieldName : Null<String>) : Null<Type>
+        return switch e.expr {
+            case ENew(typePath, _): 
+                ComplexTypeTools.toType(TPath(typePath));
+            case EObjectDecl(_) if(fromType != null && fieldName != null): 
+                returnTypeForField(fromType, fieldName);
+            case _: null;
+        }
 
     static function returnTypeForField(type : Type, fieldName : String) : Null<Type> {   
         return switch type {
