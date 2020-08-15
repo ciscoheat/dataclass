@@ -4,7 +4,7 @@
     "description": "A convenient way to create domain objects, DTO's, web forms, and other data structures.",
     "license": "MIT",
     "contributors": ["ciscoheat"],
-    "version": "2.1.0",
-    "releasenote": "Fields with validators can now be checked separately.",
+    "version": "2.2.0",
+    "releasenote": "DataMap added, a brief syntax for mapping data between objecs.",
     "tags": ["data", "dto", "validation", "contracts"]
 }

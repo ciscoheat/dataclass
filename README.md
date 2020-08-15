@@ -2,6 +2,8 @@
 
 A convenient way to instantiate your data objects with validation, default values, null checks, etc... Give your data a bit more class!
 
+The documentation for the supplemental `DataMap` is located [in the wiki](https://github.com/ciscoheat/dataclass/wiki/DataMap).
+
 ## How to use
 
 ```haxe
@@ -27,7 +29,6 @@ enum Color { Red; Blue; }
 
 	///// Default values /////
 
-	final active : Bool = true;
 	final color : Color = Blue;
 	final created : Date = Date.now(); // Works also for statements
 
@@ -74,9 +75,9 @@ class Main {
 }
 ```
 
-## Null safety
+## Null safety notes
 
-It is highly recommended that you avoid `Null<T>` in DataClass, rather use `haxe.ds.Option<T>`, but if you decide to use it be sure to test for `null` in validators too. This also applies when validating `Option<T>`, where a `None` value will be `null` in a validator! Example:
+If you want to avoid `Null<T>` completely in DataClass you can use `haxe.ds.Option<T>`, but be sure to test for `null` in validators. This also applies when validating `Option<T>`, where a `None` value will be `null` in a validator! Example:
 
 ```haxe
 // Same validation as for Null<String>
@@ -91,7 +92,7 @@ To avoid the null check completely, specify a default value for the field, as in
 final name : Option<String> = "No name";
 ```
 
-## Constructors
+## Customizing the auto-generated constructor
 
 A constructor will be automatically generated, but if you want to add your own it should be in the following format. For this purpose you can also use `@:exclude` on fields that you want to set in the constructor yourself.
 
@@ -176,7 +177,7 @@ The `validate` method requires a complete input set, which may not be ideal when
 
 ## Updating the object
 
-Since all fields must be `final`, changing the Dataclass object isn't possible, but a static `copy` method is available which you can use to create new objects of the same type in a simple manner:
+Since all fields must be `final`, changing the DataClass object isn't possible, but a static `copy` method is available which you can use to create new objects of the same type in a simple manner:
 
 ```haxe
 final p = new Person({id: 1, name: "Test"});
@@ -194,7 +195,7 @@ final p2 = p.copy({id: 2});
 
 ## Updating and validating for the web
 
-When handling browser form input, it could be tempting to make a `Dataclass` for the form, but for every keystroke or click the model will mutate, so it's more convenient to make a simpler data structure for the form:
+When handling browser form input, it could be tempting to make a `DataClass` for the form, but for every keystroke or click the model will mutate, so it's more convenient to make a simpler data structure for the form:
 
 ```haxe
 @:publicFields @:structInit private class Form {
@@ -204,9 +205,7 @@ When handling browser form input, it could be tempting to make a `Dataclass` for
 }
 ```
 
-When submitting the form, a transformation function could be used to create the `Dataclass` required by the business logic. 
-
-Note that you can use validators from the real `Dataclass` for validation. Here's how it would look like in [Mithril](https://github.com/ciscoheat/mithril-hx), where `Person` is the corresponding `Dataclass` for the above form:
+For validation, a `DataClass` can be used. Here's how it would look like in [Mithril](https://github.com/ciscoheat/mithril-hx), where `Person` is the corresponding `DataClass` for the above form:
 
 ```haxe
 m("input[placeholder='First name']", {
@@ -216,9 +215,11 @@ m("input[placeholder='First name']", {
 })
 ```
 
+When submitting the form, [dataMap](https://github.com/ciscoheat/dataclass/wiki/DataMap) can then be used to create the actual `DataClass` required by the business logic.
+
 ## Exceptions
 
-When a Dataclass object is instantiated but the input fails validaton, a `dataclass.DataClassException` is thrown:
+When a DataClass object is instantiated but the input fails validaton, a `dataclass.DataClassException` is thrown:
 
 ```haxe
 try new Person({
@@ -233,7 +234,7 @@ try new Person({
 
 ## Equality comparison
 
-Use a library like [deep_equal](https://lib.haxe.org/p/deep_equal/) for value comparison between DataClass objects.
+Use a library like [deep_equal](https://lib.haxe.org/p/deep_equal/) for value comparison between `DataClass` objects.
 
 ## JSON/Date conversion
 
