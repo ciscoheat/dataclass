@@ -482,19 +482,26 @@ class Tests2 extends BuddySuite implements Buddy<[
 				)).should.be("Success(Noise)");
 			});
 
+			final set = new SuperSet({
+				_id: 0,
+				reps: 0,
+				exercises: [new Exercise({
+					sets: 1, reps: "2", extrainfo: "", exerciseTemplateId: 2
+				})]
+			});
+
 			it("should handle :structInit classes", {
-				final superSet = new DataMapTest().toSuperSet(new SuperSet({
-					_id: 0,
-					reps: 0,
-					exercises: [new Exercise({
-						sets: 1, reps: "2", extrainfo: "", exerciseTemplateId: 2
-					})]
-				}));
+				final superSet = new DataMapTest().toSuperSet(set);
 
 				superSet.should.beType(ProgramViewSuperSet);
 				superSet.exercises[0].should.beType(ProgramViewExercise);
 				superSet.selected.should.be(false);
 				superSet.exercises[0].reps.should.be("2");
+			});
+
+			it("should handle any expression", {
+				final superSet = new DataMapTest().toArray(set);
+				superSet.should.containExactly(["2"]);
 			});
 		});
 	}	
@@ -518,6 +525,10 @@ class DataMapTest
 		}));
 	}
 	*/
+
+	public function toArray(set : SuperSet) {
+		return dataMap(set, [for(m in set.exercises) m.reps]);
+	}
 
 	public function toSuperSet(set : SuperSet) {
 		final set : ProgramViewSuperSet = DataMap.dataMap(set, {

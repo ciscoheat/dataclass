@@ -28,11 +28,15 @@ class DataMap
         if(Context.defined("display")) return mapSameForDisplay(to);
 
         final expectedType = switch to.expr {
-            case ENew(t, _): ComplexTypeTools.toType(TPath(t));
-            case _: Context.getExpectedType();
+            case ENew(t, [{expr: EObjectDecl(_), pos: _}]): ComplexTypeTools.toType(TPath(t));
+            case EObjectDecl(_): Context.getExpectedType();
+            case _: null;
         }
 
-        return mapStructure(objectFields(to), from, expectedType);
+        return if(expectedType != null)
+            mapStructure(objectFields(to), from, expectedType)
+        else
+            mapExpr(from, null, to);
     }
 
     ///////////////////////////////////////////////////////////////////////////
@@ -82,7 +86,7 @@ class DataMap
         }
     }
 
-    static function mapExpr(ident : Expr, currentField : String, e : Expr) {
+    static function mapExpr(ident : Expr, currentField : Null<String>, e : Expr) {
         function identifier() {
             return {expr: EField(ident, currentField), pos: ident.pos};
         }
@@ -121,10 +125,7 @@ class DataMap
         case EObjectDecl(fields) | ENew(_, [{expr: EObjectDecl(fields), pos: _}]):
             fields;
         case _: 
-            Context.error(
-                "Required: Anonymous object declaration or object instantiation.", 
-                e.pos
-            );
+            Context.error("Required: Anonymous object declaration or object instantiation.", e.pos);
     }
 
     static function mapStructure(fields : Array<ObjectField>, from : Expr, fromType : Null<Type>) : Expr {
