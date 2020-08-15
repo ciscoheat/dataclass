@@ -540,6 +540,7 @@ class DataMapTest
 			name: Same,
 			programs: p -> {
 				name: Same,
+				map: [for(s in ["A", "B", "C"]) s => p.name],
 				supersets: (s, sets) -> {
 					_id: s._id,
 					reps: SameInt,
@@ -562,7 +563,8 @@ class DataMapTest
             _id: person._id,
             name: person.name,
             programs: [for(p in person.programs) new Program({
-                name: p.name,
+				name: p.name,
+				map: [for(s in ["A", "B", "C"]) s => p.name],
                 supersets: [for(s in p.sets) new SuperSet({
                     _id: s._id,
                     reps: Std.parseInt(s.reps),
@@ -619,7 +621,8 @@ class DataMapTest
 {   
  //   final _id : Int;
     final name : String;
-    final supersets : Array<SuperSet> = []; 
+	final map : Map<String, String>;
+	final supersets : Array<SuperSet> = []; 
 }
 
 @:publicFields class SuperSet implements DataClass

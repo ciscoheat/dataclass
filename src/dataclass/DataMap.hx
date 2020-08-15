@@ -55,13 +55,14 @@ class DataMap
                 }
                 final forIterate = {expr: EField(from, functionField), pos: field.expr.pos};
                 
+                // Figure out if an object should be instantiated.
                 switch func.expr.expr {
                     case EMeta(_, {expr: EReturn(e), pos: _}): 
                         final structureType = switch e.expr {
                             case ENew(typePath, _): 
                                 ComplexTypeTools.toType(TPath(typePath));
                             case EObjectDecl(_) if(fromType != null): 
-                                returnTypeIfArray(returnTypeForField(fromType, field.field));
+                                extractTypeFromArray(returnTypeForField(fromType, field.field));
                             case _: null;
                         }
                         
@@ -76,25 +77,20 @@ class DataMap
                         Context.error("Must be a lambda function.", func.expr.pos);
                 }
 
-            // Array comprehension for loops needs a context switch
-            case EArrayDecl([{expr: EFor({expr: EBinop(op, e1, e2), pos: _}, forExpr), pos: _}]): 
-                final forExpr = mapExpr(e1, field.field, forExpr);
-                macro [for($e1 in $e2) $forExpr];
-
             case _:
                 mapExpr(from, field.field, field.expr);
         }
     }
 
-    /**
-     * Map Same-identifiers to Std functions
-     */
     static function mapExpr(ident : Expr, currentField : String, e : Expr) {
         function identifier() {
             return {expr: EField(ident, currentField), pos: ident.pos};
         }
 
-        return switch e.expr {            
+        return switch e.expr {
+            case EFor({expr: EBinop(OpIn, e1, e2), pos: _}, forExpr):
+                macro for($e1 in $e2) ${mapExpr(e1, currentField, forExpr)};
+
             case EObjectDecl(fields):
                 mapStructure(fields, ident, null);
 
@@ -141,9 +137,18 @@ class DataMap
         return createNew(fromType, {expr: newObj, pos: Context.currentPos()});
     }
 
-    static function returnTypeIfArray(type : Type) : Null<Type> {
+    static function createNew(type : Null<Type>, fromStructure : Expr) return switch type {
+        case TInst(t, _) if(!t.get().meta.has(":structInit")):
+            switch Context.toComplexType(type) {
+                case TPath(p): macro new $p($fromStructure);
+                case _: fromStructure;
+            }
+        case _: fromStructure;
+    }
+
+    static function extractTypeFromArray(type : Type) : Null<Type> {
         return switch type {
-            case TLazy(f): returnTypeIfArray(f());
+            case TLazy(f): extractTypeFromArray(f());
             case TInst(t, params) if(t.get().name == "Array"): params[0];
             case _: null;
         }
@@ -167,15 +172,6 @@ class DataMap
             case _:
                 null;
         }
-    }
-
-    static function createNew(type : Null<Type>, fromStructure : Expr) return switch type {
-        case TInst(t, _) if(!t.get().meta.has(":structInit")):
-            switch Context.toComplexType(type) {
-                case TPath(p): macro new $p($fromStructure);
-                case _: fromStructure;
-            }
-        case _: fromStructure;
     }
 
     /**
