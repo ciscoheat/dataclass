@@ -483,7 +483,7 @@ class Tests2 extends BuddySuite implements Buddy<[
 			});
 
 			final set = new SuperSet({
-				_id: 0,
+				_id: 1,
 				reps: 0,
 				exercises: [new Exercise({
 					sets: 1, reps: "2", extrainfo: "", exerciseTemplateId: 2
@@ -499,7 +499,12 @@ class Tests2 extends BuddySuite implements Buddy<[
 				superSet.exercises[0].reps.should.be("2");
 			});
 
-			it("should handle any expression", {
+			it("should handle anonymous structures", {
+				final idSet = new DataMapTest().toAnonStructure(set);
+				idSet._id.should.be(1);
+			});
+
+			it("should handle any other expression", {
 				final superSet = new DataMapTest().toArray(set);
 				superSet.should.containExactly(["2"]);
 			});
@@ -513,12 +518,12 @@ class DataMapTest
 {
 	public function new() {}
 
-	/*
 	// Autocomplete test method
+	/*
 	public function toCustomerAutocomplete(person : ProgramViewPerson) {
-		return dataMap(person, new Customer({
+		return dataMap(person, new Customer({			
 			name: Same,
-			programs: for(p in person.programs) new Program({
+			programs: p -> new Program({
 				name: Same,
 				supersets: new SuperSet({})
 			})
@@ -528,6 +533,12 @@ class DataMapTest
 
 	public function toArray(set : SuperSet) {
 		return dataMap(set, [for(m in set.exercises) m.reps]);
+	}
+
+	public function toAnonStructure(set : SuperSet) {
+		return dataMap(set, {
+			_id: Same
+		});
 	}
 
 	public function toSuperSet(set : SuperSet) {

@@ -55,9 +55,10 @@ class DataMap
     static function mapField(from : Expr, fromType : Null<Type>, field : ObjectField) : Expr {        
         return switch field.expr.expr {
 
-            // A for loop is transformed to an array comprehension
+            // A bare for loop is transformed to array comprehension
             case EFor({expr: EBinop(OpIn, forVar, iterable), pos: _}, forExpr):
                 final ident = extractForVar(forVar);
+                // Figure out if an object should be instantiated
                 final forExpr = switch structureType(forExpr, fromType, field.field) {
                     case null: mapExpr(ident, field.field, forExpr);
                     case type: mapStructure(objectFields(forExpr), ident, extractTypeFromArray(type));
@@ -65,27 +66,25 @@ class DataMap
 
                 macro [for($forVar in $iterable) $forExpr];
 
-            // A lambda function on an Array field is transformed to an array comprehension for loop
+            // A lambda function is transformed to array comprehension
             case EFunction(FArrow, func): 
-                if(func.expr == null) return Context.error("No object declaration in function.", func.expr.pos);
-
-                final forVar = macro $i{func.args[0].name};
+                final ident = macro $i{func.args[0].name};
                 final functionField = switch func.args.length {
                     case 1: field.field;
                     case 2: func.args[1].name;
                     case _: Context.error("Unsupported number of arguments in lambda function.", func.expr.pos);
                 }
                 final forIterate = {expr: EField(from, functionField), pos: field.expr.pos};
-                
-                // Figure out if an object should be instantiated
+                                
                 switch func.expr.expr {
                     case EMeta(_, {expr: EReturn(e), pos: _}): 
+                        // Figure out if an object should be instantiated
                         final structure = switch structureType(e, fromType, field.field) {
-                            case null: mapExpr(forVar, field.field, e);
-                            case type: mapStructure(objectFields(e), forVar, extractTypeFromArray(type));
+                            case null: mapExpr(ident, field.field, e);
+                            case type: mapStructure(objectFields(e), ident, extractTypeFromArray(type));
                         }
                                 
-                        macro [for($forVar in $forIterate) $structure];
+                        macro [for($ident in $forIterate) $structure];
         
                     case _: 
                         Context.error("Must be a lambda function.", func.expr.pos);
@@ -158,8 +157,8 @@ class DataMap
         case _: fromStructure;
     }
 
-    static function extractTypeFromArray(type : Type) : Null<Type> {
-        return switch type {
+    static function extractTypeFromArray(arrayType : Type) : Null<Type> {
+        return switch arrayType {
             case TLazy(f): extractTypeFromArray(f());
             case TInst(t, params) if(t.get().name == "Array"): params[0];
             case _: null;
