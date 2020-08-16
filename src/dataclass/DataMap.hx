@@ -33,10 +33,18 @@ class DataMap
             case _: null;
         }
 
-        return if(expectedType != null)
+        final isDynamic = try switch Context.typeof(from) {
+            case TDynamic(_): true;
+            case _: false;
+        } catch(e : Dynamic) false;
+
+        final output = if(expectedType != null)
             mapStructure(objectFields(to), from, expectedType)
         else
             mapExpr(from, null, to);
+
+        //trace(output.toString());
+        return output;
     }
 
     ///////////////////////////////////////////////////////////////////////////
@@ -52,22 +60,45 @@ class DataMap
     }
 
     // Map an expression for a field to the real expression
-    static function mapField(from : Expr, fromType : Null<Type>, field : ObjectField) : Expr {        
+    static function mapField(from : Expr, fromType : Null<Type>, field : ObjectField) : Expr {     
+        /*   
+        function wrapDynamicIterable(e : Expr, iterateType : Null<Type>) {
+            if(iterateType != null)
+                switch Context.toComplexType(iterateType) {
+                    case TPath(p): 
+                        final iterableType = {
+                            pack: [],
+                            name: "Iterable",
+                            sub: null,
+                            params: [TPType(TPath(p))]
+                        }
+                        return {expr: ECheckType(e, TPath(iterableType)), pos: e.pos };
+                    case _: 
+                }
+
+            return macro ($e : Iterable<Dynamic>);
+        }
+        */
+
         return switch field.expr.expr {
 
             // A bare for loop is transformed to array comprehension
-            case EFor({expr: EBinop(OpIn, forVar, iterable), pos: _}, forExpr):
+            case EFor({expr: EBinop(OpIn, forVar, forIterate), pos: _}, forExpr):
                 final ident = extractForVar(forVar);
                 // Figure out if an object should be instantiated
                 final forExpr = switch structureType(forExpr, fromType, field.field) {
-                    case null: mapExpr(ident, field.field, forExpr);
-                    case type: mapStructure(objectFields(forExpr), ident, extractTypeFromArray(type));
+                    case null: 
+                        mapExpr(ident, field.field, forExpr);
+                    case type: 
+                        mapStructure(objectFields(forExpr), ident, extractTypeIfArray(type));
                 }
+                //final forIterate = isDynamic ? wrapDynamicIterable(forIterate, null) : forIterate;
 
-                macro [for($forVar in $iterable) $forExpr];
+                macro [for($forVar in $forIterate) $forExpr];
 
             // A lambda function is transformed to array comprehension
-            case EFunction(FArrow, func): 
+            case EFunction(FArrow, func):                 
+
                 final ident = macro $i{func.args[0].name};
                 final functionField = switch func.args.length {
                     case 1: field.field;
@@ -78,12 +109,16 @@ class DataMap
                                 
                 switch func.expr.expr {
                     case EMeta(_, {expr: EReturn(e), pos: _}): 
+                        final strType = structureType(e, fromType, field.field);
                         // Figure out if an object should be instantiated
-                        final structure = switch structureType(e, fromType, field.field) {
-                            case null: mapExpr(ident, field.field, e);
-                            case type: mapStructure(objectFields(e), ident, extractTypeFromArray(type));
+                        final structure = switch strType {
+                            case null: 
+                                mapExpr(ident, field.field, e);
+                            case type: 
+                                mapStructure(objectFields(e), ident, extractTypeIfArray(type));
                         }
-                                
+
+                        //final forIterate = wrapDynamicIterable(forIterate, strType);
                         macro [for($ident in $forIterate) $structure];
         
                     case _: 
@@ -97,13 +132,16 @@ class DataMap
 
     static function mapExpr(ident : Expr, currentField : Null<String>, e : Expr) {
         function identifier() {
+            if(currentField == null) Context.error("Can only map fields using Same.", e.pos);
             return {expr: EField(ident, currentField), pos: ident.pos};
-        }
+        }        
 
         return switch e.expr {
             case EFor({expr: EBinop(OpIn, forVar, e2), pos: _}, forExpr):
+                //trace('For loop in mapExpr');
                 final ident = extractForVar(forVar);
-                macro for($forVar in $e2) ${mapExpr(ident, currentField, forExpr)};
+                final forIterate = e2; // isDynamic ? (macro ($e2 : Iterable<Dynamic>)) : e2;
+                macro for($forVar in $forIterate) ${mapExpr(ident, currentField, forExpr)};
 
             case EObjectDecl(fields):
                 mapStructure(fields, ident, null);
@@ -157,25 +195,28 @@ class DataMap
         case _: fromStructure;
     }
 
-    static function extractTypeFromArray(arrayType : Type) : Null<Type> {
+    static function extractTypeIfArray(arrayType : Type) : Null<Type> {
         return switch arrayType {
-            case TLazy(f): extractTypeFromArray(f());
+            case TLazy(f): extractTypeIfArray(f());
             case TInst(t, params) if(t.get().name == "Array"): params[0];
-            case _: null;
+            case _: arrayType;
         }
     }
 
     /**
      * If e is a structure, return its type or try to derive it from its field.
      */
-    static function structureType(e : Expr, fromType : Null<Type>, fieldName : Null<String>) : Null<Type>
-        return switch e.expr {
-            case ENew(typePath, _): 
+    static function structureType(e : Expr, fromType : Null<Type>, fieldName : Null<String>) : Null<Type> {
+        final output = switch e.expr {
+            case ENew(typePath, [{expr: EObjectDecl(_), pos: _}]):
                 ComplexTypeTools.toType(TPath(typePath));
             case EObjectDecl(_) if(fromType != null && fieldName != null): 
                 returnTypeForField(fromType, fieldName);
             case _: null;
         }
+        //trace('$fromType on field $fieldName: $output');
+        return output;
+    }
 
     static function returnTypeForField(type : Type, fieldName : String) : Null<Type> {   
         return switch type {
