@@ -6,7 +6,6 @@ import haxe.macro.Expr;
 import haxe.macro.ComplexTypeTools;
 import haxe.macro.Context;
 import haxe.macro.Type;
-import haxe.ds.Option;
 
 using haxe.macro.ExprTools;
 using Lambda;
@@ -24,50 +23,55 @@ enum DataMapField
 
 class DataMap
 {
-    static var isDynamic : Bool;
-
     public static macro function dataMap(from : Expr, to : Expr) {
         if(Context.defined("display")) return mapSameForDisplay(to);
 
+        final isDynamic = try 
+            Context.typeof(from).match(TDynamic(_))
+        catch(e : Dynamic) 
+            false;
+
+        return new DataMap(isDynamic)._dataMap(from, to);
+    }
+
+    #if macro
+    
+    final isDynamic : Bool;
+    
+    function new(isDynamic : Bool) {
+        this.isDynamic = isDynamic;
+    }
+
+    function _dataMap(from : Expr, to : Expr) {
         final expectedType = switch to.expr {
             case ENew(t, [{expr: EObjectDecl(_), pos: _}]): ComplexTypeTools.toType(TPath(t));
             case EObjectDecl(_): Context.getExpectedType();
             case _: null;
         }
 
-        DataMap.isDynamic = try switch Context.typeof(from) {
-            case TDynamic(_): true;
-            case _: false;
-        } catch(e : Dynamic) false;
-
-        final output = if(expectedType != null)
+        return if(expectedType != null)
             mapStructure(objectFields(to), from, expectedType)
         else
             mapExpr(from, null, to);
-
-        //trace(output.toString());
-        return output;
     }
 
-    #if macro
-
     // Extract V in for(V in ...) or for(K => V in ...)
-    static function extractForVar(e : Expr) return switch e.expr {
+    function extractForVar(e : Expr) return switch e.expr {
         case EConst(CIdent(s)) | EBinop(OpArrow, _, {expr: EConst(CIdent(s)), pos: _}):
             macro $i{s};
         case _:
-            Context.error("Unsupported for expression", e.pos);
+            Context.error("Unsupported for expression.", e.pos);
     }
 
-    static function wrapForIterateIfDynamic(forIterate : Expr) 
+    function wrapForIterateIfDynamic(forIterate : Expr) 
         return switch forIterate.expr {
             case ECheckType(e, t): forIterate;
-            case _ if(DataMap.isDynamic): macro ($forIterate : Iterable<Dynamic>);
+            case _ if(this.isDynamic): macro ($forIterate : Iterable<Dynamic>);
             case _: forIterate;
         }
 
     // Map an expression for a field to the real expression
-    static function mapField(from : Expr, fromType : Null<Type>, field : ObjectField) : Expr {     
+    function mapField(from : Expr, fromType : Null<Type>, field : ObjectField) : Expr {     
         return switch field.expr.expr {
 
             // A bare for loop is transformed to array comprehension
@@ -118,7 +122,7 @@ class DataMap
         }
     }
 
-    static function mapExpr(ident : Expr, currentField : Null<String>, e : Expr) {
+    function mapExpr(ident : Expr, currentField : Null<String>, e : Expr) {
         function identifier() {
             if(currentField == null) Context.error("Can only map fields using Same.", e.pos);
             return {expr: EField(ident, currentField), pos: ident.pos};
@@ -157,14 +161,14 @@ class DataMap
         }
     }
 
-    static function objectFields(e : Expr) return switch e.expr {
+    function objectFields(e : Expr) return switch e.expr {
         case EObjectDecl(fields) | ENew(_, [{expr: EObjectDecl(fields), pos: _}]):
             fields;
         case _: 
             Context.error("Required: Anonymous object declaration or object instantiation.", e.pos);
     }
 
-    static function mapStructure(fields : Array<ObjectField>, from : Expr, fromType : Null<Type>) : Expr {
+    function mapStructure(fields : Array<ObjectField>, from : Expr, fromType : Null<Type>) : Expr {
         final newObj = EObjectDecl(fields.map(f -> {
             field: f.field,
             expr: mapField(from, fromType, f),
@@ -174,7 +178,7 @@ class DataMap
         return createNew(fromType, {expr: newObj, pos: Context.currentPos()});
     }
 
-    static function createNew(type : Null<Type>, fromStructure : Expr) return switch type {
+    function createNew(type : Null<Type>, fromStructure : Expr) return switch type {
         case TInst(t, _) if(!t.get().meta.has(":structInit")):
             switch Context.toComplexType(type) {
                 case TPath(p): macro new $p($fromStructure);
@@ -183,7 +187,7 @@ class DataMap
         case _: fromStructure;
     }
 
-    static function extractTypeIfArray(arrayType : Type) : Null<Type> {
+    function extractTypeIfArray(arrayType : Type) : Null<Type> {
         return switch arrayType {
             case TLazy(f): extractTypeIfArray(f());
             case TInst(t, params) if(t.get().name == "Array"): params[0];
@@ -192,7 +196,7 @@ class DataMap
     }
 
     // If e is a structure, return its type or try to derive it from its field.
-    static function structureType(e : Expr, fromType : Null<Type>, fieldName : Null<String>) : Null<Type> {
+    function structureType(e : Expr, fromType : Null<Type>, fieldName : Null<String>) : Null<Type> {
         final output = switch e.expr {
             case ENew(typePath, [{expr: EObjectDecl(_), pos: _}]):
                 ComplexTypeTools.toType(TPath(typePath));
@@ -204,7 +208,7 @@ class DataMap
         return output;
     }
 
-    static function returnTypeForField(type : Type, fieldName : String) : Null<Type> {   
+    function returnTypeForField(type : Type, fieldName : String) : Null<Type> {   
         return switch type {
             case TLazy(f): 
                 returnTypeForField(f(), fieldName);
@@ -223,6 +227,8 @@ class DataMap
                 null;
         }
     }
+
+    ///////////////////////////////////////////////////////////////////////////
 
     /**
      * The "Same" values will mess up autocompletion, so typecheck them to Any.

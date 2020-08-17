@@ -456,26 +456,27 @@ class Tests2 extends BuddySuite implements Buddy<[
 		});
 
 		describe("DataMap", {
-			it("should use a brief syntax to map Dataclass objects.", {
-				final test = new DataMapTest();
-				final customer : ProgramViewPerson = {
-					_id: 1,
-					name: "TestCustomer",
-					programs: [{
-						name: "TestProg",
-						sets: [{
-							_id: 2,
-							selected: false,
-							reps: "0",
-							exercises: [{
-								sets: "3",
-								reps: "3",
-								extrainfo: "",
-								exerciseTemplateId: 10
-							}]
+			final customer : ProgramViewPerson = {
+				_id: 1,
+				name: "TestCustomer",
+				programs: [{
+					name: "TestProg",
+					sets: [{
+						_id: 2,
+						selected: false,
+						reps: "0",
+						exercises: [{
+							sets: "3",
+							reps: "3",
+							extrainfo: "",
+							exerciseTemplateId: 10
 						}]
 					}]
-				}
+				}]
+			}
+
+			it("should use a brief syntax to map Dataclass objects.", {
+				final test = new DataMapTest();
 
 				Std.string(deepequal.DeepEqual.compare(
 					test.toCustomer(customer), test.toCustomerGold(customer)
@@ -502,6 +503,15 @@ class Tests2 extends BuddySuite implements Buddy<[
 			it("should handle anonymous structures", {
 				final idSet = new DataMapTest().toAnonStructure(set);
 				idSet._id.should.be(1);
+			});
+
+			it("should cast all for loops to Iterable<Dynamic> when using Dynamic", {
+				final c = new DataMapTest().jsonToCustomer(customer);				
+				c.should.beType(Customer);
+
+				final e = c.programs[0].supersets[0].exercises[0];
+				e.should.beType(Exercise);
+				e.exerciseTemplateId.should.be(10);
 			});
 
 			it("should handle any other expression", {
@@ -600,7 +610,22 @@ class DataMapTest
                 })]
             })]
         });
-    }
+	}
+	
+    public function jsonToCustomer(json : Dynamic) : Customer
+        return dataMap(json, new Customer({
+            _id: Same,
+            name: Same,
+            programs: p -> new Program({
+				name: Same,
+				map: [],
+                supersets: for(s in (p.sets : Array<SuperSet>)) new SuperSet({
+                    _id: Same,
+                    reps: Same,
+                    exercises: e -> new Exercise(e)
+                })
+            })
+        }));
 }
 
 @:publicFields @:structInit private class ProgramViewSuperSet {
