@@ -24,6 +24,8 @@ enum DataMapField
 
 class DataMap
 {
+    static var isDynamic : Bool;
+
     public static macro function dataMap(from : Expr, to : Expr) {
         if(Context.defined("display")) return mapSameForDisplay(to);
 
@@ -33,7 +35,7 @@ class DataMap
             case _: null;
         }
 
-        final isDynamic = try switch Context.typeof(from) {
+        DataMap.isDynamic = try switch Context.typeof(from) {
             case TDynamic(_): true;
             case _: false;
         } catch(e : Dynamic) false;
@@ -47,8 +49,6 @@ class DataMap
         return output;
     }
 
-    ///////////////////////////////////////////////////////////////////////////
-
     #if macro
 
     // Extract V in for(V in ...) or for(K => V in ...)
@@ -59,27 +59,15 @@ class DataMap
             Context.error("Unsupported for expression", e.pos);
     }
 
+    static function wrapForIterateIfDynamic(forIterate : Expr) 
+        return switch forIterate.expr {
+            case ECheckType(e, t): forIterate;
+            case _ if(DataMap.isDynamic): macro ($forIterate : Iterable<Dynamic>);
+            case _: forIterate;
+        }
+
     // Map an expression for a field to the real expression
     static function mapField(from : Expr, fromType : Null<Type>, field : ObjectField) : Expr {     
-        /*   
-        function wrapDynamicIterable(e : Expr, iterateType : Null<Type>) {
-            if(iterateType != null)
-                switch Context.toComplexType(iterateType) {
-                    case TPath(p): 
-                        final iterableType = {
-                            pack: [],
-                            name: "Iterable",
-                            sub: null,
-                            params: [TPType(TPath(p))]
-                        }
-                        return {expr: ECheckType(e, TPath(iterableType)), pos: e.pos };
-                    case _: 
-                }
-
-            return macro ($e : Iterable<Dynamic>);
-        }
-        */
-
         return switch field.expr.expr {
 
             // A bare for loop is transformed to array comprehension
@@ -92,7 +80,7 @@ class DataMap
                     case type: 
                         mapStructure(objectFields(forExpr), ident, extractTypeIfArray(type));
                 }
-                //final forIterate = isDynamic ? wrapDynamicIterable(forIterate, null) : forIterate;
+                final forIterate = wrapForIterateIfDynamic(forIterate);
 
                 macro [for($forVar in $forIterate) $forExpr];
 
@@ -117,8 +105,8 @@ class DataMap
                             case type: 
                                 mapStructure(objectFields(e), ident, extractTypeIfArray(type));
                         }
+                        final forIterate = wrapForIterateIfDynamic(forIterate);
 
-                        //final forIterate = wrapDynamicIterable(forIterate, strType);
                         macro [for($ident in $forIterate) $structure];
         
                     case _: 
@@ -137,10 +125,10 @@ class DataMap
         }        
 
         return switch e.expr {
-            case EFor({expr: EBinop(OpIn, forVar, e2), pos: _}, forExpr):
-                //trace('For loop in mapExpr');
+            case EFor({expr: EBinop(OpIn, forVar, forIterate), pos: _}, forExpr):
                 final ident = extractForVar(forVar);
-                final forIterate = e2; // isDynamic ? (macro ($e2 : Iterable<Dynamic>)) : e2;
+                final forIterate = wrapForIterateIfDynamic(forIterate);
+
                 macro for($forVar in $forIterate) ${mapExpr(ident, currentField, forExpr)};
 
             case EObjectDecl(fields):
@@ -203,9 +191,7 @@ class DataMap
         }
     }
 
-    /**
-     * If e is a structure, return its type or try to derive it from its field.
-     */
+    // If e is a structure, return its type or try to derive it from its field.
     static function structureType(e : Expr, fromType : Null<Type>, fieldName : Null<String>) : Null<Type> {
         final output = switch e.expr {
             case ENew(typePath, [{expr: EObjectDecl(_), pos: _}]):

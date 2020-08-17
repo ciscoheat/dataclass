@@ -519,14 +519,15 @@ class DataMapTest
 	public function new() {}
 
 	// Autocomplete test method
+
 	/*
 	public function toCustomerAutocomplete(person : ProgramViewPerson) {
 		return dataMap(person, new Customer({			
 			name: Same,
-			programs: p -> new Program({
+			programs: for(p in person.programs) {				
 				name: Same,
 				supersets: new SuperSet({})
-			})
+			}
 		}));
 	}
 	*/
