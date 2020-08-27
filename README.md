@@ -16,8 +16,9 @@ enum Color { Red; Blue; }
 {
 	///// Basic usage /////
 
-	final id : Int;             // Required field (cannot be null)
-	final name : Null<String>;  // Null<T> allows null
+	final id : Int;                     // Required field (cannot be null)
+	final name : Null<String>;          // Null<T> allows null
+	@:trim final address : String = ""; // Automatically trim fields
 
 	///// Validation /////
 
@@ -32,7 +33,7 @@ enum Color { Red; Blue; }
 	final color : Color = Blue;
 	final created : Date = Date.now(); // Works also for statements
 
-	///// Immutable properties only /////
+	///// Immutable properties /////
 
 	var isBlue(get, never) : Bool; // Only get/never properties are allowed.
 	function get_isBlue() return color.match(Blue);
@@ -68,6 +69,22 @@ class Main {
 }
 ```
 
+## Null safety notes
+
+Make sure to test for `null` in validators when a field is nullable. Example:
+
+```haxe
+@:validate(_ == null || _.length > 1)
+final name : Null<String>;
+```
+
+Also remember that default values will **not** be tested against any validators (it creates issues with inheritance and error handling).
+
+```haxe
+@:validate(_.length > 10)
+final name : String = "Short"; // This will pass validation because it's a default value!
+```
+
 ## Customizing the auto-generated constructor
 
 A constructor will be automatically generated, but if you want to add your own it should be in the following format. For this purpose you can also use `@:exclude` on fields that you want to set in the constructor yourself.
@@ -76,19 +93,17 @@ A constructor will be automatically generated, but if you want to add your own i
 class Custom implements DataClass {
 	public final id : Int;
 	@:exclude public final idStr : String;
-	// ...
 
 	// A parameter called 'data' is required
 	public function new(data) { 
 		// [Generated code inserted here]
 
-		// Your code here:
+		// === Your code below here ===
+		// (all fields will be validated at this point)
 		this.idStr = Std.string(this.id);
 	}
 }
 ```
-
-Validating in the constructor is useful when you have validation rules spanning multiple fields.
 
 ## Inheritance
 

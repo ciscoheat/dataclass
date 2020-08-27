@@ -4,7 +4,7 @@
     "description": "A convenient way to create domain objects, DTO's, web forms, and other data structures.",
     "license": "MIT",
     "contributors": ["ciscoheat"],
-    "version": "3.0.0",
-    "releasenote": "Deprecated Option<T> for null safety.",
+    "version": "3.1.0",
+    "releasenote": "@:trim can now be used on fields to auto-trim.",
     "tags": ["data", "dto", "validation", "contracts"]
 }

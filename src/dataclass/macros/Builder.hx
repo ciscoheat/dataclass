@@ -146,7 +146,13 @@ class Builder
 		final allFields = Context.getBuildFields();
 
 		final dataclassFields = allFields.filter(f -> !f.access.has(AStatic)).filter(f -> switch f.kind {
-			case FVar(_, _): !f.meta.exists(m -> m.name == ":exclude");
+			case FVar(_, _): 
+				if(!f.meta.exists(m -> m.name == ":exclude")) 
+					true;
+				else if(f.meta.exists(m -> m.name == ":trim"))
+					Context.error("Excluded fields cannot be trimmed.", f.pos);
+				else
+					false;
 			case FFun(_): false;
 			case FProp('get', 'never', _, _): false;
 			case FProp(_, _, _, _):
@@ -280,8 +286,25 @@ class Builder
 		}
 
 		function ifIllegalValueSetError(f : DataClassField, validators : Array<Expr>) : Expr {
+			final dataValue = macro $p{['data', f.field.name]};
+			
+			// String trimming. Sync with constructor generation
+			final extractValue = if(f.field.meta.exists(f -> f.name == ":trim")) {
+				final type = switch f.field.kind {
+					case FVar(t, _): t;
+					case _: Context.error("Invalid DataClass field", f.field.pos);
+				}
 
-			final extractValue = macro $p{['data', f.field.name]};
+				final outputValue = macro StringTools.trim($dataValue);
+
+				if(Target.nullTestAllowed(type))
+					macro ($dataValue == null ? null : $outputValue);
+				else
+					outputValue;
+			} else {
+				dataValue;
+			}
+
 			final output = [macro var v = $extractValue];
 
 			if(f.isDate && Context.defined('dataclass-date-auto-conversion')) output.push(macro
@@ -394,20 +417,26 @@ class Builder
 				final dataField = macro $p{['data', f.field.name]};
 				final thisField = macro $p{['this', f.field.name]};
 
+				// String trimming. Sync with ifIllegalValueSetError
+				var assignField = dataField;
+				if(f.field.meta.exists(f -> f.name == ":trim")) {
+					assignField = macro StringTools.trim($dataField);
+				}
+
 				final fieldExists = Target.nullTestAllowed(type)
 					? (macro $dataField != null)
 					: (macro Reflect.hasField(data, $v{f.field.name}));
 
 				if(f.isDate && Context.defined('dataclass-date-auto-conversion')) constructorExprs.push(
 					macro if($fieldExists && Std.is(($dataField : Dynamic), String))
-						$thisField = dataclass.DateConverter.toDate(cast $dataField);
+						$thisField = dataclass.DateConverter.toDate(cast $assignField);
 					else if($fieldExists && Std.is(($dataField : Dynamic), Float) || Std.is(($dataField : Dynamic), Int)) 
-						$thisField = Date.fromTime(cast $dataField)
+						$thisField = Date.fromTime(cast $assignField)
 					else if($fieldExists) 
-						$thisField = $dataField
+						$thisField = $assignField
 				)
 				else
-					constructorExprs.push(macro if($fieldExists) $thisField = $dataField);
+					constructorExprs.push(macro if($fieldExists) $thisField = $assignField);
 			}
 
 			final allOptional = !dataclassFields.exists(f -> switch f.nullability {

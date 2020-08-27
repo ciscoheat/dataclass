@@ -49,13 +49,6 @@ class AllowNull implements DataClass
 	public final name : Null<String>;
 }
 
-/*
-class AllowNullDef implements DataClass
-{
-	public final name : Null<String> = "Name";
-}
-*/
-
 class DefaultValue implements DataClass
 {
 	// Default value set if no other supplied
@@ -83,15 +76,14 @@ class NullValidateTest implements DataClass
 	function get_isLarge() return integ >= 1000000;
 }
 
-/*
 @:publicFields class TrimModifierTest implements DataClass
 {
-	@:trim @:validate(_ == "valid") 
+	@:trim @:validate(_ == "trimmed")
 	final str : String;
 	
+	@:validate(_ == null || _ == "nullable")
 	@:trim final nullable : Null<String>;
 }
-*/
 
 interface IChapter extends DataClass
 {
@@ -435,11 +427,23 @@ class Tests2 extends BuddySuite implements Buddy<[
 
 			describe("Modifying metadata", {
 				it("should be possible to trim fields with @:trim metadata", {
-					/*
 					final f = new TrimModifierTest({
-						str: 
-					})
-					*/
+						str: " trimmed  ",
+						nullable: "nullable"
+					});
+
+					f.str.should.be("trimmed");
+					f.nullable.should.be("nullable");
+				});
+
+				it("should handle null values when using @:trim", {
+					final f = new TrimModifierTest({
+						str: " trimmed  ",
+						nullable: null
+					});
+
+					f.str.should.be("trimmed");
+					f.nullable.should.be(null);
 				});
 			});
 		});
@@ -711,7 +715,7 @@ class DataMapTest
 
 class Person extends Document
 {
-	@:validate(_.length > 0) public final name : String;
+	@:trim @:validate(_.length > 0) public final name : String;
 }
 
 class InheritanceTests extends BuddySuite
@@ -719,7 +723,7 @@ class InheritanceTests extends BuddySuite
 	public function new() {
 		describe("When inheriting from a class with a constructor", {
 			it("should inject the dataclass constructor before the expressions", {
-				var p = new Person({_key: 123, name: "Test"});
+				var p = new Person({_key: 123, name: " Test"});
 				p._key.should.be(123);
 				p.name.should.be("Test");
 				p._id.should.be("ID:123");
