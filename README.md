@@ -32,14 +32,7 @@ enum Color { Red; Blue; }
 	final color : Color = Blue;
 	final created : Date = Date.now(); // Works also for statements
 
-	///// Null safety /////
-
-	final avoidNull : Option<String>; // Option is automatically set to None instead of null.
-
-	@:validate(_ == "ok") // Validation for Option is tested for the wrapped value
-	final defaultOption : Option<String> = "ok"; // Will become Some("ok")
-
-	///// Properties /////
+	///// Immutable properties only /////
 
 	var isBlue(get, never) : Bool; // Only get/never properties are allowed.
 	function get_isBlue() return color.match(Blue);
@@ -73,23 +66,6 @@ class Main {
 		});
 	}
 }
-```
-
-## Null safety notes
-
-If you want to avoid `Null<T>` completely in DataClass you can use `haxe.ds.Option<T>`, but be sure to test for `null` in validators. This also applies when validating `Option<T>`, where a `None` value will be `null` in a validator! Example:
-
-```haxe
-// Same validation as for Null<String>
-@:validate(_ == null || _.length > 1)
-final name : Option<String>;
-```
-
-To avoid the null check completely, specify a default value for the field, as in the example below. Just remember that the default value will **not** be tested against any validators (it creates issues with inheritance and error handling).
-
-```haxe
-@:validate(_.length > 1)
-final name : Option<String> = "No name";
 ```
 
 ## Customizing the auto-generated constructor

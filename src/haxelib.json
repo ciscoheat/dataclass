@@ -4,7 +4,7 @@
     "description": "A convenient way to create domain objects, DTO's, web forms, and other data structures.",
     "license": "MIT",
     "contributors": ["ciscoheat"],
-    "version": "2.2.1",
-    "releasenote": "Fixed array parameter extraction, now handles Dynamic iteration.",
+    "version": "3.0.0",
+    "releasenote": "Deprecated Option<T> for null safety.",
     "tags": ["data", "dto", "validation", "contracts"]
 }

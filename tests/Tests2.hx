@@ -6,7 +6,7 @@ import haxe.ds.IntMap;
 import haxe.ds.StringMap;
 import haxe.ds.Option;
 import haxe.DynamicAccess;
-import dataclass.DataMap.dataMap as dataMap;
+import dataclass.DataMap.dataMap;
 
 #if js
 import js.html.OptionElement;
@@ -49,6 +49,13 @@ class AllowNull implements DataClass
 	public final name : Null<String>;
 }
 
+/*
+class AllowNullDef implements DataClass
+{
+	public final name : Null<String> = "Name";
+}
+*/
+
 class DefaultValue implements DataClass
 {
 	// Default value set if no other supplied
@@ -76,15 +83,15 @@ class NullValidateTest implements DataClass
 	function get_isLarge() return integ >= 1000000;
 }
 
-class OptionTest implements DataClass
+/*
+@:publicFields class TrimModifierTest implements DataClass
 {
-	@:validate(_ == "valid") public final str : Option<String>;
+	@:trim @:validate(_ == "valid") 
+	final str : String;
+	
+	@:trim final nullable : Null<String>;
 }
-
-class OptionObjTest implements DataClass
-{
-	public final obj : Option<RequireId>;
-}
+*/
 
 interface IChapter extends DataClass
 {
@@ -270,7 +277,7 @@ class Tests2 extends BuddySuite implements Buddy<[
 					id: 123
 				});
 
-				Std.string(deepequal.DeepEqual.compare(test1, test2)).should.be("Success(Noise)");
+				Std.string(deepequal.DeepEqual.compare(test1, test2)).should.startWith("Success");
 			});
 
 			///////////////////////////////////////////////////////////////////
@@ -318,34 +325,6 @@ class Tests2 extends BuddySuite implements Buddy<[
 				it("should fail validation if set to an invalid value", {
 					var o = new DefaultValue();
 					(function() DefaultValue.copy(o, {city: ""})).should.throwType(DataClassException);
-				});
-			});
-
-			describe("With the Option type", {
-				it("should validate the underlying value, not the Option object itself", {
-					(function() new OptionTest({
-						str: None
-					})).should.throwType(DataClassException);
-
-					(function() new OptionTest({
-						str: Some("invalid")
-					})).should.throwType(DataClassException);
-
-					var t = new OptionTest({str: Some("valid")});
-					t.str.should.equal(Some("valid"));
-				});
-
-				it("should work for nested structures", {
-					var id = new RequireId({id: 123});
-					var o = new OptionObjTest({
-						obj: Some(id)
-					});
-					var o2 = new OptionObjTest({
-						obj: None
-					});
-
-					o.obj.should.equal(Some(id));
-					o2.obj.should.equal(None);
 				});
 			});
 
@@ -453,7 +432,19 @@ class Tests2 extends BuddySuite implements Buddy<[
 					n.isLarge.should.be(true);
 				});
 			});
+
+			describe("Modifying metadata", {
+				it("should be possible to trim fields with @:trim metadata", {
+					/*
+					final f = new TrimModifierTest({
+						str: 
+					})
+					*/
+				});
+			});
 		});
+
+		/////////////////////////////////////////////////////////////
 
 		describe("DataMap", {
 			final customer : ProgramViewPerson = {
@@ -480,7 +471,7 @@ class Tests2 extends BuddySuite implements Buddy<[
 
 				Std.string(deepequal.DeepEqual.compare(
 					test.toCustomer(customer), test.toCustomerGold(customer)
-				)).should.be("Success(Noise)");
+				)).should.startWith("Success");
 			});
 
 			final set = new SuperSet({

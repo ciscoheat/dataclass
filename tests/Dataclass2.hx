@@ -33,14 +33,10 @@ interface Status
 	final active : Bool = true;         	 // Default value
 	final color : Tests2.Color = Rgb(1,2,3); // Works for Enums
 	final created : Date = Date.now();  	 // And any statement
-
-	///// Null safety /////
-
-	//final nullDef : Null<String> = "invalid"; // Compilation error, cannot have null with def. value
-	final avoidNull : Option<String>; // = None is automatically added.
-
-	@:validate(_ == "ok") @:validate(_ != "Not ok")	// Validation for Option is tested for the wrapped value
-	final defaultOption : haxe.ds.Option<String> = "ok"; // = "ok" Will become Some("ok")
+	
+	@:validate(_.equals(Some("ok")))
+	final defaultOption : haxe.ds.Option<String> = Some("ok");
+	final avoidNull : Option<String> = None;
 
 	///// JSON options /////
 

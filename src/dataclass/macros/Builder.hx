@@ -7,7 +7,6 @@ import haxe.macro.MacroStringTools;
 import haxe.macro.Context;
 import haxe.macro.Expr;
 import haxe.macro.Type;
-import haxe.ds.Option;
 
 using haxe.macro.ExprTools;
 using haxe.macro.MacroStringTools;
@@ -23,7 +22,6 @@ private enum Nullability {
 private typedef DataClassField = {
 	field: Field,
 	nullability: Nullability,
-	isOption: Bool,
 	isDate: Bool
 }
 
@@ -108,19 +106,7 @@ class Builder
 
 			final types = switch f.kind {
 				case FVar(t, e) if(f.access != null && f.access.has(AFinal)):
-					switch t {
-						case TPath(p) if(p.name == "Option"):
-							// TODO: Move modification to last step before returning fields
-							if(e == null) f.kind = FVar(t, macro haxe.ds.Option.None)
-							else f.kind = FVar(t, macro haxe.ds.Option.Some($e));
-							final typeParam = switch p.params[0] {
-								case TPType(t): t;
-								case _: Context.error("Invalid Option type.", f.pos);
-							}
-							{ isOption: true, isDate: hasDate(typeParam) };
-						case _:
-							{ isOption: false, isDate: hasDate(t) };
-					}
+					{ isDate: hasDate(t) };
 				case _: 					
 					Context.error("Invalid DataClass field type.", f.pos);
 			}
@@ -151,7 +137,6 @@ class Builder
 			return {
 				field: f,
 				nullability: nullability,
-				isOption: types.isOption,
 				isDate: types.isDate
 			}
 		}
@@ -222,13 +207,7 @@ class Builder
 									args: [{
 										name: '_',
 										opt: false,
-										type: switch type {
-											// If option, returns its parameter type
-											case TPath({name: "Option", params: [TPType(param)], pack: _}):
-												param;
-											case _:
-												type;
-										}
+										type: type
 									}],
 									expr: macro return $condition,
 									ret: macro : Bool
@@ -302,14 +281,7 @@ class Builder
 
 		function ifIllegalValueSetError(f : DataClassField, validators : Array<Expr>) : Expr {
 
-			var extractValue = if(f.isOption)
-				macro switch $p{['data', f.field.name]} {
-					case None: null;
-					case Some(v): v;
-				}
-			else
-				macro $p{['data', f.field.name]};
-
+			final extractValue = macro $p{['data', f.field.name]};
 			final output = [macro var v = $extractValue];
 
 			if(f.isDate && Context.defined('dataclass-date-auto-conversion')) output.push(macro
